@@ -217,7 +217,7 @@ export const CircularVisualization = ({
       zIndex={5}
       pointerEvents="none"
       width="100vw"
-      height="100vh"
+      height="100dvh"
       opacity={isIdle ? 0.5 : 0.9}
       transition="opacity 0.3s ease-in-out"
     >

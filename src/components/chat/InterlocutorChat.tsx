@@ -495,7 +495,7 @@ export const InterlocutorChat = () => {
         position="fixed"
         top={0}
         left={0}
-        h="100vh"
+        h="100dvh"
         w="100vw"
         bg="transparent"
         overflow="hidden"
@@ -581,6 +581,7 @@ export const InterlocutorChat = () => {
   }
 
   // ============================================================================
+  // ============================================================================
   // CORPO MODE RENDER
   // ============================================================================
   if (layoutMode === 'corpo') {
@@ -589,7 +590,7 @@ export const InterlocutorChat = () => {
         position="fixed"
         top={0}
         left={0}
-        h="100vh"
+        h="100dvh"
         w="100vw"
         bg="transparent"
         overflow="hidden"
@@ -680,7 +681,7 @@ export const InterlocutorChat = () => {
   // STANDARD MODE RENDER
   // ============================================================================
   return (
-    <Box position="relative" h="100vh" w="100vw" bg="black" overflow="hidden">
+    <Box position="relative" h="100dvh" w="100vw" bg="black" overflow="hidden">
       <BackgroundSwitcher settings={backgroundSettings} />
 
       {waveformEnabled && (
@@ -741,6 +742,11 @@ export const InterlocutorChat = () => {
         </HStack>
       )}
 
+      {/* Responsive: narrower sidebar and hidden by default on small screens */}
+      {/*
+        defaultWidth / minWidth are read once as initial state, so computing
+        from window.innerWidth at render time is sufficient.
+      */}
       <Box
         position="relative"
         zIndex={10}
@@ -749,10 +755,10 @@ export const InterlocutorChat = () => {
         flexDirection="row"
       >
         <ResizableSidebar
-          defaultWidth={400}
-          minWidth={200}
-          maxWidth={800}
-          visible={sidebarVisible}
+          defaultWidth={window.innerWidth < 768 ? 280 : 400}
+          minWidth={window.innerWidth < 768 ? 160 : 200}
+          maxWidth={window.innerWidth < 768 ? window.innerWidth * 0.75 : 800}
+          visible={window.innerWidth < 768 ? false : sidebarVisible}
           onVisibilityChange={setSidebarVisible}
           backgroundColor={sidebarBackgroundColor}
         >

@@ -1,4 +1,13 @@
-import { Button, Dialog, HStack, Portal, Tabs, Text } from '@chakra-ui/react';
+import {
+  Button,
+  Dialog,
+  HStack,
+  IconButton,
+  Portal,
+  Tabs,
+  Text,
+} from '@chakra-ui/react';
+import { LuX } from 'react-icons/lu';
 import { useEffect, useState } from 'react';
 import { AgentTab } from './settings/AgentTab';
 import { GenerationTab } from './settings/GenerationTab';
@@ -59,16 +68,34 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <Dialog.Backdrop />
         <Dialog.Positioner>
           <Dialog.Content
-            maxW="900px"
+            position="relative"
+            maxW={['90vw', '70vw', '900px']}
             bg="rgba(0, 0, 0, 0.9)"
             border="1px solid"
             borderColor="rgba(255, 255, 255, 0.1)"
             fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
           >
-            <Dialog.Header>
+            <Dialog.Header position="relative" pb={4} pr={8}>
               <Dialog.Title color="white" fontSize="lg" mb={2}>
                 Settings
               </Dialog.Title>
+              <IconButton
+                position="absolute"
+                top={2}
+                right={2}
+                size="sm"
+                variant="ghost"
+                colorPalette="gray"
+                onClick={onClose}
+                aria-label="Close settings"
+                css={{
+                  '&:hover': {
+                    bg: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                <LuX />
+              </IconButton>
             </Dialog.Header>
             <Dialog.Body>
               <Dialog.Description color="gray.400" fontSize="sm" mb={4}>
