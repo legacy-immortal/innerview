@@ -83,8 +83,6 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
   }> {
     // Initialize model if not already initialized
     if (!this.browserModel) {
-      // Type assertion needed as types may not be fully updated
-      // @ts-expect-error - transcription method exists but types may not be updated
       const model = transformersJS.transcription(this.config.modelId, {
         device: 'auto',
         language: this.config.language,

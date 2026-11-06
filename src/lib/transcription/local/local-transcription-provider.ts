@@ -95,7 +95,7 @@ export class LocalTranscriptionProvider implements AIProviderV2 {
   textEmbeddingModel(modelId: string): never {
     throw new NoSuchModelError({
       modelId,
-      modelType: 'textEmbeddingModel',
+      modelType: 'embeddingModel',
       message: `Local transcription provider does not support embedding models. Requested: ${modelId}`,
     });
   }

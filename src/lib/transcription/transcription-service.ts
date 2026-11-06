@@ -1,6 +1,9 @@
 // Transcription Service using Vercel AI SDK with multiple providers
 import { openai } from '@ai-sdk/openai';
-import { experimental_transcribe as transcribe } from 'ai';
+import {
+  experimental_transcribe as transcribe,
+  type TranscriptionModel,
+} from 'ai';
 import { useSettingsStore } from '../settings-store';
 import { localTranscription } from './local';
 
@@ -46,8 +49,11 @@ export class TranscriptionService {
           settings?.openai?.timestampGranularities ||
           settings?.timestampGranularities || ['segment'];
 
+        const model = openai.transcription(
+          modelId
+        ) as unknown as TranscriptionModel;
         const result = await transcribe({
-          model: openai.transcription(modelId),
+          model,
           audio: audio as Uint8Array,
           providerOptions: {
             openai: {
