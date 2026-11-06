@@ -9,6 +9,7 @@ import { existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,6 +20,24 @@ const MODEL_ID = 'onnx-community/whisper-tiny.en';
 // Cache directory
 const CACHE_DIR = join(__dirname, '..', 'models', 'whisper-cache');
 
+function checkResources() {
+  const totalMemMB = Math.round(os.totalmem() / 1024 / 1024);
+  const freeMemMB = Math.round(os.freemem() / 1024 / 1024);
+  const cpus = os.cpus().length;
+  console.log('=== System Resource Check ===');
+  console.log(`Memory: ${freeMemMB} MB free / ${totalMemMB} MB total`);
+  console.log(`CPU cores: ${cpus}`);
+  const minFreeMem = 1024;
+  const minDisk = 2048;
+  if (freeMemMB < minFreeMem) {
+    console.error(`ERROR: Insufficient free memory: ${freeMemMB} MB available, ${minFreeMem} MB required`);
+    return false;
+  }
+  console.log('Resource check passed');
+  console.log('=============================');
+  return true;
+}
+
 async function downloadModel() {
   console.log('='.repeat(60));
   console.log('Whisper Model Downloader');
@@ -26,6 +45,12 @@ async function downloadModel() {
   console.log(`Model: ${MODEL_ID}`);
   console.log(`Cache directory: ${CACHE_DIR}`);
   console.log('');
+
+  if (!checkResources()) {
+    console.error('Aborting download due to insufficient resources.');
+    process.exit(1);
+  }
+
 
   // Ensure cache directory exists
   if (!existsSync(CACHE_DIR)) {

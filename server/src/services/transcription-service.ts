@@ -13,6 +13,7 @@ import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import wavefile from 'wavefile';
 import { createLogger } from '../logger.js';
+import { checkSystemResources, logResourceCheck } from '../utils/resource-check.js';
 
 const logger = createLogger('TranscriptionService');
 
@@ -129,6 +130,21 @@ class TranscriptionService {
         logger.info('Loading model: %s', this.modelId);
         logger.info('Cache directory: %s', this.cacheDir);
         logger.info('Model already downloaded: %s', modelDownloaded);
+
+        // Resource check before attempting to load/download model
+        const resourceCheck = await checkSystemResources(
+          { minFreeMemoryMB: 1024, minDiskSpaceMB: 2048, minCpuCores: 2 },
+          this.cacheDir
+        );
+        logResourceCheck(resourceCheck);
+        if (!resourceCheck.ok) {
+          const errorMsg = `Insufficient resources to load model: ${resourceCheck.errors.join('; ')}`;
+          logger.error(errorMsg);
+          throw new Error(errorMsg);
+        }
+        if (resourceCheck.warnings.length > 0) {
+          logger.warn('Resource warnings: %s', resourceCheck.warnings.join('; '));
+        }
 
         this.model = await pipeline(
           'automatic-speech-recognition',
