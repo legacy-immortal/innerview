@@ -1,0 +1,82 @@
+---
+description: Enforce consolidated, minimal documentation practices
+alwaysApply: true
+---
+
+# Documentation Consolidation
+
+**Principle**: Code should be self-documenting. Documentation is a last resort, not a default.
+
+## Rules
+
+1. **Maximum 1 documentation file per feature**
+   - Find and update existing docs instead of creating new ones
+   - Do NOT create separate "quick start", "testing", "usage" guides
+   - Consolidate everything into a single, comprehensive document
+
+2. **Prioritize self-documenting code**
+   - Use clear variable/function names
+   - Add concise inline comments for complex logic
+   - Documentation should only exist when code alone cannot explain the feature
+
+3. **When documentation is necessary**
+   - Write tersely and in one place
+   - Combine usage, testing, and setup instructions
+   - Avoid redundancy between multiple files
+
+## Examples
+
+### ❌ BAD - Multiple fragmented docs
+
+```
+docs/
+  transcription-feature/
+    QUICK_START.md
+    USAGE_GUIDE.md
+    TESTING.md
+    INIT_SUMMARY.md
+```
+
+### ✅ GOOD - Single consolidated doc
+
+```
+docs/
+  TRANSCRIPTION.md  # Contains setup, usage, and testing
+```
+
+### ❌ BAD - Over-documentation
+
+```markdown
+# Transcription Quick Start
+Follow these steps to get started quickly...
+
+# (separate file) Transcription Usage Guide
+This guide explains how to use transcription...
+
+# (separate file) Transcription Testing
+Learn how to test the transcription feature...
+```
+
+### ✅ GOOD - Concise, unified documentation
+
+```markdown
+# Transcription
+
+## Setup
+Brief setup instructions...
+
+## Usage
+Core usage patterns with code examples...
+
+## Testing
+`npm test -- transcription`
+```
+
+## Before Creating Documentation
+
+Ask yourself:
+1. Can this be explained with better code comments?
+2. Does documentation for this feature already exist?
+3. Is this feature complex enough to warrant documentation?
+
+If you must document, update existing files first. Only create new documentation if no relevant file exists.

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- SEELE theme font options (Roboto, Open Sans, Source Sans 3) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <style>
+    body {
+      background-color: #000000;
+    }
+
+    /* NUCLEAR OPTION: Global styles to kill menu fly-in animations */
+    /* Only target content, NOT positioner (positioner needs transforms for floating-ui) */
+    [data-part='content'][data-scope='menu'],
+    [data-part='content'][data-scope='menu'] * {
+      animation: none !important;
+      animation-name: none !important;
+      animation-duration: 0s !important;
+      animation-delay: 0s !important;
+      animation-fill-mode: none !important;
+    }
+
+    /* Force vertical-only transforms on content only */
+    [data-part='content'][data-scope='menu'][data-state='open'] {
+      transform: translateY(0) translateX(0) scale(1) rotate(0deg) !important;
+      transform-origin: top center !important;
+    }
+
+    [data-part='content'][data-scope='menu'][data-state='closed'] {
+      transform: translateY(-8px) translateX(0) scale(1) rotate(0deg) !important;
+      transform-origin: top center !important;
+    }
+  </style>
+  <title>Innerview</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+
+</html>

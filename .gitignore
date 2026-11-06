@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+/dist
+/dist-ssr
+/build
+/.next
+/.nuxt
+/.turbo
+/.vercel
+/tts
+
+# Environment files (contains secrets — do not commit)
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test & coverage
+/coverage
+/.nyc_output
+
+# TypeScript
+*.tsbuildinfo
+
+# Bun
+# bun.lock is committed for reproducible builds
+
+# Server
+/server/data/vector-store
+/server/models
+
+# Misc
+docs/
