@@ -32,6 +32,21 @@ import {
   type DetectionStage,
 } from '@/lib/performanceStartupUtils';
 
+/** Bounded delay: resolves after `ms`, or after `maxMs` if timers are throttled. */
+const delayMs = (ms: number, maxMs = ms + 2000): Promise<void> =>
+  new Promise<void>((resolve) => {
+    let settled = false;
+    const done = (): void => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(tid);
+      window.clearTimeout(cap);
+      resolve();
+    };
+    const tid = window.setTimeout(done, ms);
+    const cap = window.setTimeout(done, maxMs);
+  });
+
 export interface PerformanceStartupState {
   isDetecting: boolean;
   showDisclaimer: boolean;
@@ -166,7 +181,12 @@ export function usePerformanceStartup(
     } else {
       (async () => {
         try {
-          const res = await fetch('/api/provider/scan').then((r) => r.json());
+          const controller = new AbortController();
+          const tid = window.setTimeout(() => controller.abort(), 4000);
+          const res = await fetch('/api/provider/scan', {
+            signal: controller.signal,
+          }).then((r) => r.json());
+          window.clearTimeout(tid);
           setDetectedProviders(res.providers ?? []);
         } catch {
           setDetectedProviders([]);
@@ -312,7 +332,7 @@ export function usePerformanceStartup(
 
           // Progressive detection stages
           updateStage(0, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await delayMs(200);
 
           const detectedMetrics = await detectPerformanceCached();
           if (aborted) return;
@@ -325,7 +345,7 @@ export function usePerformanceStartup(
             `${detectedMetrics.hardwareConcurrency} cores`
           );
           updateStage(1, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 150));
+          await delayMs(150);
 
           updateStage(
             1,
@@ -335,7 +355,7 @@ export function usePerformanceStartup(
               : 'Unknown'
           );
           updateStage(2, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await delayMs(200);
 
           updateStage(
             2,
@@ -343,7 +363,7 @@ export function usePerformanceStartup(
             detectedMetrics.gpuTier?.toUpperCase() || 'UNKNOWN'
           );
           updateStage(3, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await delayMs(100);
 
           updateStage(
             3,
@@ -351,7 +371,7 @@ export function usePerformanceStartup(
             detectedMetrics.supportsWebGL2 ? 'YES' : 'NO'
           );
           updateStage(4, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await delayMs(100);
 
           updateStage(
             4,
@@ -359,11 +379,11 @@ export function usePerformanceStartup(
             detectedMetrics.supportsWebGPU ? 'YES' : 'NO'
           );
           updateStage(5, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await delayMs(300);
 
           updateStage(5, 'complete', `${detectedMetrics.frameRate} FPS`);
           updateStage(6, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await delayMs(200);
 
           updateStage(
             6,
@@ -373,7 +393,7 @@ export function usePerformanceStartup(
               : 'NO'
           );
           updateStage(7, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await delayMs(200);
 
           const transcriptionStatus = [];
           if (detectedMetrics.supportsMediaRecorder) {
@@ -395,9 +415,23 @@ export function usePerformanceStartup(
 
           // Check AI provider availability
           updateStage(8, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await delayMs(200);
 
-          const providerResult = await checkProvider();
+          const providerResult = await Promise.race<ProviderStatus>([
+            checkProvider(),
+            new Promise<ProviderStatus>((resolve) =>
+              window.setTimeout(
+                () =>
+                  resolve({
+                    status: 'unavailable',
+                    baseURL: '',
+                    error: 'Provider check timed out',
+                    lastChecked: new Date(),
+                  }),
+                5000
+              )
+            ),
+          ]);
           setProviderStatus(providerResult);
 
           if (providerResult.status === 'available') {
@@ -423,7 +457,7 @@ export function usePerformanceStartup(
           }
 
           updateStage(9, 'detecting');
-          await new Promise((resolve) => setTimeout(resolve, 150));
+          await delayMs(150);
 
           updateStage(
             9,
@@ -469,7 +503,7 @@ export function usePerformanceStartup(
 
           // Complete progress
           setProgress(100);
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await delayMs(500);
 
           if (autoPreload) {
             // Whisper is a bootstrapping step (backend, default path):

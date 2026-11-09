@@ -13,7 +13,11 @@ import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import wavefile from 'wavefile';
 import { createLogger } from '../logger.js';
-import { checkSystemResources, logResourceCheck } from '../utils/resource-check.js';
+import { TtlCache, hashText } from '../utils/cache.js';
+import {
+  checkSystemResources,
+  logResourceCheck,
+} from '../utils/resource-check.js';
 
 const logger = createLogger('TranscriptionService');
 
@@ -29,6 +33,27 @@ export interface TranscriptionResult {
   duration?: number;
 }
 
+// Detailed download/loading progress for the Whisper model. Surfaced via
+// GET /api/transcription/status (polling) and the preload SSE stream so the
+// UI can show per-file progress, %, and download speed.
+export interface TranscriptionDownloadProgress {
+  phase: 'idle' | 'initiate' | 'downloading' | 'loading' | 'ready' | 'error';
+  /** File currently being downloaded (basename), null when idle/ready. */
+  file: string | null;
+  /** Bytes received for the current file. */
+  loaded: number;
+  /** Total bytes for the current file (0 when unknown). */
+  total: number;
+  /** Percent for the current file, 0-100. */
+  percent: number;
+  /** Instantaneous download speed in bytes/sec (0 when unknown). */
+  bytesPerSecond: number;
+  /** Number of files that have finished downloading. */
+  filesCompleted: number;
+  /** Human-readable status line for the UI. */
+  message: string;
+}
+
 // Service status interface
 export interface TranscriptionServiceStatus {
   modelId: string;
@@ -37,6 +62,8 @@ export interface TranscriptionServiceStatus {
   failed: boolean;
   error: string | null;
   cacheDir: string;
+  /** Detailed download progress (additive; existing fields unchanged). */
+  progress: TranscriptionDownloadProgress;
 }
 
 // Progress callback type for model download
@@ -54,12 +81,42 @@ interface DownloadProgress {
  * Transcription service class for speech-to-text conversion
  * Uses Whisper model via HuggingFace Transformers.js
  */
+// Callable shape of a loaded ASR pipeline (the pipeline() return type
+// is a union of task-specific pipelines, none callable in common).
+type AsrPipeline = (
+  input: Float32Array,
+  options?: Record<string, unknown>
+) => Promise<{
+  text?: string;
+  chunks?: Array<{ text: string; timestamp: [number, number] }>;
+  language?: string;
+}>;
+
 class TranscriptionService {
-  private model: Awaited<ReturnType<typeof pipeline>> | null = null;
+  private model: AsrPipeline | null = null;
+  // Cache transcription results by audio content hash: re-transcribing
+  // the same clip (retries, duplicate uploads) re-ran Whisper each time.
+  private readonly resultCache = new TtlCache<string, TranscriptionResult>({
+    ttlMs: 10 * 60_000,
+    maxEntries: 10,
+  });
   private modelLoadingPromise: Promise<void> | null = null;
   private modelLoadFailed = false;
   private modelLoadError: string | null = null;
   private initialized = false;
+  private progressState: TranscriptionDownloadProgress = {
+    phase: 'idle',
+    file: null,
+    loaded: 0,
+    total: 0,
+    percent: 0,
+    bytesPerSecond: 0,
+    filesCompleted: 0,
+    message: 'Idle',
+  };
+  // Last sample for instantaneous speed (bytes/sec) computation.
+  private lastSpeedSample: { file: string | null; loaded: number; at: number } =
+    { file: null, loaded: 0, at: 0 };
 
   // Model configuration
   private readonly modelId = 'onnx-community/whisper-tiny.en';
@@ -124,6 +181,16 @@ class TranscriptionService {
 
     this.modelLoadingPromise = (async () => {
       try {
+        this.progressState = {
+          phase: 'loading',
+          file: null,
+          loaded: 0,
+          total: 0,
+          percent: 0,
+          bytesPerSecond: 0,
+          filesCompleted: 0,
+          message: `Loading model: ${this.modelId}`,
+        };
         await this.ensureCacheDir();
 
         const modelDownloaded = this.isModelDownloaded();
@@ -143,42 +210,117 @@ class TranscriptionService {
           throw new Error(errorMsg);
         }
         if (resourceCheck.warnings.length > 0) {
-          logger.warn('Resource warnings: %s', resourceCheck.warnings.join('; '));
+          logger.warn(
+            'Resource warnings: %s',
+            resourceCheck.warnings.join('; ')
+          );
         }
 
-        this.model = await pipeline(
+        this.model = (await pipeline(
           'automatic-speech-recognition',
           this.modelId,
           {
             device: 'cpu',
             cache_dir: this.cacheDir,
             progress_callback: (progress: DownloadProgress) => {
-              if (progress.status === 'downloading') {
+              const file =
+                progress.file ??
+                (progress.model
+                  ? (progress.model.split('/').pop() ?? null)
+                  : null);
+              if (progress.status === 'initiate') {
+                this.lastSpeedSample = { file, loaded: 0, at: Date.now() };
+                this.progressState = {
+                  phase: 'initiate',
+                  file,
+                  loaded: 0,
+                  total: progress.total ?? 0,
+                  percent: 0,
+                  bytesPerSecond: 0,
+                  filesCompleted: this.progressState.filesCompleted,
+                  message: `Starting download: ${file || 'model'}`,
+                };
+                logger.info('Starting download: %s', file || 'model');
+              } else if (
+                progress.status === 'downloading' ||
+                progress.status === 'progress'
+              ) {
+                // transformers.js reports fractional progress (0-1) and/or
+                // loaded/total bytes; normalise both into one shape.
+                const loaded = progress.loaded ?? 0;
+                const total = progress.total ?? 0;
                 let percent = 0;
                 if (typeof progress.progress === 'number') {
                   percent = Math.round(progress.progress * 100);
-                } else if (progress.loaded && progress.total) {
-                  percent = Math.round(
-                    (progress.loaded / progress.total) * 100
-                  );
+                } else if (loaded && total) {
+                  percent = Math.round((loaded / total) * 100);
                 }
-                if (progress.file) {
-                  logger.debug('Downloading %s: %d%%', progress.file, percent);
+                const now = Date.now();
+                const prev = this.lastSpeedSample;
+                const dt = (now - prev.at) / 1000;
+                const bytesPerSecond =
+                  prev.file === file && dt > 0 && loaded >= prev.loaded
+                    ? Math.round((loaded - prev.loaded) / dt)
+                    : this.progressState.bytesPerSecond;
+                this.lastSpeedSample = { file, loaded, at: now };
+                this.progressState = {
+                  phase: 'downloading',
+                  file,
+                  loaded,
+                  total,
+                  percent,
+                  bytesPerSecond,
+                  filesCompleted: this.progressState.filesCompleted,
+                  message: `Downloading ${file || 'model'}: ${percent}%`,
+                };
+                if (file) {
+                  logger.debug('Downloading %s: %d%%', file, percent);
                 }
+              } else if (progress.status === 'done') {
+                this.progressState = {
+                  phase: 'loading',
+                  file,
+                  loaded: progress.loaded ?? this.progressState.loaded,
+                  total: progress.total ?? this.progressState.total,
+                  percent: 100,
+                  bytesPerSecond: 0,
+                  filesCompleted: this.progressState.filesCompleted + 1,
+                  message: `Downloaded ${file || 'model'}`,
+                };
+                logger.info('Downloaded file: %s', file || 'model');
               } else if (progress.status === 'ready') {
                 // Pipeline 'ready' sends model id, not file; file download 'done' sends file
+                this.progressState = {
+                  phase: 'ready',
+                  file: null,
+                  loaded: 0,
+                  total: 0,
+                  percent: 100,
+                  bytesPerSecond: 0,
+                  filesCompleted: this.progressState.filesCompleted,
+                  message: 'Model ready',
+                };
                 logger.info(
                   'Model file ready: %s',
                   progress.file || progress.model || this.modelId
                 );
-              } else if (progress.status === 'initiate') {
-                logger.info('Starting download: %s', progress.file || 'model');
               }
             },
           }
-        );
+        )) as unknown as AsrPipeline;
 
         this.initialized = true;
+        this.modelLoadingPromise = null;
+        this.progressState = {
+          phase: 'ready',
+          file: null,
+          loaded: 0,
+          total: 0,
+          percent: 100,
+          bytesPerSecond: 0,
+          filesCompleted: this.progressState.filesCompleted,
+          message: 'Model ready',
+        };
         logger.info('Model loaded successfully');
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -186,6 +328,12 @@ class TranscriptionService {
         this.modelLoadFailed = true;
         this.modelLoadError = errorMsg;
         this.modelLoadingPromise = null;
+        this.progressState = {
+          ...this.progressState,
+          phase: 'error',
+          bytesPerSecond: 0,
+          message: `Failed to load model: ${errorMsg}`,
+        };
         throw error;
       }
     })();
@@ -249,6 +397,17 @@ class TranscriptionService {
     const uint8Data =
       audioData instanceof ArrayBuffer ? new Uint8Array(audioData) : audioData;
 
+    // Serve identical audio from cache instead of re-running Whisper.
+    const cacheKey = hashText(uint8Data);
+    const cachedResult = this.resultCache.get(cacheKey);
+    if (cachedResult) {
+      logger.info('Transcription cache hit');
+      return {
+        ...cachedResult,
+        segments: cachedResult.segments.map((s) => ({ ...s })),
+      };
+    }
+
     // Decode WAV to Float32Array at 16kHz for Whisper
     const preparedAudio = this.decodeWavAudio(uint8Data);
 
@@ -264,12 +423,7 @@ class TranscriptionService {
 
     // Run transcription
     // Note: whisper-tiny.en is English-only, so we don't pass language/task params
-    // @ts-expect-error - pipeline return type is complex, result structure is correct
-    const result: {
-      text?: string;
-      chunks?: Array<{ text: string; timestamp: [number, number] }>;
-      language?: string;
-    } = await this.model(preparedAudio, {
+    const result = await this.model(preparedAudio, {
       return_timestamps: true,
     });
 
@@ -294,12 +448,14 @@ class TranscriptionService {
 
     logger.info('Transcription completed, segments=%s', segments.length);
 
-    return {
+    const finalResult: TranscriptionResult = {
       text,
       segments,
       language: result?.language || options.language || 'en',
       duration,
     };
+    this.resultCache.set(cacheKey, finalResult);
+    return finalResult;
   }
 
   /**
@@ -333,6 +489,13 @@ class TranscriptionService {
   }
 
   /**
+   * Get a snapshot of the detailed download/loading progress.
+   */
+  getProgress(): TranscriptionDownloadProgress {
+    return { ...this.progressState };
+  }
+
+  /**
    * Get current service status
    */
   getStatus(): TranscriptionServiceStatus {
@@ -343,6 +506,7 @@ class TranscriptionService {
       failed: this.modelLoadFailed,
       error: this.modelLoadError,
       cacheDir: this.cacheDir,
+      progress: this.getProgress(),
     };
   }
 
