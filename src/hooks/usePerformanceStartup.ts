@@ -196,6 +196,12 @@ export function usePerformanceStartup(
     }
   };
 
+  // Dev/testing escape hatch: force past detection if a probe stalls.
+  if (typeof window !== 'undefined') {
+    (window as unknown as { __innerviewForceStartup?: () => void })
+      .__innerviewForceStartup = finishStartup;
+  }
+
   // In-flight Whisper preload promise (bootstrapping step, started once).
   const whisperPreloadPromiseRef = useRef<Promise<void> | null>(null);
 
