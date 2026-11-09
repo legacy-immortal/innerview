@@ -47,9 +47,20 @@ export const useInterlocutorChatState = () => {
   const streamingEnabled = useSettingsStore(
     (state) => state.settings?.generation?.streamingEnabled !== false
   );
-  const layoutMode = useSettingsStore(
+  const storedLayoutMode = useSettingsStore(
     (state) => state.settings?.style?.mode || 'condensed'
   );
+  const layoutMode =
+    typeof window !== 'undefined'
+      ? (() => {
+          const m = new URLSearchParams(window.location.search).get(
+            'layoutMode'
+          );
+          return m === 'terminal' || m === 'corpo' || m === 'condensed'
+            ? m
+            : storedLayoutMode;
+        })()
+      : storedLayoutMode;
   const sidebarBackgroundColor = useSettingsStore(
     (state) => state.settings?.style?.sidebarBackgroundColor || 'transparent'
   );

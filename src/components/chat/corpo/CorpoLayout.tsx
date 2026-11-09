@@ -134,8 +134,17 @@ function CorpoLayoutComponent({
   }, [onConversationSelect, onDrawerOpenChange]);
 
   const openSettingsAndClose = useCallback(() => {
-    onShowPerformanceSettings();
+    // Close the drawer first so it does not linger behind the settings modal.
     onDrawerOpenChange(false);
+    // Defer opening the modal to the next frame to avoid the drawer's
+    // open-change handler racing with the modal mount.
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        onShowPerformanceSettings();
+      });
+    } else {
+      onShowPerformanceSettings();
+    }
   }, [onShowPerformanceSettings, onDrawerOpenChange]);
 
   return (
