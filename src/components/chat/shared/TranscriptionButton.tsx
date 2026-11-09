@@ -115,6 +115,45 @@ export interface TranscriptionButtonProps {
   readonly externalError?: Error | null;
 }
 
+function isTranscriptionAvailable(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
+  const hasLegacy = Boolean(
+    (navigator as { getUserMedia?: unknown }).getUserMedia
+  );
+  const hasRecorder =
+    typeof MediaRecorder !== 'undefined' &&
+    typeof MediaRecorder.isTypeSupported === 'function';
+  return (hasMediaDevices || hasLegacy) && hasRecorder;
+}
+
+function formatTranscriptionError(error: Error): string {
+  const name = (error as { name?: string }).name ?? '';
+  const msg = error.message || '';
+  if (name === 'NotAllowedError' || /not allowed|permission denied|denied/i.test(msg)) {
+    return 'Microphone access was denied. Allow microphone permission in your browser, then try again.';
+  }
+  if (
+    name === 'NotFoundError' ||
+    /requested device not found|no microphone|no.*input device/i.test(msg)
+  ) {
+    return 'No microphone was found. Connect a microphone and try again.';
+  }
+  if (name === 'NotReadableError' || /could not start|hardware|in use/i.test(msg)) {
+    return 'The microphone is unavailable or in use by another app. Close other apps using the mic and try again.';
+  }
+  if (
+    name === 'SecurityError' ||
+    /not allowed by the user agent|secure context|https/i.test(msg)
+  ) {
+    return 'Microphone access requires a secure page (HTTPS) or localhost. Open the app on a secure origin and try again.';
+  }
+  if (/opt-in|not enabled/i.test(msg)) {
+    return msg;
+  }
+  return msg || 'Transcription failed. Try again.';
+}
+
 export function TranscriptionButton({
   onTranscriptionComplete,
   onStartRecording,
@@ -198,25 +237,42 @@ export function TranscriptionButton({
     }
   };
 
+  const isAvailable = isTranscriptionAvailable();
+
   const getButtonText = () => {
+    if (!isAvailable) {
+      return 'Mic unavailable';
+    }
     if (isRecording) {
       return '[REC]';
     }
     if (isTranscribing) {
       return '[TRANSCRIBING...]';
     }
-    return `[HOLD ${pushToTalkKey.toUpperCase()}]`;
+    return `Hold ${pushToTalkKey} to talk`;
   };
+
+  const buttonTitle = !isAvailable
+    ? 'Voice input is unavailable: microphone access or recording is not supported in this browser/context.'
+    : isRecording
+      ? 'Recording… release to transcribe.'
+      : isTranscribing
+        ? 'Transcribing…'
+        : `Press and hold to dictate, or hold ${pushToTalkKey} (push-to-talk).`;
 
   return (
     <VStack gap={2} align="center" w="auto" maxW="100%">
       <Box position="relative" w="100%" minW={0} touchAction="none">
         <Button
+          aria-label={
+            isAvailable ? 'Voice input (hold to dictate)' : 'Voice input unavailable'
+          }
+          title={buttonTitle}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           loading={isTranscribing}
-          disabled={disabled || isTranscribing}
+          disabled={disabled || isTranscribing || !isAvailable}
           w="100%"
           minWidth={{ base: '120px', sm: '140px' }}
           maxW="100%"
@@ -320,7 +376,7 @@ export function TranscriptionButton({
             fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
             css={textShadowStyles}
           >
-            › {error.message}
+            › {formatTranscriptionError(error)}
           </Text>
         </HStack>
       )}
