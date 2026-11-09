@@ -16,6 +16,38 @@ export interface ModelDownloadProgress {
   progress: number; // 0-100
   status: 'pending' | 'downloading' | 'complete' | 'error';
   error?: string;
+  /** Detailed per-file progress (Whisper): file being downloaded/loaded. */
+  file?: string | null;
+  /** Bytes received for the current file. */
+  loaded?: number;
+  /** Total bytes for the current file (0 when unknown). */
+  total?: number;
+  /** Download speed in bytes/sec (0 when unknown). */
+  bytesPerSecond?: number;
+  /** Coarse phase: download vs. loading/initialising the model. */
+  phase?: 'download' | 'loading' | 'ready' | 'error';
+  /** Human-readable status line (e.g. "Downloading model.onnx: 42%"). */
+  message?: string;
+  /** Number of files that have finished downloading. */
+  filesCompleted?: number;
+}
+
+/** Format bytes as e.g. "1.2 MB". */
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  );
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+/** Format bytes/sec as e.g. "1.2 MB/s". */
+export function formatSpeed(bytesPerSecond: number): string {
+  if (!bytesPerSecond || bytesPerSecond <= 0) return '';
+  return `${formatBytes(bytesPerSecond)}/s`;
 }
 
 export type ProgressCallback = (progress: ModelDownloadProgress) => void;
@@ -126,8 +158,16 @@ export async function preloadKokoroModel(
 }
 
 /**
- * Preload Whisper transcription model and test with sample audio
- * Downloads model, then tests transcription with a public domain audio file
+ * Preload Whisper transcription model and test with sample audio.
+ *
+ * Bootstrap path: validates the BACKEND Whisper model only (via
+ * {@link initializeTranscriptionService} → `POST /api/transcription`).
+ * The frontend browser (Transformers.js) Whisper model is NEVER loaded here:
+ * it downloads its own copy (`Xenova/whisper-base`) in addition to the
+ * backend model, which previously caused a second download during/after
+ * bootstrap. Use {@link preloadBrowserWhisperModel} (explicit opt-in only)
+ * when browser mode is genuinely required.
+ *
  * @param onProgress - Callback for progress updates
  * @param options - Configuration options
  * @returns Promise that resolves when model is loaded and tested
@@ -148,136 +188,108 @@ export async function preloadWhisperModel(
       model: 'whisper',
       progress: 0,
       status: 'pending',
+      phase: 'download',
+      message: 'Starting Whisper model download...',
     });
   }
 
   try {
-    if (onProgress) {
-      onProgress({
-        model: 'whisper',
-        progress: 10,
-        status: 'downloading',
-      });
+    // Check backend status first to avoid showing a fake "downloading" phase
+    // when the model is already ready/cached in memory.
+    let backendReady = false;
+    try {
+      const statusRes = await fetch('/api/transcription/status');
+      if (statusRes.ok) {
+        const status = (await statusRes.json()) as { ready?: boolean };
+        backendReady = status.ready === true;
+      }
+    } catch {
+      // Status check failed; proceed with full init flow.
     }
 
-    // Try to import browser-based transformers-js (optional, may not be available)
-    let browserModelLoaded = false;
-    try {
-      console.log('[preloadWhisperModel] Importing transformersJS...');
-      const { transformersJS } = await import('@built-in-ai/transformers-js');
-      console.log('[preloadWhisperModel] transformersJS imported');
-
+    if (backendReady && !skipTest) {
+      // Model already loaded: show a brief validation phase, not a download.
       if (onProgress) {
         onProgress({
           model: 'whisper',
-          progress: 20,
+          progress: 85,
           status: 'downloading',
+          phase: 'loading',
+          message: 'Validating transcription model...',
         });
       }
-
-      // Create transcription model using transformersJS.transcription()
-      // Type assertion needed as types may not be fully updated
-      const transcriptionModel = (
-        transformersJS as unknown as {
-          transcription: (
-            modelId: string,
-            options?: {
-              device?: 'auto' | 'cpu' | 'webgpu';
-              initProgressCallback?: (progress: { progress: number }) => void;
-            }
-          ) => Promise<{
-            availability: () => Promise<
-              'unavailable' | 'downloadable' | 'available'
-            >;
-            createSessionWithProgress: (
-              onProgress?: (progress: { progress: number }) => void
-            ) => Promise<unknown>;
-          }>;
-        }
-      ).transcription('Xenova/whisper-base', {
-        device: 'auto',
-        initProgressCallback: (progress: { progress: number }) => {
-          if (onProgress) {
-            // Model download takes 20-50% of total progress
-            const downloadProgress = progress.progress * 0.3;
-            const overallProgress = Math.min(20 + downloadProgress, 50);
-
-            onProgress({
-              model: 'whisper',
-              progress: Math.round(overallProgress),
-              status: 'downloading',
-            });
-          }
-        },
-      });
-
-      // Check availability and create session with progress tracking
-      const model = await transcriptionModel;
-      const availability = await model.availability();
-
-      if (availability === 'downloadable') {
-        await model.createSessionWithProgress(
-          (progress: { progress: number }) => {
-            if (onProgress) {
-              // Model download takes 20-50% of total progress
-              const downloadProgress = progress.progress * 0.3;
-              const overallProgress = Math.min(20 + downloadProgress, 50);
-
-              onProgress({
-                model: 'whisper',
-                progress: Math.round(overallProgress),
-                status: 'downloading',
-              });
-            }
-          }
-        );
-      }
-
-      browserModelLoaded = true;
-      console.log('[preloadWhisperModel] Browser model loaded successfully');
-    } catch (transformersError) {
-      // Browser model not available - that's OK, we'll test via backend API
-      console.warn(
-        '[preloadWhisperModel] Browser transformers-js not available:',
-        transformersError
-      );
-    }
-
-    // Progress: 50% - browser model done (or skipped)
-    if (onProgress) {
-      onProgress({
-        model: 'whisper',
-        progress: 50,
-        status: 'downloading',
-      });
-    }
-
-    // Test transcription via backend API (50-100% progress)
-    // This validates the actual user flow: frontend → backend → response
-    // This runs REGARDLESS of whether browser model loaded
-    if (!skipTest) {
-      console.log('[preloadWhisperModel] Starting backend API test...');
+      console.log('[preloadWhisperModel] Backend ready; validating...');
       await initializeTranscriptionService(
         (testProgress: TranscriptionTestProgress) => {
           if (onProgress) {
-            // Map test progress to 50-100% range
-            const testProgressPercent =
-              testProgress.stage === 'download'
-                ? testProgress.progress * 0.25 // 50-75%
-                : testProgress.stage === 'transcribe'
-                  ? 75 + testProgress.progress * 0.25 // 75-100%
-                  : 100;
-
             onProgress({
               model: 'whisper',
-              progress: Math.round(50 + testProgressPercent * 0.5),
-              status: 'downloading',
+              progress:
+                testProgress.stage === 'complete'
+                  ? 100
+                  : 85 + Math.round(testProgress.progress * 0.15),
+              status:
+                testProgress.stage === 'error'
+                  ? 'error'
+                  : testProgress.stage === 'complete'
+                    ? 'complete'
+                    : 'downloading',
+              phase: testProgress.stage === 'error' ? 'error' : 'loading',
+              message: testProgress.message || 'Validating...',
+              error: testProgress.error,
             });
           }
         },
         { provider, skipTest: false }
       );
-      console.log('[preloadWhisperModel] Backend API test completed');
+    } else if (!skipTest) {
+      // Model not ready: show real download/loading progress from the
+      // bootstrap init (per-file %, bytes, speed) without fake synthetic
+      // "downloading" steps that flash instantly when cached.
+      if (onProgress) {
+        onProgress({
+          model: 'whisper',
+          progress: 5,
+          status: 'downloading',
+          phase: 'download',
+          message: 'Preparing transcription model...',
+        });
+      }
+      console.log('[preloadWhisperModel] Starting backend init/test...');
+      await initializeTranscriptionService(
+        (testProgress: TranscriptionTestProgress) => {
+          if (onProgress) {
+            const isModelPhase =
+              testProgress.stage === 'download' &&
+              (testProgress.file != null || testProgress.total != null);
+            onProgress({
+              model: 'whisper',
+              progress: Math.round(testProgress.progress),
+              status:
+                testProgress.stage === 'error'
+                  ? 'error'
+                  : testProgress.stage === 'complete'
+                    ? 'complete'
+                    : 'downloading',
+              phase:
+                testProgress.stage === 'error'
+                  ? 'error'
+                  : isModelPhase
+                    ? 'download'
+                    : 'loading',
+              file: testProgress.file ?? null,
+              loaded: testProgress.loaded,
+              total: testProgress.total,
+              bytesPerSecond: testProgress.bytesPerSecond,
+              filesCompleted: testProgress.filesCompleted,
+              message: testProgress.message,
+              error: testProgress.error,
+            });
+          }
+        },
+        { provider, skipTest: false }
+      );
+      console.log('[preloadWhisperModel] Backend init/test completed');
     }
 
     // Complete
@@ -286,16 +298,148 @@ export async function preloadWhisperModel(
         model: 'whisper',
         progress: 100,
         status: 'complete',
+        phase: 'loading',
+        message: 'Transcription model ready',
       });
     }
 
-    console.log('[preloadWhisperModel] Complete', { browserModelLoaded });
+    console.log('[preloadWhisperModel] Complete');
   } catch (error) {
     if (onProgress) {
       onProgress({
         model: 'whisper',
         progress: 0,
         status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Dedicated opt-in loading phase for the browser (Transformers.js) Whisper
+ * model (`Xenova/whisper-base`).
+ *
+ * NEVER call this from bootstrap or any automatic path. Call it only after
+ * the user has explicitly opted into browser transcription (e.g. from the
+ * transcription settings UI), and surface `onProgress` in a dedicated
+ * loading UI. Loads via dynamic import so Transformers.js stays code-split.
+ *
+ * @param onProgress - Callback for detailed download progress updates
+ * @returns Promise that resolves when the browser model is loaded
+ */
+export async function preloadBrowserWhisperModel(
+  onProgress?: ProgressCallback
+): Promise<void> {
+  console.log('[preloadBrowserWhisperModel] Starting (opt-in only)...');
+
+  if (onProgress) {
+    onProgress({
+      model: 'whisper',
+      progress: 0,
+      status: 'pending',
+      phase: 'download',
+      message: 'Starting browser Whisper model download...',
+    });
+  }
+
+  try {
+    const { transformersJS } = await import('@built-in-ai/transformers-js');
+
+    interface BrowserProgressEvent {
+      progress: number;
+      file?: string;
+      loaded?: number;
+      total?: number;
+      status?: string;
+    }
+
+    let browserLast = { file: '' as string | null, loaded: 0, at: 0 };
+    const toDetailedProgress = (
+      event: BrowserProgressEvent
+    ): ModelDownloadProgress => {
+      const now = Date.now();
+      const file = event.file ?? null;
+      const loaded = event.loaded ?? 0;
+      const total = event.total ?? 0;
+      const dt = (now - browserLast.at) / 1000;
+      const bytesPerSecond =
+        browserLast.file === file && dt > 0 && loaded >= browserLast.loaded
+          ? Math.round((loaded - browserLast.loaded) / dt)
+          : 0;
+      browserLast = { file, loaded, at: now };
+      return {
+        model: 'whisper',
+        progress: Math.round(event.progress * 100),
+        status: 'downloading',
+        phase: 'download',
+        file,
+        loaded,
+        total,
+        bytesPerSecond,
+        message: `Downloading ${file || 'Xenova/whisper-base'}: ${Math.round(event.progress * 100)}%`,
+      };
+    };
+
+    const transcriptionModel = (
+      transformersJS as unknown as {
+        transcription: (
+          modelId: string,
+          options?: {
+            device?: 'auto' | 'cpu' | 'webgpu';
+            initProgressCallback?: (progress: BrowserProgressEvent) => void;
+          }
+        ) => Promise<{
+          availability: () => Promise<
+            'unavailable' | 'downloadable' | 'available'
+          >;
+          createSessionWithProgress: (
+            onProgress?: (progress: BrowserProgressEvent) => void
+          ) => Promise<unknown>;
+        }>;
+      }
+    ).transcription('Xenova/whisper-base', {
+      device: 'auto',
+      initProgressCallback: (progress: BrowserProgressEvent) => {
+        if (onProgress) {
+          onProgress(toDetailedProgress(progress));
+        }
+      },
+    });
+
+    const model = await transcriptionModel;
+    const availability = await model.availability();
+
+    if (availability === 'downloadable') {
+      await model.createSessionWithProgress(
+        (progress: BrowserProgressEvent) => {
+          if (onProgress) {
+            onProgress(toDetailedProgress(progress));
+          }
+        }
+      );
+    }
+
+    if (onProgress) {
+      onProgress({
+        model: 'whisper',
+        progress: 100,
+        status: 'complete',
+        phase: 'loading',
+        message: 'Browser Whisper model ready',
+      });
+    }
+    console.log(
+      '[preloadBrowserWhisperModel] Browser model loaded successfully'
+    );
+  } catch (error) {
+    if (onProgress) {
+      onProgress({
+        model: 'whisper',
+        progress: 0,
+        status: 'error',
+        phase: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }

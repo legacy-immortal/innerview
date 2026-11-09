@@ -9,11 +9,17 @@ import {
   type ModelDownloadProgress,
 } from '@/lib/model-preloader';
 import {
+  canPreloadModels,
   detectPerformanceCached,
   generatePerformanceSettings,
   getPerformanceSettingsForTier,
+  isHardwareOverburdened,
   type PerformanceMetrics,
 } from '@/lib/performance-detector';
+import {
+  getModelPreloadOptIn,
+  setModelPreloadOptInStored,
+} from '@/lib/model-preload-opt-in-storage';
 import {
   useProviderStatusStore,
   type ProviderStatus,
@@ -38,12 +44,42 @@ export interface PerformanceStartupState {
   providerStatus: ProviderStatus | null;
   kokoroProgress: ModelDownloadProgress | null;
   whisperProgress: ModelDownloadProgress | null;
+  /** True while waiting for the model preload opt-in on overburdened hardware. */
+  modelPreloadOptInRequired: boolean;
+  /** Checkbox state for the model preload opt-in dialog. */
+  modelPreloadOptIn: boolean;
+  /** True while an opt-in-confirmed model preload is running. */
+  isModelPreloading: boolean;
   setShowDisclaimer: (v: boolean) => void;
   setShowRejected: (v: boolean) => void;
   handleDisclaimerAccept: (
     selectedTier: Parameters<typeof getPerformanceSettingsForTier>[1],
     providerConfig: { baseURL: string; apiKey?: string }
   ) => void;
+  setModelPreloadOptIn: (v: boolean) => void;
+  confirmModelPreloadOptIn: () => Promise<void>;
+  declineModelPreloadOptIn: () => Promise<void>;
+}
+
+/**
+ * Defer work until main thread is idle / App has mounted, so model downloads
+ * never block first paint. Falls back to a timer where requestIdleCallback
+ * is unavailable. Never blocks startup.
+ */
+function scheduleIdleCallback(callback: () => void): void {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    const requestIdleCallback = (
+      window as unknown as {
+        requestIdleCallback: (
+          cb: () => void,
+          opts?: { timeout?: number }
+        ) => number;
+      }
+    ).requestIdleCallback;
+    requestIdleCallback(callback, { timeout: 2_000 });
+  } else {
+    setTimeout(callback, 1_500);
+  }
 }
 
 export function usePerformanceStartup(
@@ -78,6 +114,10 @@ export function usePerformanceStartup(
     useState<ModelDownloadProgress | null>(null);
   const [whisperProgress, setWhisperProgress] =
     useState<ModelDownloadProgress | null>(null);
+  const [modelPreloadOptInRequired, setModelPreloadOptInRequired] =
+    useState(false);
+  const [modelPreloadOptIn, setModelPreloadOptInState] = useState(false);
+  const [isModelPreloading, setIsModelPreloading] = useState(false);
   const savePerformanceSettings = useSettingsStore(
     (state) => state.savePerformanceSettings
   );
@@ -95,8 +135,128 @@ export function usePerformanceStartup(
   );
   // Prevent duplicate transcription test when effect runs twice (e.g. Strict Mode or HMR)
   const transcriptionTestStartedRef = useRef(false);
+  // Latest metrics (kept in a ref so opt-in confirm/decline handlers can preload)
+  const latestMetricsRef = useRef<PerformanceMetrics | null>(null);
+  // True while startup is paused waiting for the opt-in decision
+  const modelPreloadOptInPendingRef = useRef(false);
+  // Latest onComplete callback (ref avoids stale closures in async flow)
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  // Guards so startup completes exactly once after an opt-in decision
+  const startupFinishedRef = useRef(false);
+  // Bootstrap latch: once startup has finished, no model preload may ever
+  // start again. Guards against the detection effect re-running
+  // post-bootstrap (e.g. parent re-renders) triggering new downloads.
+  const bootstrapFinishedRef = useRef(false);
+
+  /**
+   * Move from detection to the disclaimer or app.
+   * Runs once startup is no longer paused for an opt-in decision.
+   */
+  const finishStartup = () => {
+    if (startupFinishedRef.current) return;
+    startupFinishedRef.current = true;
+    // Latch before the app mounts: any later preload attempt is a no-op.
+    bootstrapFinishedRef.current = true;
+    setIsDetecting(false);
+    if (getDisclaimerAccepted()) {
+      onCompleteRef.current();
+    } else {
+      (async () => {
+        try {
+          const res = await fetch('/api/provider/scan').then((r) => r.json());
+          setDetectedProviders(res.providers ?? []);
+        } catch {
+          setDetectedProviders([]);
+        }
+        setShowDisclaimer(true);
+      })();
+    }
+  };
+
+  // In-flight Whisper preload promise (bootstrapping step, started once).
+  const whisperPreloadPromiseRef = useRef<Promise<void> | null>(null);
+
+  /**
+   * Start the Whisper (transcription model) preload as a bootstrapping step:
+   * it starts immediately (never deferred to idle) and callers await it
+   * before finishing startup, so download/loading progress — including
+   * per-file %, bytes, and speed — is visible on the detection screen
+   * instead of in a dismissible background toast after it disappears.
+   * @returns Resolves when the Whisper preload settles (failures are
+   * reported via progress state, never thrown).
+   */
+  const startWhisperPreload = (): Promise<void> => {
+    // Zero loads post-bootstrap: after startup finishes, never start a new
+    // preload. Callers only invoke this during bootstrap (detection
+    // screen, opt-in dialog) where progress is visible.
+    if (bootstrapFinishedRef.current) {
+      return Promise.resolve();
+    }
+    if (whisperPreloadPromiseRef.current) {
+      return whisperPreloadPromiseRef.current;
+    }
+    transcriptionTestStartedRef.current = true;
+    console.log('[PerformanceStartup] Starting Whisper preload (bootstrap)...');
+    setIsModelPreloading(true);
+    const promise = preloadWhisperModel((progress) => {
+      setWhisperProgress(progress);
+    })
+      .catch((error) => {
+        console.error('Failed to preload Whisper model:', error);
+        setWhisperProgress({
+          model: 'whisper',
+          progress: 0,
+          status: 'error',
+          phase: 'error',
+          message: 'Whisper model download failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      })
+      .finally(() => {
+        setIsModelPreloading(false);
+      });
+    whisperPreloadPromiseRef.current = promise;
+    return promise;
+  };
+
+  /**
+   * Preload Kokoro (background, non-blocking) with the existing success/error
+   * progress wiring. Whisper is deliberately excluded: it runs as a blocking
+   * bootstrapping step via startWhisperPreload so users see its detailed
+   * progress during startup.
+   * @param detectedMetrics - Metrics gating the model.
+   */
+  const startKokoroPreload = async (
+    detectedMetrics: PerformanceMetrics
+  ): Promise<void> => {
+    // Preload Kokoro if WebGPU or WASM is supported
+    if (
+      !detectedMetrics.supportsWebGPU &&
+      !detectedMetrics.supportsLocalTranscription
+    ) {
+      return;
+    }
+    await preloadKokoroModel((progress) => {
+      setKokoroProgress(progress);
+    }).catch((error) => {
+      console.error('Failed to preload Kokoro model:', error);
+      setKokoroProgress({
+        model: 'kokoro',
+        progress: 0,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    });
+  };
 
   useEffect(() => {
+    // If this effect re-runs after startup finished (e.g. a parent
+    // re-render created a new onComplete identity), do nothing — detection
+    // and model preloads are bootstrap-only.
+    if (bootstrapFinishedRef.current) {
+      return;
+    }
     async function detectAndConfigure() {
       try {
         // Check if we already have performance settings
@@ -263,72 +423,31 @@ export function usePerformanceStartup(
             `${detectedMetrics.score}/100 (${detectedMetrics.tier.toUpperCase()})`
           );
 
+          latestMetricsRef.current = detectedMetrics;
+
           // Check if we should preload models
-          // Only preload if performance tier is medium or high, and WASM/WebGPU is supported
-          const shouldPreloadModels =
+          // Capable devices auto-preload (medium/high tier) unless the
+          // hardware is overburdened (low RAM/GPU tier), in which case the
+          // user must opt in first.
+          const isCapable = canPreloadModels(detectedMetrics);
+          const overburdened = isHardwareOverburdened(detectedMetrics);
+          const storedOptIn = getModelPreloadOptIn();
+          const autoPreload =
+            isCapable &&
+            !overburdened &&
             (detectedMetrics.tier === 'medium' ||
-              detectedMetrics.tier === 'high') &&
-            (detectedMetrics.supportsLocalTranscription ||
-              detectedMetrics.supportsWebGPU);
+              detectedMetrics.tier === 'high');
+          const needsOptIn = isCapable && overburdened && storedOptIn === null;
 
           console.log('[PerformanceStartup] First run detection:', {
             tier: detectedMetrics.tier,
             supportsLocalTranscription:
               detectedMetrics.supportsLocalTranscription,
             supportsWebGPU: detectedMetrics.supportsWebGPU,
-            shouldPreloadModels,
+            overburdened,
+            autoPreload,
+            needsOptIn,
           });
-
-          if (shouldPreloadModels) {
-            // Preload models in parallel
-            const preloadPromises: Promise<void>[] = [];
-
-            // Preload Kokoro if WebGPU or WASM is supported
-            if (
-              detectedMetrics.supportsWebGPU ||
-              detectedMetrics.supportsLocalTranscription
-            ) {
-              preloadPromises.push(
-                preloadKokoroModel((progress) => {
-                  setKokoroProgress(progress);
-                }).catch((error) => {
-                  console.error('Failed to preload Kokoro model:', error);
-                  setKokoroProgress({
-                    model: 'kokoro',
-                    progress: 0,
-                    status: 'error',
-                    error:
-                      error instanceof Error ? error.message : 'Unknown error',
-                  });
-                })
-              );
-            }
-
-            // Preload Whisper if local transcription is supported (once per init)
-            if (
-              detectedMetrics.supportsLocalTranscription &&
-              !transcriptionTestStartedRef.current
-            ) {
-              transcriptionTestStartedRef.current = true;
-              preloadPromises.push(
-                preloadWhisperModel((progress) => {
-                  setWhisperProgress(progress);
-                }).catch((error) => {
-                  console.error('Failed to preload Whisper model:', error);
-                  setWhisperProgress({
-                    model: 'whisper',
-                    progress: 0,
-                    status: 'error',
-                    error:
-                      error instanceof Error ? error.message : 'Unknown error',
-                  });
-                })
-              );
-            }
-
-            // Wait for model downloads to complete (or fail gracefully)
-            await Promise.allSettled(preloadPromises);
-          }
 
           // Generate settings based on detected performance
           const settings = generatePerformanceSettings(detectedMetrics);
@@ -343,10 +462,31 @@ export function usePerformanceStartup(
           // Complete progress
           setProgress(100);
           await new Promise((resolve) => setTimeout(resolve, 500));
+
+          if (autoPreload) {
+            // Whisper is a bootstrapping step (backend, default path):
+            // preload regardless of browser WASM (supportsLocalTranscription).
+            await startWhisperPreload();
+            scheduleIdleCallback(() => {
+              void startKokoroPreload(detectedMetrics);
+            });
+          } else if (needsOptIn) {
+            // Pause completion until the user decides; the opt-in handlers
+            // in this hook preload (if opted in) and finish startup.
+            modelPreloadOptInPendingRef.current = true;
+            setModelPreloadOptInRequired(true);
+          } else if (isCapable && overburdened && storedOptIn === true) {
+            // Previously opted in on overburdened hardware: blocking bootstrap.
+            await startWhisperPreload();
+            scheduleIdleCallback(() => {
+              void startKokoroPreload(detectedMetrics);
+            });
+          }
         } else {
           // Settings exist: use cached metrics but animate through init steps
           const cached = await detectPerformanceCached();
           setMetrics(cached);
+          latestMetricsRef.current = cached;
           const completedStages = buildStagesFromMetrics(cached);
           await runCachedInitAnimation(
             completedStages,
@@ -355,33 +495,51 @@ export function usePerformanceStartup(
             setStages
           );
 
-          // Still run transcription test on cached runs to validate the service
+          // Overburdened devices: remember the prior choice or ask first.
+          const cachedCapable = canPreloadModels(cached);
+          const cachedOverburdened = isHardwareOverburdened(cached);
+          const cachedStoredOptIn = getModelPreloadOptIn();
+          const cachedNeedsOptIn =
+            cachedCapable && cachedOverburdened && cachedStoredOptIn === null;
+          // Remembered opt-in only applies on overburdened hardware; on
+          // capable hardware the regular transcription-test branch below loads
+          // Whisper (never after bootstrap, never without opt-in when
+          // overburdened).
+          const cachedOptedIn =
+            cachedCapable && cachedOverburdened && cachedStoredOptIn === true;
+
+          // Preload backend Whisper on cached runs so it's ready for first
+          // transcription (avoids post-bootstrap on-demand load).
           const shouldTestTranscription =
-            (cached.tier === 'medium' || cached.tier === 'high') &&
-            cached.supportsLocalTranscription;
+            cached.tier === 'medium' || cached.tier === 'high';
 
           console.log('[PerformanceStartup] Cached run:', {
             tier: cached.tier,
             supportsLocalTranscription: cached.supportsLocalTranscription,
             shouldTestTranscription,
+            overburdened: cachedOverburdened,
+            needsOptIn: cachedNeedsOptIn,
           });
 
-          if (shouldTestTranscription && !transcriptionTestStartedRef.current) {
-            transcriptionTestStartedRef.current = true;
-            console.log('[PerformanceStartup] Starting transcription test...');
-            // Run transcription test in background (non-blocking)
-            preloadWhisperModel((progress) => {
-              console.log('[PerformanceStartup] Whisper progress:', progress);
-              setWhisperProgress(progress);
-            }).catch((error) => {
-              console.error('Transcription test failed:', error);
-              setWhisperProgress({
-                model: 'whisper',
-                progress: 0,
-                status: 'error',
-                error: error instanceof Error ? error.message : 'Unknown error',
-              });
+          if (cachedNeedsOptIn) {
+            // Pause completion until the user decides.
+            modelPreloadOptInPendingRef.current = true;
+            setModelPreloadOptInRequired(true);
+          } else if (cachedOptedIn) {
+            // Previously opted in on overburdened hardware: blocking bootstrap.
+            await startWhisperPreload();
+            scheduleIdleCallback(() => {
+              void startKokoroPreload(cached);
             });
+          } else if (
+            shouldTestTranscription &&
+            !cachedOverburdened &&
+            !transcriptionTestStartedRef.current
+          ) {
+            // Whisper loads as part of bootstrapping (was previously an
+            // idle-deferred background test invisible behind the live app):
+            // await it so detailed progress is shown on the detection screen.
+            await startWhisperPreload();
           }
         }
       } catch {
@@ -424,32 +582,23 @@ export function usePerformanceStartup(
           clearInterval(progressIntervalRef.current);
           progressIntervalRef.current = null;
         }
-        setIsDetecting(false);
-        if (getDisclaimerAccepted()) {
-          onComplete();
-        } else {
-          (async () => {
-            try {
-              const res = await fetch('/api/provider/scan').then((r) =>
-                r.json()
-              );
-              setDetectedProviders(res.providers ?? []);
-            } catch {
-              setDetectedProviders([]);
-            }
-            setShowDisclaimer(true);
-          })();
+        // If waiting for the opt-in decision, stay on the detection view
+        // until the user confirms or declines.
+        if (!modelPreloadOptInPendingRef.current) {
+          finishStartup();
         }
       }
     }
 
     detectAndConfigure();
+    // NOTE: `onComplete` is deliberately excluded — callers pass an
+    // unstable inline callback (index.tsx), which would re-run detection
+    // post-bootstrap. finishStartup invokes the latest via onCompleteRef.
   }, [
     savePerformanceSettings,
     getPerformanceSettings,
     getGenerationSettings,
     updateGenerationSettings,
-    onComplete,
     checkProvider,
   ]);
 
@@ -467,6 +616,49 @@ export function usePerformanceStartup(
       onComplete();
     };
 
+  const setModelPreloadOptIn: PerformanceStartupState['setModelPreloadOptIn'] =
+    (v) => {
+      setModelPreloadOptInState(v);
+    };
+
+  /**
+   * Resolve the pending opt-in via the dialog's primary button.
+   * Persists the checkbox choice, preloads both models when checked, then
+   * finishes startup. An unchecked box means "continue without preloading".
+   * @returns Resolves once any opt-in preload settles and startup finishes.
+   */
+  const confirmModelPreloadOptIn: PerformanceStartupState['confirmModelPreloadOptIn'] =
+    async () => {
+      const optedIn = modelPreloadOptIn;
+      const detectedMetrics = latestMetricsRef.current;
+      setModelPreloadOptInStored(optedIn);
+      modelPreloadOptInPendingRef.current = false;
+      setModelPreloadOptInRequired(false);
+      if (optedIn && detectedMetrics && canPreloadModels(detectedMetrics)) {
+        // Whisper is a bootstrapping step: await it (with detailed progress
+        // on the detection screen) before finishing startup. Kokoro stays a
+        // non-blocking idle background download.
+        await startWhisperPreload();
+        scheduleIdleCallback(() => {
+          void startKokoroPreload(detectedMetrics);
+        });
+      }
+      finishStartup();
+    };
+
+  /**
+   * Resolve the pending opt-in via Skip: persist a decline and finish
+   * startup without preloading.
+   * @returns Resolves once startup finishes.
+   */
+  const declineModelPreloadOptIn: PerformanceStartupState['declineModelPreloadOptIn'] =
+    async () => {
+      setModelPreloadOptInStored(false);
+      modelPreloadOptInPendingRef.current = false;
+      setModelPreloadOptInRequired(false);
+      finishStartup();
+    };
+
   return {
     isDetecting,
     showDisclaimer,
@@ -479,8 +671,14 @@ export function usePerformanceStartup(
     providerStatus,
     kokoroProgress,
     whisperProgress,
+    modelPreloadOptInRequired,
+    modelPreloadOptIn,
+    isModelPreloading,
     setShowDisclaimer,
     setShowRejected,
     handleDisclaimerAccept,
+    setModelPreloadOptIn,
+    confirmModelPreloadOptIn,
+    declineModelPreloadOptIn,
   };
 }
