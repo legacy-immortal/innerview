@@ -6,12 +6,20 @@ import App from '@/App';
 
 function Root() {
   const [startupComplete, setStartupComplete] = useState(false);
+  const skip =
+    typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).has('skipStartup') ||
+      localStorage.getItem('innerview.skipStartup') === 'true');
 
   return (
     <Provider>
-      <PerformanceStartup onComplete={() => setStartupComplete(true)}>
-        {startupComplete && <App />}
-      </PerformanceStartup>
+      {skip ? (
+        <App />
+      ) : (
+        <PerformanceStartup onComplete={() => setStartupComplete(true)}>
+          {startupComplete && <App />}
+        </PerformanceStartup>
+      )}
     </Provider>
   );
 }
