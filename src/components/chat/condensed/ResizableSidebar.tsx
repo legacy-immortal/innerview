@@ -163,22 +163,10 @@ export const ResizableSidebar = ({
           },
         }}
       >
-        {/* Floating Toggle Button - Top right of drawer, outside */}
-        {sidebarVisible && !hideToggle && (
-          <IconButton
-            aria-label="Toggle sidebar"
-            position="absolute"
-            top="8px"
-            right={{ base: '8px', md: '-40px' }}
-            zIndex={20}
-            size="sm"
-            variant="ghost"
-            colorPalette="gray"
-            onClick={() => setSidebarVisible(false)}
-          >
-            <HiChevronLeft />
-          </IconButton>
-        )}
+        {/* The sidebar's own "Hide sidebar" button lives in the header below;
+            a second floating toggle here duplicated that affordance and
+            overlapped the resize handle/content. Keep a single reopen
+            affordance when the sidebar is hidden (see below). */}
         {/* Resize Handle */}
         {sidebarVisible && !fullWidth && (
           <Box
