@@ -27,6 +27,7 @@ export const DuplicateImportDialog = ({
         onCancel();
       }
     }}
+    closeOnInteractOutside={false}
   >
     <Portal>
       <Dialog.Backdrop />
