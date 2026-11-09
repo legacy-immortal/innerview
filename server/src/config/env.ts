@@ -3,6 +3,7 @@ import { config as loadDotenv } from 'dotenv';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
+import { resolveOpenCodeApiKey } from './opencode-auth.js';
 
 // Schema for all environment variables
 const envSchema = z.object({
@@ -29,6 +30,27 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** Fill missing AI credentials from opencode's auth store (env vars win). */
+function applyOpenCodeAuthFallbacks(env: Env): Env {
+  const needsAnthropic = !env.ANTHROPIC_API_KEY?.trim();
+  const needsOpenAI = !env.OPENAI_API_KEY?.trim();
+  const needsZen = !env.ZEN_API_KEY?.trim();
+  if (!needsAnthropic && !needsOpenAI && !needsZen) return env;
+  return {
+    ...env,
+    ANTHROPIC_API_KEY: needsAnthropic
+      ? (resolveOpenCodeApiKey(['anthropic']) ?? env.ANTHROPIC_API_KEY)
+      : env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: needsOpenAI
+      ? (resolveOpenCodeApiKey(['openai']) ?? env.OPENAI_API_KEY)
+      : env.OPENAI_API_KEY,
+    ZEN_API_KEY: needsZen
+      ? (resolveOpenCodeApiKey(['opencode', 'zen', 'opencode-zen']) ??
+        env.ZEN_API_KEY)
+      : env.ZEN_API_KEY,
+  };
+}
 
 function loadEnvFile(): void {
   if (process.env.NODE_ENV === 'production') return;
@@ -58,5 +80,5 @@ export function getEnv(): Env {
   if (!result.success) {
     throw new Error(formatValidationError(result.error));
   }
-  return result.data;
+  return applyOpenCodeAuthFallbacks(result.data);
 }
