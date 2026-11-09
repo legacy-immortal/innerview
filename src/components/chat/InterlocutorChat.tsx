@@ -129,11 +129,20 @@ export const InterlocutorChat = (): JSX.Element => {
    *
    * @returns `true` unless the background complexity is minimal.
    */
-  const shouldShowControlPanel = useCallback(
-    (): boolean =>
-      (performanceSettings?.maxBackgroundComplexity ?? 'minimal') !== 'minimal',
-    [performanceSettings?.maxBackgroundComplexity]
-  );
+  const shouldShowControlPanel = useCallback((): boolean => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (
+        p.has('showControlPanel') ||
+        localStorage.getItem('innerview.showControlPanel') === 'true'
+      ) {
+        return true;
+      }
+    }
+    return (
+      (performanceSettings?.maxBackgroundComplexity ?? 'minimal') !== 'minimal'
+    );
+  }, [performanceSettings?.maxBackgroundComplexity]);
 
   // ============================================================================
   // TERMINAL MODE - Clear current conversation on entry / exit to chat
