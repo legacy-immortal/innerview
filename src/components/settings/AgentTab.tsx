@@ -1,10 +1,15 @@
+/**
+ * @file Settings tab for agent memory and guardrail middleware toggles.
+ * @module components/settings/AgentTab.tsx
+ */
+import type { JSX } from 'react';
 import { memo } from 'react';
 import { VStack, HStack, Text, Separator, Switch } from '@chakra-ui/react';
 import type { GenerationSettings } from '@/lib/settings-types';
 
 interface AgentTabProps {
-  generationSettings: GenerationSettings;
-  setGenerationSettings: React.Dispatch<
+  readonly generationSettings: GenerationSettings;
+  readonly setGenerationSettings: React.Dispatch<
     React.SetStateAction<GenerationSettings>
   >;
 }
@@ -12,7 +17,7 @@ interface AgentTabProps {
 export const AgentTab = memo(function AgentTab({
   generationSettings,
   setGenerationSettings,
-}: AgentTabProps) {
+}: AgentTabProps): JSX.Element {
   return (
     <VStack gap={4} align="stretch">
       <Text color="gray.300" fontSize="sm" fontWeight={600}>
@@ -24,7 +29,7 @@ export const AgentTab = memo(function AgentTab({
 
       <Separator borderColor="rgba(255, 255, 255, 0.1)" />
 
-      <HStack justify="space-between">
+      <HStack justify="space-between" flexWrap="wrap" gap={3}>
         <VStack align="start" gap={0}>
           <Text color="gray.200" fontSize="sm">
             Enable Associative Memory
@@ -51,7 +56,7 @@ export const AgentTab = memo(function AgentTab({
         </Switch.Root>
       </HStack>
 
-      <HStack justify="space-between">
+      <HStack justify="space-between" flexWrap="wrap" gap={3}>
         <VStack align="start" gap={0}>
           <Text color="gray.200" fontSize="sm">
             Enable Summary Memory
@@ -78,7 +83,7 @@ export const AgentTab = memo(function AgentTab({
         </Switch.Root>
       </HStack>
 
-      <HStack justify="space-between">
+      <HStack justify="space-between" flexWrap="wrap" gap={3}>
         <VStack align="start" gap={0}>
           <Text color="gray.200" fontSize="sm">
             Enable Constitution Middleware
@@ -105,7 +110,7 @@ export const AgentTab = memo(function AgentTab({
         </Switch.Root>
       </HStack>
 
-      <HStack justify="space-between">
+      <HStack justify="space-between" flexWrap="wrap" gap={3}>
         <VStack align="start" gap={0}>
           <Text color="gray.200" fontSize="sm">
             Enable Appeal Process

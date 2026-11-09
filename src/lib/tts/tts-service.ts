@@ -1,3 +1,7 @@
+/**
+ * @file Top-level TTS service selecting a provider model and owning playback lifecycle.
+ * @module lib/tts/tts-service.ts
+ */
 // Streaming-first TTS Service
 import type { StreamingTTSModel, TTSOptions } from './types';
 import { isStreamingModel } from './types';
@@ -33,7 +37,7 @@ export class TTSService {
    * Speak text using streaming TTS
    * Streaming is the default - falls back to complete generation if needed
    */
-  async speak(
+  public async speak(
     text: string,
     options: Omit<TTSOptions, 'text'> = {}
   ): Promise<TTSResult> {
@@ -215,7 +219,7 @@ export class TTSService {
   /**
    * Stop current playback
    */
-  async stop(): Promise<void> {
+  public async stop(): Promise<void> {
     if (this.currentResult) {
       await this.currentResult.stop();
     }
@@ -231,28 +235,28 @@ export class TTSService {
   /**
    * Get current audio context (for visualization)
    */
-  getAudioContext(): AudioContext | null {
+  public getAudioContext(): AudioContext | null {
     return this.streamingService.getAudioContext();
   }
 
   /**
    * Get current processor node (for visualization)
    */
-  getProcessorNode(): AudioWorkletNode | null {
+  public getProcessorNode(): AudioWorkletNode | null {
     return this.streamingService.getProcessorNode();
   }
 
   /**
    * Get current analyser node (for visualization)
    */
-  getAnalyserNode(): AnalyserNode | null {
+  public getAnalyserNode(): AnalyserNode | null {
     return this.streamingService.getAnalyserNode();
   }
 
   /**
    * Check if currently playing
    */
-  isPlaying(): boolean {
+  public isPlaying(): boolean {
     return this.streamingService.getIsPlaying();
   }
 }

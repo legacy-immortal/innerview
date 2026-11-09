@@ -1,5 +1,6 @@
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -23,21 +24,39 @@ export const CircularGauge = ({
     setPercent(newPercent);
   }, [value, max]);
 
+  // Keep original intent scale: size=500 -> 75/65/55 vmin, scaled proportionally.
+  const scaleFactor = size > 0 ? size / 500 : 0.4;
+  const baseVmin = Math.round(75 * scaleFactor);
+  const mdVmin = Math.round(65 * scaleFactor);
+  const lgVmin = Math.round(55 * scaleFactor);
+
   return (
     <Box
-      position="absolute"
-      top="50%"
-      left="50%"
-      transform="translate(-50%, -50%)"
-      width={`${size}px`}
-      height={`${size}px`}
+      position="relative"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      width={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      height={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      flexShrink={0}
       zIndex={5}
       pointerEvents="none"
+      touchAction="none"
     >
       <Canvas
         orthographic
+        dpr={MAX_DPR}
         camera={{ position: [0, 0, 5], zoom: 50 }}
         gl={{ antialias: true, alpha: true }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
       >
         <GaugeScene percent={percent} color={color} />
       </Canvas>
@@ -50,6 +69,9 @@ function GaugeScene({ percent, color }: { percent: number; color: string }) {
   const trackMeshRef = useRef<THREE.Mesh | null>(null);
   const fillMeshRef = useRef<THREE.Mesh | null>(null);
   const fillGeometryRef = useRef<THREE.BufferGeometry | null>(null);
+  // Damped display value so the arc sweeps smoothly between the source's
+  // 1-second updates instead of jumping.
+  const displayPercentRef = useRef(0);
 
   // Initialize track and fill on mount
   useEffect(() => {
@@ -89,6 +111,7 @@ function GaugeScene({ percent, color }: { percent: number; color: string }) {
         fillGeometryRef.current.dispose();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update colors when color prop changes
@@ -105,18 +128,24 @@ function GaugeScene({ percent, color }: { percent: number; color: string }) {
     }
   }, [color]);
 
-  // Update fill geometry based on percent
-  useFrame(() => {
+  // Update fill geometry based on the damped display percent
+  useFrame((_state, delta) => {
     if (!fillGeometryRef.current || !fillMeshRef.current) return;
 
-    if (percent <= 0) {
+    const display =
+      displayPercentRef.current +
+      (percent - displayPercentRef.current) * Math.min(1, delta * 4);
+    displayPercentRef.current =
+      Math.abs(percent - display) < 0.0005 ? percent : display;
+
+    if (displayPercentRef.current <= 0) {
       fillMeshRef.current.visible = false;
       return;
     }
 
     const startAngle = -Math.PI / 2;
-    const endAngle = startAngle + percent * Math.PI * 2;
-    const segments = Math.max(32, Math.ceil(percent * 64));
+    const endAngle = startAngle + displayPercentRef.current * Math.PI * 2;
+    const segments = Math.max(32, Math.ceil(displayPercentRef.current * 64));
     const innerRadius = 0.8;
     const outerRadius = 1;
 

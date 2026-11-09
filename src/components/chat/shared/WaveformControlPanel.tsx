@@ -1,38 +1,44 @@
+/**
+ * WaveformControlPanel.tsx — Panel to configure waveform layers and visualization settings.
+ *
+ * @module components/chat/shared/WaveformControlPanel
+ */
+
 import { button, folder, useControls } from 'leva';
 import { useEffect, useRef } from 'react';
 
 export interface WaveformLayer {
-  id: string;
-  color: string;
-  offset: number;
-  amplitude: number;
-  frequency: number;
-  phase: number;
+  readonly id: string;
+  readonly color: string;
+  readonly offset: number;
+  readonly amplitude: number;
+  readonly frequency: number;
+  readonly phase: number;
 }
 
 export interface WaveformSettings {
-  pointCount: number;
-  breathingEnabled: boolean;
-  breathingSpeed: number;
-  breathingIntensity: number;
-  radius: number;
-  barWidth: number;
-  barLengthMultiplier: number;
-  animationSpeed: number;
-  animationSpeedIrregular: number;
-  animationSpeedHighFreq: number;
-  amplitudePowerAudio: number;
-  amplitudePowerSynthetic: number;
-  glowOpacityBase: number;
-  glowOpacityRange: number;
+  readonly pointCount: number;
+  readonly breathingEnabled: boolean;
+  readonly breathingSpeed: number;
+  readonly breathingIntensity: number;
+  readonly radius: number;
+  readonly barWidth: number;
+  readonly barLengthMultiplier: number;
+  readonly animationSpeed: number;
+  readonly animationSpeedIrregular: number;
+  readonly animationSpeedHighFreq: number;
+  readonly amplitudePowerAudio: number;
+  readonly amplitudePowerSynthetic: number;
+  readonly glowOpacityBase: number;
+  readonly glowOpacityRange: number;
 }
 
 interface WaveformControlPanelProps {
-  layers: WaveformLayer[];
-  onLayersChange: (layers: WaveformLayer[]) => void;
-  settings?: WaveformSettings;
-  onSettingsChange?: (settings: WaveformSettings) => void;
-  onLocalSettingsChange?: (settings: WaveformSettings) => void;
+  readonly layers: WaveformLayer[];
+  readonly onLayersChange: (layers: WaveformLayer[]) => void;
+  readonly settings?: WaveformSettings;
+  readonly onSettingsChange?: (settings: WaveformSettings) => void;
+  readonly onLocalSettingsChange?: (settings: WaveformSettings) => void;
 }
 
 const DEFAULT_COLORS = [

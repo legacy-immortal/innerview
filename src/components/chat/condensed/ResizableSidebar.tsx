@@ -1,18 +1,24 @@
+/**
+ * ResizableSidebar.tsx — Drag-resizable sidebar with fullscreen toggle for the condensed layout.
+ *
+ * @module components/chat/condensed/ResizableSidebar
+ */
+
 import { Box, HStack, IconButton } from '@chakra-ui/react';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { HiArrowsExpand, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 
 interface ResizableSidebarProps {
-  children: ReactNode;
-  defaultWidth?: number;
-  minWidth?: number;
-  maxWidth?: number;
-  visible?: boolean;
-  onVisibilityChange?: (visible: boolean) => void;
-  onWidthChange?: (width: number) => void;
-  backgroundColor?: string; // CSS color value (hex, rgb, rgba, transparent, etc.)
-  hideToggle?: boolean; // Hide toggle buttons (for terminal mode)
-  fullWidth?: boolean; // Make sidebar full width (for terminal mode)
+  readonly children: ReactNode;
+  readonly defaultWidth?: number;
+  readonly minWidth?: number;
+  readonly maxWidth?: number;
+  readonly visible?: boolean;
+  readonly onVisibilityChange?: (visible: boolean) => void;
+  readonly onWidthChange?: (width: number) => void;
+  readonly backgroundColor?: string; // CSS color value (hex, rgb, rgba, transparent, etc.)
+  readonly hideToggle?: boolean; // Hide toggle buttons (for terminal mode)
+  readonly fullWidth?: boolean; // Make sidebar full width (for terminal mode)
 }
 
 export const ResizableSidebar = ({
@@ -72,12 +78,29 @@ export const ResizableSidebar = ({
       setIsResizing(false);
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      const deltaX = e.touches[0].clientX - resizeStartXRef.current;
+      const newWidth = resizeStartWidthRef.current + deltaX;
+      const calculatedMaxWidth = maxWidth ?? window.innerWidth * 0.5;
+      const clampedWidth = Math.max(
+        minWidth,
+        Math.min(calculatedMaxWidth, newWidth)
+      );
+      handleWidthChange(clampedWidth);
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, {
+      passive: false,
+    });
+    window.addEventListener('touchend', handleMouseUp);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleMouseUp);
     };
   }, [isResizing, minWidth, maxWidth, handleWidthChange]);
 
@@ -114,7 +137,13 @@ export const ResizableSidebar = ({
     <Box position="relative">
       <Box
         ref={sidebarRef}
-        w={fullWidth ? '100%' : sidebarVisible ? `${sidebarWidth}px` : '0px'}
+        w={
+          fullWidth
+            ? '100%'
+            : sidebarVisible
+              ? `min(${sidebarWidth}px, 85vw)`
+              : '0px'
+        }
         flexShrink={0}
         h="100%"
         display="flex"
@@ -140,7 +169,7 @@ export const ResizableSidebar = ({
             aria-label="Toggle sidebar"
             position="absolute"
             top="8px"
-            right="-40px"
+            right={{ base: '8px', md: '-40px' }}
             zIndex={20}
             size="sm"
             variant="ghost"
@@ -168,6 +197,13 @@ export const ResizableSidebar = ({
               e.preventDefault();
               e.stopPropagation();
               resizeStartXRef.current = e.clientX;
+              resizeStartWidthRef.current = sidebarWidth;
+              setIsResizing(true);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              resizeStartXRef.current = e.touches[0].clientX;
               resizeStartWidthRef.current = sidebarWidth;
               setIsResizing(true);
             }}

@@ -7,6 +7,7 @@ import type {
   TranscriptionModelV2,
   TranscriptionModelV2CallOptions,
   TranscriptionModelV2CallWarning,
+  TranscriptionModelV3,
 } from '@ai-sdk/provider';
 import { transformersJS } from '@built-in-ai/transformers-js';
 import { experimental_transcribe as transcribe } from 'ai';
@@ -21,16 +22,15 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
   readonly specificationVersion = 'v2' as const;
   readonly modelId: string;
   readonly provider = 'local-transcription';
-  private config: LocalTranscriptionConfig;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private browserModel: any = null;
+  private readonly config: LocalTranscriptionConfig;
+  private browserModel: TranscriptionModelV3 | null = null;
 
   constructor(modelId: string, config: LocalTranscriptionConfig) {
     this.modelId = modelId;
     this.config = config;
   }
 
-  async doGenerate(options: TranscriptionModelV2CallOptions): Promise<{
+  public async doGenerate(options: TranscriptionModelV2CallOptions): Promise<{
     text: string;
     segments: Array<{
       text: string;
@@ -242,7 +242,7 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
     };
   }
 
-  dispose(): void {
+  public dispose(): void {
     // Clean up browser model if initialized
     this.browserModel = null;
   }

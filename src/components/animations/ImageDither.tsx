@@ -1,24 +1,33 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Box } from '@chakra-ui/react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
 import * as THREE from 'three';
 
+/**
+ * @file ImageDither — WebGL image dithering effect built on react-three-fiber.
+ * Renders a supplied image with ordered (Bayer) or random dithering and
+ * optional color quantization against a foreground/background palette.
+ */
+
+/** Settings describing how the dithered image should be rendered. */
 export interface ImageDitherSettings {
-  image?: string | HTMLImageElement;
-  type?: 'random' | '2x2' | '4x4' | '8x8';
-  pxSize?: number;
-  colorSteps?: number;
-  originalColors?: boolean;
-  colorFront?: string;
-  colorBack?: string;
-  colorHighlight?: string;
-  scale?: number;
-  rotation?: number;
-  offsetX?: number;
-  offsetY?: number;
-  fit?: 'contain' | 'cover' | 'fill';
+  readonly image?: string | HTMLImageElement;
+  readonly type?: 'random' | '2x2' | '4x4' | '8x8';
+  readonly pxSize?: number;
+  readonly colorSteps?: number;
+  readonly originalColors?: boolean;
+  readonly colorFront?: string;
+  readonly colorBack?: string;
+  readonly colorHighlight?: string;
+  readonly scale?: number;
+  readonly rotation?: number;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
+  readonly fit?: 'contain' | 'cover' | 'fill';
 }
 
-const vertexShader = `
+const VERTEX_SHADER = `
 varying vec2 vUv;
 void main() {
   vUv = uv;
@@ -26,7 +35,7 @@ void main() {
 }
 `;
 
-const fragmentShader = `
+const FRAGMENT_SHADER = `
 precision highp float;
 
 uniform vec2 u_resolution;
@@ -215,14 +224,21 @@ void main() {
 `;
 
 interface ImageDitherSceneProps {
-  settings: ImageDitherSettings;
+  readonly settings: ImageDitherSettings;
 }
 
-function ImageDitherScene({ settings }: ImageDitherSceneProps) {
+/**
+ * Render the dithered image inside a react-three-fiber canvas scene.
+ * @param props - Scene props carrying the dither settings.
+ * @returns The WebGL mesh, or null while the source image is loading.
+ */
+function ImageDitherScene({
+  settings,
+}: ImageDitherSceneProps): ReactElement | null {
   const meshRef = useRef<THREE.Mesh>(null);
   const textureRef = useRef<THREE.Texture | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const { viewport, size, gl } = useThree();
+  const { viewport, size, gl, invalidate } = useThree();
 
   // Load image texture
   useEffect(() => {
@@ -323,15 +339,20 @@ function ImageDitherScene({ settings }: ImageDitherSceneProps) {
   }, [size, viewport, gl]);
 
   useEffect(() => {
-    if (textureRef.current && imageLoaded) {
-      uniformsRef.current.u_image.value = textureRef.current;
-      const aspect =
-        textureRef.current.image.width / textureRef.current.image.height;
+    const texture = textureRef.current;
+    if (texture && imageLoaded) {
+      uniformsRef.current.u_image.value = texture;
+      const image = texture.image;
+      // Narrow the `unknown` image payload to a sized image element/data source.
+      const aspect = isSizedImage(image) ? image.width / image.height : 1;
       uniformsRef.current.u_imageAspectRatio.value = aspect;
+      invalidate();
     }
-  }, [imageLoaded]);
+  }, [imageLoaded, invalidate]);
 
-  useFrame(() => {
+  // Static image: sync uniforms on settings change only (not per frame),
+  // then request a single demand-mode render.
+  useEffect(() => {
     const u = uniformsRef.current;
     u.u_scale.value = settings.scale ?? 1;
     u.u_rotation.value = ((settings.rotation ?? 0) * Math.PI) / 180;
@@ -375,7 +396,22 @@ function ImageDitherScene({ settings }: ImageDitherSceneProps) {
       highlightColor[2],
       highlightColor[3]
     );
-  });
+    invalidate();
+  }, [
+    settings.scale,
+    settings.rotation,
+    settings.offsetX,
+    settings.offsetY,
+    settings.pxSize,
+    settings.colorSteps,
+    settings.originalColors,
+    settings.fit,
+    settings.type,
+    settings.colorFront,
+    settings.colorBack,
+    settings.colorHighlight,
+    invalidate,
+  ]);
 
   if (!imageLoaded || !textureRef.current) {
     return null;
@@ -385,12 +421,31 @@ function ImageDitherScene({ settings }: ImageDitherSceneProps) {
     <mesh ref={meshRef} scale={[viewport.width, viewport.height, 1]}>
       <planeGeometry args={[1, 1]} />
       <shaderMaterial
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
+        vertexShader={VERTEX_SHADER}
+        fragmentShader={FRAGMENT_SHADER}
         uniforms={uniformsRef.current}
         transparent
       />
     </mesh>
+  );
+}
+
+/**
+ * Narrow an `unknown` texture image payload to an object with numeric
+ * width/height (e.g. `HTMLImageElement` or `HTMLCanvasElement`).
+ * @param image - The raw texture image value to narrow.
+ * @returns True when the value has numeric width and height.
+ */
+function isSizedImage(
+  image: unknown
+): image is { readonly width: number; readonly height: number } {
+  return (
+    typeof image === 'object' &&
+    image !== null &&
+    'width' in image &&
+    'height' in image &&
+    typeof (image as { width: unknown }).width === 'number' &&
+    typeof (image as { height: unknown }).height === 'number'
   );
 }
 
@@ -410,15 +465,45 @@ interface ImageDitherProps {
   settings?: ImageDitherSettings;
 }
 
-export default function ImageDither({ settings = {} }: ImageDitherProps) {
+export default function ImageDither({
+  settings = {},
+}: ImageDitherProps): ReactElement {
   return (
-    <Canvas
-      className="image-dither-container"
-      camera={{ position: [0, 0, 1] }}
-      dpr={1}
-      gl={{ antialias: false, preserveDrawingBuffer: true }}
+    <Box
+      as="div"
+      position="absolute"
+      top={0}
+      left={0}
+      width="100vw"
+      height="100dvh"
+      maxWidth="100%"
+      maxHeight="100%"
+      minWidth={0}
+      minHeight={0}
+      overflow="hidden"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      boxSizing="border-box"
+      style={{ touchAction: 'none' }}
     >
-      <ImageDitherScene settings={settings} />
-    </Canvas>
+      <Canvas
+        className="image-dither-container"
+        camera={{ position: [0, 0, 1] }}
+        dpr={1}
+        frameloop="demand"
+        gl={{ antialias: false, preserveDrawingBuffer: true }}
+        style={{
+          width: '100%',
+          height: '100%',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          display: 'block',
+          touchAction: 'none',
+        }}
+      >
+        <ImageDitherScene settings={settings} />
+      </Canvas>
+    </Box>
   );
 }

@@ -1,41 +1,40 @@
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { useMemo } from 'react';
+import type { ReactElement } from 'react';
 
-export interface SeeleBackgroundSettings {
-  textColor?: string;
-  bgColor?: string;
-  topText?: string;
-  bottomText?: string;
-  fontFamily?: string;
-  numberSize?: number;
-  labelSize?: number;
-  pulseSpeed?: number;
-  pulseIntensity?: number;
-  scanlineSpeed?: number;
-  scanlineOpacity?: number;
-  scanlineColor?: string;
-  showNumber?: boolean;
-  seeleNumber?: number;
-}
-
-/** Sans-serif font options for SEELE display (value is CSS font-family). */
-export const SEELE_FONT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'Inter, system-ui, sans-serif', label: 'Inter' },
-  { value: 'Roboto, system-ui, sans-serif', label: 'Roboto' },
-  { value: '"Open Sans", system-ui, sans-serif', label: 'Open Sans' },
-  { value: '"Segoe UI", system-ui, sans-serif', label: 'Segoe UI' },
-  { value: 'Arial, Helvetica, sans-serif', label: 'Arial' },
-  { value: '"Source Sans 3", system-ui, sans-serif', label: 'Source Sans 3' },
-  {
-    value: 'Consolas, "Courier New", monospace',
-    label: 'Consolas (monospace)',
-  },
-];
-
-export const SEELE_DEFAULT_TOP_TEXT = 'SEELE';
-export const SEELE_DEFAULT_BOTTOM_TEXT = 'SOUND ONLY';
+/**
+ * @file SEELE display animation — pulsing SEELE number with scanline overlay.
+ * The font options and default texts live in `seeleConstants.ts` and are
+ * re-exported here so existing imports from `Seele` keep working.
+ */
+export {
+  SEELE_DEFAULT_BOTTOM_TEXT,
+  SEELE_DEFAULT_TOP_TEXT,
+  SEELE_FONT_OPTIONS,
+} from './seeleConstants';
+import {
+  SEELE_DEFAULT_BOTTOM_TEXT,
+  SEELE_DEFAULT_TOP_TEXT,
+} from './seeleConstants';
 
 const SEELE_DEFAULT_FONT = 'Inter, system-ui, sans-serif';
+
+export interface SeeleBackgroundSettings {
+  readonly textColor?: string;
+  readonly bgColor?: string;
+  readonly topText?: string;
+  readonly bottomText?: string;
+  readonly fontFamily?: string;
+  readonly numberSize?: number;
+  readonly labelSize?: number;
+  readonly pulseSpeed?: number;
+  readonly pulseIntensity?: number;
+  readonly scanlineSpeed?: number;
+  readonly scanlineOpacity?: number;
+  readonly scanlineColor?: string;
+  readonly showNumber?: boolean;
+  readonly seeleNumber?: number;
+}
 
 const DEFAULT_SETTINGS: SeeleBackgroundSettings = {
   textColor: '#ff0000',
@@ -55,10 +54,15 @@ const DEFAULT_SETTINGS: SeeleBackgroundSettings = {
 };
 
 interface SeeleProps {
-  settings?: Partial<SeeleBackgroundSettings>;
+  readonly settings?: Partial<SeeleBackgroundSettings>;
 }
 
-export default function Seele({ settings }: SeeleProps) {
+/**
+ * Render the SEELE display with pulsing number and scanline overlay.
+ * @param props - Optional SEELE background settings.
+ * @returns The SEELE display element.
+ */
+export default function Seele({ settings }: SeeleProps): ReactElement {
   const mergedSettings = useMemo(() => {
     const cleanedSettings = settings
       ? Object.fromEntries(
@@ -69,6 +73,7 @@ export default function Seele({ settings }: SeeleProps) {
   }, [settings]);
 
   const pulseIntensity = mergedSettings.pulseIntensity ?? 0.1;
+  const pulseSpeed = mergedSettings.pulseSpeed ?? 2;
   const scanlineSpeed = mergedSettings.scanlineSpeed ?? 3;
   const scanlineOpacity = mergedSettings.scanlineOpacity ?? 0.3;
   const scanlineColor =
@@ -94,13 +99,29 @@ export default function Seele({ settings }: SeeleProps) {
   const glowColor3 = hexToRgba(textColor, 0.2);
   const scanlineRgba = hexToRgba(scanlineColor, scanlineOpacity);
 
+  // @keyframes are injected as a raw <style> element: Chakra v3's css-prop
+  // transform mangles '@keyframes' object values (it dropped the property
+  // name — `{ opacity: 1 }` serialized as `1px` — so both the pulse and
+  // scanline animations emitted invalid frames and never ran). The
+  // `animation:` declarations in the css props below serialize correctly;
+  // only the keyframe bodies need the raw stylesheet.
+  const keyframesCss =
+    `@keyframes seelePulse{0%,100%{opacity:1}50%{opacity:${1 - pulseIntensity}}}` +
+    `@keyframes seeleScanline{0%{top:-2px}100%{top:100%}}`;
+
   return (
     <Box
       position="absolute"
       top={0}
       left={0}
-      width="100%"
-      height="100%"
+      width="100vw"
+      height="100dvh"
+      maxWidth="100%"
+      maxHeight="100%"
+      minWidth={0}
+      minHeight={0}
+      boxSizing="border-box"
+      touchAction="none"
       bg={mergedSettings.bgColor}
       display="flex"
       flexDirection="column"
@@ -109,22 +130,6 @@ export default function Seele({ settings }: SeeleProps) {
       fontFamily={mergedSettings.fontFamily ?? SEELE_DEFAULT_FONT}
       overflow="hidden"
       css={{
-        '@keyframes pulse': {
-          '0%, 100%': {
-            opacity: 1,
-          },
-          '50%': {
-            opacity: 1 - pulseIntensity,
-          },
-        },
-        '@keyframes scanline': {
-          '0%': {
-            top: '-2px',
-          },
-          '100%': {
-            top: '100%',
-          },
-        },
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -139,7 +144,7 @@ export default function Seele({ settings }: SeeleProps) {
             ${scanlineRgba} 50%,
             transparent 100%
           )`,
-          animation: `scanline ${scanlineSpeed}s linear infinite`,
+          animation: `seeleScanline ${scanlineSpeed}s linear infinite`,
           pointerEvents: 'none',
           zIndex: 1,
           willChange: 'top',
@@ -147,17 +152,21 @@ export default function Seele({ settings }: SeeleProps) {
       }}
     >
       <VStack
-        gap={8}
+        gap={{ base: 4, md: 8 }}
+        maxWidth="100vw"
+        px={{ base: 4, md: 8 }}
+        boxSizing="border-box"
         align="center"
         justify="center"
         position="relative"
         zIndex={2}
         css={{
-          animation: 'pulse 2s ease-in-out infinite',
+          animation: `seelePulse ${pulseSpeed}s ease-in-out infinite`,
         }}
       >
+        <style>{keyframesCss}</style>
         <Text
-          fontSize={`${labelSize}px`}
+          fontSize={`clamp(0.875rem, 5vmin, ${labelSize}px)`}
           color={mergedSettings.textColor}
           fontWeight="bold"
           textTransform="uppercase"
@@ -189,7 +198,7 @@ export default function Seele({ settings }: SeeleProps) {
                         top: '50%',
                         left: '50%',
                         width: '120%',
-                        height: '8px',
+                        height: '1vmin',
                         background: textColor,
                         transform: 'translate(-50%, -50%) rotate(-45deg)',
                         transformOrigin: 'center',
@@ -202,7 +211,7 @@ export default function Seele({ settings }: SeeleProps) {
               {firstDigit}
             </Box>
             <Text
-              fontSize={`${numberSize}px`}
+              fontSize={`clamp(2.5rem, 22vmin, ${numberSize}px)`}
               color={mergedSettings.textColor}
               fontWeight="bold"
               lineHeight={1}
@@ -217,12 +226,13 @@ export default function Seele({ settings }: SeeleProps) {
         )}
 
         <Text
-          fontSize={`${labelSize}px`}
+          fontSize={`clamp(0.875rem, 5vmin, ${labelSize}px)`}
           color={mergedSettings.textColor}
           fontWeight="bold"
           textTransform="uppercase"
           letterSpacing="0.1em"
           textAlign="center"
+          maxWidth="100vw"
           css={{
             textShadow: `0 0 ${labelSize * 0.5}px ${glowColor1}, 0 0 ${labelSize}px ${glowColor2}, 0 0 ${labelSize * 1.5}px ${glowColor3}`,
           }}

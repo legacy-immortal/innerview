@@ -1,4 +1,6 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Box } from '@chakra-ui/react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { MAX_DPR } from './perf';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -17,31 +19,64 @@ interface PulsarSceneProps {
   settings: PulsarBackgroundSettings;
 }
 
+/**
+ * Synthetic fallback pulse profile used until (or unless) the remote pulsar
+ * dataset loads, so the animation renders and oscillates even when the fetch
+ * is blocked, offline, or slow.
+ */
+const FALLBACK_ROWS = 120;
+const FALLBACK_COLS = 256;
+
+/**
+ * Generate a synthetic drifting pulse profile.
+ * @returns Rows of pulse amplitudes resembling the PSR B1919+21 waterfall.
+ */
+function generateFallbackPulsarData(): number[][] {
+  return Array.from({ length: FALLBACK_ROWS }, (_, i) => {
+    const drift = 30 + Math.sin(i * 0.08) * 12;
+    return Array.from({ length: FALLBACK_COLS }, (_, j) => {
+      const pulse =
+        Math.exp(-Math.pow(j - drift, 2) / 6) +
+        0.6 * Math.exp(-Math.pow(j - drift - 8, 2) / 10);
+      return pulse * (0.8 + 0.4 * Math.sin(i * 0.3 + j * 0.02));
+    });
+  });
+}
+
 function PulsarScene({ settings }: PulsarSceneProps) {
   const linesRef = useRef<THREE.Group>(null);
-  const [pulsarData, setPulsarData] = useState<number[][]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const { viewport } = useThree();
+  const [pulsarData, setPulsarData] = useState<number[][]>(() =>
+    generateFallbackPulsarData()
+  );
 
   useEffect(() => {
     fetch(
       'https://raw.githubusercontent.com/maxkueng/PSR-B1919-21/master/pulsar.csv'
     )
-      .then((response) => response.text())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`pulsar data request failed: ${response.status}`);
+        }
+        return response.text();
+      })
       .then((csvText) => {
         const rows = csvText.trim().split('\n');
         const data = rows.map((row) =>
           row.split(',').map((val) => Number.parseFloat(val))
         );
-        setPulsarData(data);
-        setDataLoaded(true);
+        if (data.length > 0) {
+          setPulsarData(data);
+        }
       })
       .catch((error) => {
+        // Keep the synthetic fallback so the animation still runs.
         console.error('Error loading pulsar data:', error);
       });
   }, []);
 
   const lines = useMemo(() => {
-    if (!dataLoaded || pulsarData.length === 0) {
+    if (pulsarData.length === 0) {
       return [];
     }
 
@@ -73,7 +108,6 @@ function PulsarScene({ settings }: PulsarSceneProps) {
     return linesArray;
   }, [
     pulsarData,
-    dataLoaded,
     settings.lineSpacing,
     settings.lineColor,
     settings.scale,
@@ -111,6 +145,8 @@ function PulsarScene({ settings }: PulsarSceneProps) {
       linesRef.current.rotation.y =
         settings.rotationY +
         Math.sin(state.clock.elapsedTime * settings.animationSpeed) * 0.05;
+      const fit = Math.min(1, viewport.width / (10 * (settings.scale || 1)));
+      linesRef.current.scale.set(fit, 1, 1);
     }
   });
 
@@ -121,12 +157,6 @@ function PulsarScene({ settings }: PulsarSceneProps) {
       {/* eslint-disable-next-line react/no-unknown-property */}
       <ambientLight intensity={0.5} />
       <group ref={linesRef} />
-      {!dataLoaded && (
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.1, 0.1, 0.1]} />
-          <meshBasicMaterial color="white" />
-        </mesh>
-      )}
     </>
   );
 }
@@ -137,11 +167,38 @@ interface PulsarProps {
 
 export default function Pulsar({ settings }: PulsarProps) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 5], fov: 75 }}
-      style={{ width: '100%', height: '100%' }}
+    <Box
+      as="div"
+      position="absolute"
+      top={0}
+      left={0}
+      width="100vw"
+      height="100dvh"
+      maxWidth="100%"
+      maxHeight="100%"
+      minWidth={0}
+      minHeight={0}
+      overflow="hidden"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      boxSizing="border-box"
+      style={{ touchAction: 'none' }}
     >
-      <PulsarScene settings={settings} />
-    </Canvas>
+      <Canvas
+        dpr={MAX_DPR}
+        camera={{ position: [0, 0, 5], fov: 75 }}
+        style={{
+          width: '100%',
+          height: '100%',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          display: 'block',
+          touchAction: 'none',
+        }}
+      >
+        <PulsarScene settings={settings} />
+      </Canvas>
+    </Box>
   );
 }

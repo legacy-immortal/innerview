@@ -1,3 +1,9 @@
+/**
+ * Pulsar background controls (line spacing, color, rotation, and scale).
+ *
+ * @module background/PulsarControls.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -15,16 +21,16 @@ import {
 type PulsarSettings = NonNullable<BackgroundSettings['pulsar']>;
 
 interface PulsarControlsProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSettingChange: <K extends keyof PulsarSettings>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingChange: <K extends keyof PulsarSettings>(
     key: K,
     value: PulsarSettings[K]
   ) => void;
 }
 
-const inputStyles = {
+const INPUT_STYLES = {
   fontFamily:
     "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace",
   fontSize: '2xs',
@@ -38,7 +44,7 @@ export function PulsarControls({
   onOpenChange,
   settings,
   onSettingChange,
-}: PulsarControlsProps) {
+}: PulsarControlsProps): JSX.Element {
   const pulsar = settings.pulsar;
 
   return (
@@ -48,6 +54,7 @@ export function PulsarControls({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -58,18 +65,25 @@ export function PulsarControls({
         </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <Box pt={2}>
+        <Box pt={2} maxW="100%" overflowX="hidden" boxSizing="border-box">
           <VStack gap={3} align="stretch">
             <Field.Root>
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Line Color
               </Field.Label>
-              <HStack gap={2}>
+              <HStack
+                gap={2}
+                w="full"
+                minW={0}
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              >
                 <Input
                   type="color"
                   value={pulsar?.lineColor ?? '#ffffff'}
                   onChange={(e) => onSettingChange('lineColor', e.target.value)}
-                  w="50px"
+                  w={{ base: '100%', sm: '50px' }}
+                  minW={0}
                   h="24px"
                   p={0}
                   border="1px solid"
@@ -95,12 +109,19 @@ export function PulsarControls({
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Background Color
               </Field.Label>
-              <HStack gap={2}>
+              <HStack
+                gap={2}
+                w="full"
+                minW={0}
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              >
                 <Input
                   type="color"
                   value={pulsar?.bgColor ?? '#000000'}
                   onChange={(e) => onSettingChange('bgColor', e.target.value)}
-                  w="50px"
+                  w={{ base: '100%', sm: '50px' }}
+                  minW={0}
                   h="24px"
                   p={0}
                   border="1px solid"
@@ -181,9 +202,23 @@ export function PulsarControls({
                     {value.toFixed(2)}
                   </Text>
                 </HStack>
-                <HStack gap={2} align="center" w="full">
-                  <Box flex={1} w="full" minW={0}>
+                <HStack
+                  gap={2}
+                  align="center"
+                  w="full"
+                  maxW="100%"
+                  flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                  touchAction="none"
+                >
+                  <Box
+                    flex={1}
+                    w="full"
+                    minW={0}
+                    maxW="100%"
+                    flexBasis={{ base: '100%', sm: 'auto' }}
+                  >
                     <Slider.Root
+                      touchAction="none"
                       value={[value]}
                       onValueChange={(e) => onSettingChange(key, e.value[0])}
                       min={min}
@@ -209,10 +244,11 @@ export function PulsarControls({
                     max={max}
                     step={step}
                     size="xs"
-                    w="70px"
+                    w={{ base: '100%', sm: '70px' }}
+                    minW={0}
                   >
                     <NumberInput.Control />
-                    <NumberInput.Input {...inputStyles} />
+                    <NumberInput.Input {...INPUT_STYLES} />
                   </NumberInput.Root>
                 </HStack>
               </Field.Root>

@@ -52,8 +52,32 @@ export const VoiceVisualizer = ({
   if (!isActive) return null;
 
   return (
-    <Box p={4} borderTop="1px" borderColor="gray.700">
-      <Box ref={containerRef} />
+    <Box
+      p={4}
+      borderTop="1px"
+      borderColor="gray.700"
+      width="min(100vw, 720px)"
+      maxWidth="100vw"
+      mx="auto"
+      boxSizing="border-box"
+      style={{ touchAction: 'none' }}
+    >
+      <Box
+        ref={containerRef}
+        width="100%"
+        maxWidth="100%"
+        minWidth={0}
+        boxSizing="border-box"
+        style={{ touchAction: 'none' }}
+        css={{
+          '& canvas': {
+            width: '100% !important',
+            maxWidth: '100%',
+            display: 'block',
+            touchAction: 'none',
+          },
+        }}
+      />
     </Box>
   );
 };

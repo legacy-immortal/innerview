@@ -1,3 +1,9 @@
+/**
+ * ChatInput.tsx — Prompt input area for the condensed layout, with context meter and transcription.
+ *
+ * @module components/chat/condensed/ChatInput
+ */
+
 import {
   Box,
   HStack,
@@ -37,35 +43,35 @@ import {
 import { TranscriptionButton } from '../shared/TranscriptionButton';
 
 interface ChatInputProps {
-  input: string;
-  onInputChange: (value: string) => void;
-  onSubmit: (text: string) => void;
-  promptInputBackgroundColor: string;
-  sidebarBackgroundColor: string;
-  usedTokens: number;
-  maxContextTokens: number;
+  readonly input: string;
+  readonly onInputChange: (value: string) => void;
+  readonly onSubmit: (text: string) => void;
+  readonly promptInputBackgroundColor: string;
+  readonly sidebarBackgroundColor: string;
+  readonly usedTokens: number;
+  readonly maxContextTokens: number;
   tokenUsage: {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
   };
-  onTranscriptionComplete: (text: string) => void;
+  readonly onTranscriptionComplete: (text: string) => void;
   /** Start recording (same as keyboard push-to-talk start). */
-  onTranscriptionStart?: () => void;
+  readonly onTranscriptionStart?: () => void;
   /** Stop recording and begin transcription. */
-  onTranscriptionStop?: () => void;
+  readonly onTranscriptionStop?: () => void;
   /** When true, transcription button is disabled (e.g. while chat is streaming). */
-  disableTranscription?: boolean;
+  readonly disableTranscription?: boolean;
   /** When 'corpo': borderless, fully transparent wrapper and input row */
-  variant?: 'default' | 'corpo';
+  readonly variant?: 'default' | 'corpo';
   /** External recording state from keyboard shortcut triggered transcription */
-  isRecording?: boolean;
+  readonly isRecording?: boolean;
   /** External transcribing state */
-  isTranscribing?: boolean;
+  readonly isTranscribing?: boolean;
   /** External audio level for visualization */
-  audioLevel?: number;
+  readonly audioLevel?: number;
   /** Error from transcription (e.g. from parent hook). */
-  transcriptionError?: Error | null;
+  readonly transcriptionError?: Error | null;
 }
 
 const ChatInputComponent = ({
@@ -217,6 +223,8 @@ const ChatInputComponent = ({
         <HStack
           align="center"
           gap={2}
+          minW={0}
+          maxW="100%"
           fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
           fontSize="sm"
           lineHeight="1.6"
@@ -242,7 +250,7 @@ const ChatInputComponent = ({
           >
             {promptChar}
           </Text>
-          <Box position="relative" flex={1}>
+          <Box position="relative" flex={1} minW={0} maxW="100%">
             {/* Hidden span for measuring text width (article technique) */}
             <span
               ref={measureSpanRef}
@@ -318,8 +326,8 @@ const ChatInputComponent = ({
           </IconButton>
         </HStack>
       </form>
-      <Box mt={2}>
-        <HStack gap={2} align="center">
+      <Box mt={2} minW={0} maxW="100%">
+        <HStack gap={2} align="center" flexWrap="wrap">
           <Context
             usedTokens={usedTokens}
             maxTokens={maxContextTokens}

@@ -90,7 +90,7 @@ export class KokoroTTSModel implements StreamingTTSModel {
   /**
    * Generate speech in streaming chunks
    */
-  async *generateStream(options: TTSOptions): AsyncGenerator<Uint8Array> {
+  public async *generateStream(options: TTSOptions): AsyncGenerator<Uint8Array> {
     if (!this.ready) {
       await this.initialize();
     }
@@ -125,7 +125,7 @@ export class KokoroTTSModel implements StreamingTTSModel {
   /**
    * Generate complete audio (fallback)
    */
-  async generateComplete(options: TTSOptions): Promise<Uint8Array> {
+  public async generateComplete(options: TTSOptions): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
     for await (const chunk of this.generateStream(options)) {
       chunks.push(chunk);

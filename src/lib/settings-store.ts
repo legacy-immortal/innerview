@@ -1,3 +1,7 @@
+/**
+ * @file Zustand settings store with persistence and sectioned getters, savers, and updaters.
+ * @module lib/settings-store.ts
+ */
 // Settings state management with Zustand
 //
 // Best practices for consuming this store:

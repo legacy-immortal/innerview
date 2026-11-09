@@ -1,3 +1,9 @@
+/**
+ * System visualization controls (data source, cycle timing, scale, color, and offset).
+ *
+ * @module background/SystemVisualizationSection.tsx
+ */
+import type { JSX } from 'react';
 import { SYSTEM_SOURCE_OPTIONS } from '@/hooks/useSystemDataSource';
 import type {
   BackgroundSettings,
@@ -32,16 +38,16 @@ const DEFAULT_SYSTEM_VISUALIZATION = {
 } as const;
 
 interface SystemVisualizationSectionProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSourceChange: (sourceId: SystemVisualizationSourceId | '') => void;
-  onCycleChange: (cycle: boolean) => void;
-  onCycleDurationChange: (durationMs: number) => void;
-  onSystemVisualizationChange: (
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSourceChange: (sourceId: SystemVisualizationSourceId | '') => void;
+  readonly onCycleChange: (cycle: boolean) => void;
+  readonly onCycleDurationChange: (durationMs: number) => void;
+  readonly onSystemVisualizationChange: (
     patch: Partial<SystemVisualizationSettings>
   ) => void;
-  onSystemVisualizationTypesChange: (
+  readonly onSystemVisualizationTypesChange: (
     typeKey: keyof NonNullable<SystemVisualizationSettings['types']>,
     patch: Record<string, unknown>
   ) => void;
@@ -56,7 +62,7 @@ export function SystemVisualizationSection({
   onCycleDurationChange,
   onSystemVisualizationChange,
   onSystemVisualizationTypesChange,
-}: SystemVisualizationSectionProps) {
+}: SystemVisualizationSectionProps): JSX.Element {
   return (
     <Collapsible.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
       <Collapsible.Trigger asChild>
@@ -64,6 +70,7 @@ export function SystemVisualizationSection({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -233,8 +240,16 @@ export function SystemVisualizationSection({
                 />
               </HStack>
             </Field.Root>
-            <HStack gap={2} align="stretch">
-              <Field.Root flex={1}>
+            <HStack
+              gap={2}
+              align="stretch"
+              w="full"
+              minW={0}
+              maxW="100%"
+              flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              touchAction="none"
+            >
+              <Field.Root flex={1} minW={0} maxW="100%">
                 <Field.Label fontSize="2xs" color="gray.500" mb={1}>
                   Offset X (px)
                 </Field.Label>
@@ -257,7 +272,7 @@ export function SystemVisualizationSection({
                   <NumberInput.Input />
                 </NumberInput.Root>
               </Field.Root>
-              <Field.Root flex={1}>
+              <Field.Root flex={1} minW={0} maxW="100%">
                 <Field.Label fontSize="2xs" color="gray.500" mb={1}>
                   Offset Y (px)
                 </Field.Label>

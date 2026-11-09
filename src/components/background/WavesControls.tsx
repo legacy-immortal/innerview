@@ -1,3 +1,9 @@
+/**
+ * Waves background controls.
+ *
+ * @module background/WavesControls.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -16,10 +22,10 @@ import {
 type WavesSettings = NonNullable<BackgroundSettings['waves']>;
 
 interface WavesControlsProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSettingChange: <K extends keyof WavesSettings>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingChange: <K extends keyof WavesSettings>(
     key: K,
     value: WavesSettings[K]
   ) => void;
@@ -30,7 +36,7 @@ export function WavesControls({
   onOpenChange,
   settings,
   onSettingChange,
-}: WavesControlsProps) {
+}: WavesControlsProps): JSX.Element {
   const waves = settings.waves;
 
   return (
@@ -40,6 +46,7 @@ export function WavesControls({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -50,7 +57,7 @@ export function WavesControls({
         </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <Box pt={2}>
+        <Box pt={2} maxW="100%" overflowX="hidden" boxSizing="border-box">
           <VStack gap={3} align="stretch">
             <Field.Root>
               <HStack justify="space-between" mb={2}>
@@ -61,9 +68,23 @@ export function WavesControls({
                   {waves?.pointCount ?? 50}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[waves?.pointCount ?? 50]}
                     onValueChange={(e) =>
                       onSettingChange('pointCount', Math.round(e.value[0]))
@@ -94,7 +115,8 @@ export function WavesControls({
                   max={200}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -117,9 +139,23 @@ export function WavesControls({
                   {(waves?.speed ?? 0.5).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[waves?.speed ?? 0.5]}
                     onValueChange={(e) => onSettingChange('speed', e.value[0])}
                     min={0}
@@ -145,7 +181,8 @@ export function WavesControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -168,9 +205,23 @@ export function WavesControls({
                   {(waves?.amplitude ?? 0.5).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[waves?.amplitude ?? 0.5]}
                     onValueChange={(e) =>
                       onSettingChange('amplitude', e.value[0])
@@ -198,7 +249,8 @@ export function WavesControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -216,14 +268,21 @@ export function WavesControls({
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Color
               </Field.Label>
-              <HStack gap={2}>
+              <HStack
+                gap={2}
+                w="full"
+                minW={0}
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              >
                 <Input
                   type="color"
                   value={waves?.color ?? '#000000'}
                   onChange={(e) => {
                     onSettingChange('color', e.target.value);
                   }}
-                  w="60px"
+                  w={{ base: '100%', sm: '60px' }}
+                  minW={0}
                   h="32px"
                   p={0}
                   border="1px solid"
@@ -275,9 +334,23 @@ export function WavesControls({
                   {waves?.xGap ?? 10}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[waves?.xGap ?? 10]}
                     onValueChange={(e) =>
                       onSettingChange('xGap', Math.round(e.value[0]))
@@ -308,7 +381,8 @@ export function WavesControls({
                   max={50}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -331,9 +405,23 @@ export function WavesControls({
                   {waves?.yGap ?? 32}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[waves?.yGap ?? 32]}
                     onValueChange={(e) =>
                       onSettingChange('yGap', Math.round(e.value[0]))
@@ -364,7 +452,8 @@ export function WavesControls({
                   max={100}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -382,7 +471,12 @@ export function WavesControls({
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Animation Direction
               </Field.Label>
-              <VStack gap={2} align="stretch">
+              <VStack
+                gap={2}
+                align="stretch"
+                maxW="100%"
+                boxSizing="border-box"
+              >
                 <Switch.Root
                   checked={waves?.reverseX ?? false}
                   onCheckedChange={(e) =>

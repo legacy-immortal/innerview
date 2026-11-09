@@ -1,12 +1,18 @@
+/**
+ * MarkdownRenderer.tsx — Markdown rendering with Chakra-styled typographic components.
+ *
+ * @module components/chat/shared/MarkdownRenderer
+ */
+
 import { Box, Code, Heading, Text } from '@chakra-ui/react';
 import React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface MarkdownRendererProps {
-  content: string;
-  fontSize?: string;
-  color?: string;
+  readonly content: string;
+  readonly fontSize?: string;
+  readonly color?: string;
 }
 
 // Move remarkPlugins outside component to ensure stable reference

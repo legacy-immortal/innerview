@@ -1,5 +1,5 @@
 /** Shared color palette for waveform layers and other controls. */
-export const DEFAULT_COLORS = [
+export const DEFAULT_COLORS: readonly string[] = [
   '#00D9FF',
   '#FF00FF',
   '#00FF88',
@@ -9,7 +9,7 @@ export const DEFAULT_COLORS = [
 ];
 
 export function rgbToHex(
-  rgb: [number, number, number] | undefined
+  rgb: readonly [number, number, number] | undefined
 ): string {
   if (!rgb || !Array.isArray(rgb) || rgb.length !== 3) {
     return '#FFFFFF';
@@ -29,16 +29,16 @@ export function hexToRgb(hex: string): [number, number, number] {
 }
 
 export type ThemePreset = {
-  name: string;
-  primaryColor1: string;
-  primaryColor2: string;
-  secondaryColor1: string;
-  secondaryColor2: string;
-  tertiaryColor1: string;
-  tertiaryColor2: string;
+  readonly name: string;
+  readonly primaryColor1: string;
+  readonly primaryColor2: string;
+  readonly secondaryColor1: string;
+  readonly secondaryColor2: string;
+  readonly tertiaryColor1: string;
+  readonly tertiaryColor2: string;
 };
 
-export const THEME_PRESETS: ThemePreset[] = [
+export const THEME_PRESETS: readonly ThemePreset[] = [
   {
     name: 'Ocean',
     primaryColor1: '#004A6B',

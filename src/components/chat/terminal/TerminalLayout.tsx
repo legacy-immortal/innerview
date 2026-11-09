@@ -1,15 +1,24 @@
+/**
+ * TerminalLayout.tsx — Frame (banner + viewport) for the terminal layout.
+ *
+ * @module components/chat/terminal/TerminalLayout
+ */
+
 import { Box, VStack } from '@chakra-ui/react';
-import type { ReactNode } from 'react';
+import type { JSX, ReactNode } from 'react';
 
 interface TerminalLayoutProps {
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
-export const TerminalLayout = ({ children }: TerminalLayoutProps) => {
+/** Frames terminal content with the session banner and viewport. */
+export const TerminalLayout = ({
+  children,
+}: TerminalLayoutProps): JSX.Element => {
   return (
     <VStack
-      h="100vh"
-      w="100vw"
+      h="100dvh"
+      w="100%"
       align="stretch"
       gap={0}
       bg="transparent"

@@ -1,3 +1,9 @@
+/**
+ * Pixel-blast background controls.
+ *
+ * @module background/PixelBlastControls.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -18,10 +24,10 @@ type PixelBlastSettings = NonNullable<BackgroundSettings['pixelblast']>;
 type Variant = NonNullable<PixelBlastSettings['variant']>;
 
 interface PixelBlastControlsProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSettingChange: <K extends keyof PixelBlastSettings>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingChange: <K extends keyof PixelBlastSettings>(
     key: K,
     value: PixelBlastSettings[K]
   ) => void;
@@ -32,7 +38,7 @@ export function PixelBlastControls({
   onOpenChange,
   settings,
   onSettingChange,
-}: PixelBlastControlsProps) {
+}: PixelBlastControlsProps): JSX.Element {
   const pb = settings.pixelblast;
 
   return (
@@ -42,6 +48,7 @@ export function PixelBlastControls({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -52,7 +59,7 @@ export function PixelBlastControls({
         </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <Box pt={2}>
+        <Box pt={2} maxW="100%" overflowX="hidden" boxSizing="border-box">
           <VStack gap={3} align="stretch">
             <Field.Root>
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
@@ -92,9 +99,23 @@ export function PixelBlastControls({
                   {pb?.pixelSize ?? 3}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[pb?.pixelSize ?? 3]}
                     onValueChange={(e) =>
                       onSettingChange('pixelSize', Math.round(e.value[0]))
@@ -125,7 +146,8 @@ export function PixelBlastControls({
                   max={20}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -143,14 +165,21 @@ export function PixelBlastControls({
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Color
               </Field.Label>
-              <HStack gap={2}>
+              <HStack
+                gap={2}
+                w="full"
+                minW={0}
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              >
                 <Input
                   type="color"
                   value={pb?.color ?? '#B19EEF'}
                   onChange={(e) => {
                     onSettingChange('color', e.target.value);
                   }}
-                  w="50px"
+                  w={{ base: '100%', sm: '50px' }}
+                  minW={0}
                   h="24px"
                   p={0}
                   border="1px solid"
@@ -186,9 +215,23 @@ export function PixelBlastControls({
                   {pb?.patternScale ?? 2}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[pb?.patternScale ?? 2]}
                     onValueChange={(e) =>
                       onSettingChange('patternScale', e.value[0])
@@ -216,7 +259,8 @@ export function PixelBlastControls({
                   max={10}
                   step={0.1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -239,9 +283,23 @@ export function PixelBlastControls({
                   {(pb?.patternDensity ?? 1).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[pb?.patternDensity ?? 1]}
                     onValueChange={(e) =>
                       onSettingChange('patternDensity', e.value[0])
@@ -269,7 +327,8 @@ export function PixelBlastControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -309,9 +368,23 @@ export function PixelBlastControls({
                     {(pb?.liquidStrength ?? 0.1).toFixed(2)}
                   </Text>
                 </HStack>
-                <HStack gap={2} align="center" w="full">
-                  <Box flex={1} w="full" minW={0}>
+                <HStack
+                  gap={2}
+                  align="center"
+                  w="full"
+                  maxW="100%"
+                  flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                  touchAction="none"
+                >
+                  <Box
+                    flex={1}
+                    w="full"
+                    minW={0}
+                    maxW="100%"
+                    flexBasis={{ base: '100%', sm: 'auto' }}
+                  >
                     <Slider.Root
+                      touchAction="none"
                       value={[pb?.liquidStrength ?? 0.1]}
                       onValueChange={(e) =>
                         onSettingChange('liquidStrength', e.value[0])
@@ -342,7 +415,8 @@ export function PixelBlastControls({
                     max={1}
                     step={0.01}
                     size="xs"
-                    w="70px"
+                    w={{ base: '100%', sm: '70px' }}
+                    minW={0}
                   >
                     <NumberInput.Control />
                     <NumberInput.Input
@@ -366,9 +440,23 @@ export function PixelBlastControls({
                   {(pb?.speed ?? 0.5).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[pb?.speed ?? 0.5]}
                     onValueChange={(e) => onSettingChange('speed', e.value[0])}
                     min={0}
@@ -394,7 +482,8 @@ export function PixelBlastControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input

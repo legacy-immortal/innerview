@@ -1,3 +1,9 @@
+/**
+ * Threads background controls (color, amplitude, and distance).
+ *
+ * @module background/ThreadsControls.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -16,10 +22,10 @@ import {
 type ThreadsSettings = NonNullable<BackgroundSettings['threads']>;
 
 interface ThreadsControlsProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSettingChange: <K extends keyof ThreadsSettings>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingChange: <K extends keyof ThreadsSettings>(
     key: K,
     value: ThreadsSettings[K]
   ) => void;
@@ -43,7 +49,7 @@ export function ThreadsControls({
   onOpenChange,
   settings,
   onSettingChange,
-}: ThreadsControlsProps) {
+}: ThreadsControlsProps): JSX.Element {
   const threads = settings.threads;
 
   return (
@@ -53,6 +59,7 @@ export function ThreadsControls({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -63,13 +70,19 @@ export function ThreadsControls({
         </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <Box pt={2}>
+        <Box pt={2} maxW="100%" overflowX="hidden" boxSizing="border-box">
           <VStack gap={3} align="stretch">
             <Field.Root>
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
                 Color
               </Field.Label>
-              <HStack gap={2}>
+              <HStack
+                gap={2}
+                w="full"
+                minW={0}
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+              >
                 <Input
                   type="color"
                   value={threadsColorToHex(threads?.color)}
@@ -80,7 +93,8 @@ export function ThreadsControls({
                     const b = parseInt(hex.slice(5, 7), 16) / 255;
                     onSettingChange('color', [r, g, b]);
                   }}
-                  w="50px"
+                  w={{ base: '100%', sm: '50px' }}
+                  minW={0}
                   h="24px"
                   p={0}
                   border="1px solid"
@@ -119,9 +133,23 @@ export function ThreadsControls({
                   {(threads?.amplitude ?? 0.5).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[threads?.amplitude ?? 0.5]}
                     onValueChange={(e) =>
                       onSettingChange('amplitude', e.value[0])
@@ -149,7 +177,8 @@ export function ThreadsControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -172,9 +201,23 @@ export function ThreadsControls({
                   {(threads?.distance ?? 0.5).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[threads?.distance ?? 0.5]}
                     onValueChange={(e) =>
                       onSettingChange('distance', e.value[0])
@@ -202,7 +245,8 @@ export function ThreadsControls({
                   max={2}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input

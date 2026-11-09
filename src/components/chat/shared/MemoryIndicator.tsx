@@ -1,9 +1,15 @@
+/**
+ * MemoryIndicator.tsx — Compact memory/system indicator chip for the chat header.
+ *
+ * @module components/chat/shared/MemoryIndicator
+ */
+
 import { Text } from '@chakra-ui/react';
 
 interface MemoryIndicatorProps {
-  toolName: string;
-  state?: string;
-  output?: string;
+  readonly toolName: string;
+  readonly state?: string;
+  readonly output?: string;
 }
 
 export const MemoryIndicator = ({

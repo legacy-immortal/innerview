@@ -1,3 +1,9 @@
+/**
+ * CorpoLayout.tsx — Frame for the corpo layout (drawer, header, content slot).
+ *
+ * @module components/chat/corpo/CorpoLayout
+ */
+
 import { ChatInput } from '@/components/chat/condensed/ChatInput';
 import {
   ConversationList,
@@ -17,67 +23,70 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { memo, useCallback, type JSX } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { UIMessage } from 'ai';
 import { HiChevronRight } from 'react-icons/hi';
 import { LuSettings, LuX } from 'react-icons/lu';
 
 export interface CorpoLayoutProps {
-  drawerOpen: boolean;
-  onDrawerOpenChange: (open: boolean) => void;
-  messages: UIMessage[];
-  isLoading: boolean;
-  isLoadingMessages: boolean;
-  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  messagesParentRef: React.RefObject<HTMLDivElement | null>;
-  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
-  input: string;
-  onInputChange: (value: string) => void;
-  onSubmit: (text: string) => void;
-  promptInputBackgroundColor: string;
-  sidebarBackgroundColor: string;
-  usedTokens: number;
-  maxContextTokens: number;
+  readonly drawerOpen: boolean;
+  readonly onDrawerOpenChange: (open: boolean) => void;
+  readonly messages: UIMessage[];
+  readonly isLoading: boolean;
+  readonly isLoadingMessages: boolean;
+  readonly messagesContainerRef: React.RefObject<HTMLDivElement | null>;
+  readonly messagesParentRef: React.RefObject<HTMLDivElement | null>;
+  readonly virtualizer: ReturnType<
+    typeof useVirtualizer<HTMLDivElement, Element>
+  >;
+  readonly input: string;
+  readonly onInputChange: (value: string) => void;
+  readonly onSubmit: (text: string) => void;
+  readonly promptInputBackgroundColor: string;
+  readonly sidebarBackgroundColor: string;
+  readonly usedTokens: number;
+  readonly maxContextTokens: number;
   tokenUsage: {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
   };
-  onTranscriptionComplete: (text: string) => void;
-  onTranscriptionStart?: () => void;
-  onTranscriptionStop?: () => void;
-  disableTranscription?: boolean;
-  isRecording?: boolean;
-  isTranscribing?: boolean;
-  audioLevel?: number;
-  transcriptionError?: Error | null;
-  conversationListRef: React.RefObject<ConversationListRef | null>;
-  onConversationSelect: () => void;
-  createConversation: () => void;
-  onShowPerformanceSettings: () => void;
-  onDeleteMessage?: (messageId: string) => void;
-  chatError: { message: string } | null;
-  onCloseError: () => void;
-  ttsEnabled: boolean;
-  onTtsToggle: () => void;
-  isTTSSpeaking: boolean;
-  onStopAudio: () => void;
-  effectiveConversationId: string;
-  conversations: ReturnType<
+  readonly onTranscriptionComplete: (text: string) => void;
+  readonly onTranscriptionStart?: () => void;
+  readonly onTranscriptionStop?: () => void;
+  readonly disableTranscription?: boolean;
+  readonly isRecording?: boolean;
+  readonly isTranscribing?: boolean;
+  readonly audioLevel?: number;
+  readonly transcriptionError?: Error | null;
+  readonly conversationListRef: React.RefObject<ConversationListRef | null>;
+  readonly onConversationSelect: () => void;
+  readonly createConversation: () => void;
+  readonly onShowPerformanceSettings: () => void;
+  readonly onDeleteMessage?: (messageId: string) => void;
+  readonly chatError: { message: string } | null;
+  readonly onCloseError: () => void;
+  readonly ttsEnabled: boolean;
+  readonly onTtsToggle: () => void;
+  readonly isTTSSpeaking: boolean;
+  readonly onStopAudio: () => void;
+  readonly effectiveConversationId: string;
+  readonly conversations: ReturnType<
     typeof useConversationStore.getState
   >['conversations'];
-  loadConversationMessages: ReturnType<
+  readonly loadConversationMessages: ReturnType<
     typeof useConversationStore.getState
   >['loadConversationMessages'];
-  purgeDuplicateMessages: ReturnType<
+  readonly purgeDuplicateMessages: ReturnType<
     typeof useConversationStore.getState
   >['purgeDuplicateMessages'];
-  clearAllConversations: ReturnType<
+  readonly clearAllConversations: ReturnType<
     typeof useConversationStore.getState
   >['clearAllConversations'];
 }
 
-export function CorpoLayout({
+function CorpoLayoutComponent({
   drawerOpen,
   onDrawerOpenChange,
   messages,
@@ -118,24 +127,26 @@ export function CorpoLayout({
   loadConversationMessages,
   purgeDuplicateMessages,
   clearAllConversations,
-}: CorpoLayoutProps) {
-  const handleConversationSelectAndClose = () => {
+}: CorpoLayoutProps): JSX.Element {
+  const handleConversationSelectAndClose = useCallback(() => {
     onConversationSelect();
     onDrawerOpenChange(false);
-  };
+  }, [onConversationSelect, onDrawerOpenChange]);
 
-  const openSettingsAndClose = () => {
+  const openSettingsAndClose = useCallback(() => {
     onShowPerformanceSettings();
     onDrawerOpenChange(false);
-  };
+  }, [onShowPerformanceSettings, onDrawerOpenChange]);
 
   return (
     <Box
       position="relative"
-      h="100vh"
+      h="100dvh"
       w="100%"
+      maxW="100%"
       display="flex"
       flexDirection="column"
+      touchAction="none"
     >
       {/* Top-left: open drawer and settings menu */}
       <HStack
@@ -174,7 +185,8 @@ export function CorpoLayout({
             <Menu.Positioner>
               <Menu.Content
                 bg="rgba(0,0,0,0.9)"
-                minW="200px"
+                minW={{ base: 'min(200px, 85vw)', md: '200px' }}
+                maxW="calc(100vw - 2rem)"
                 p={0}
                 borderRadius="none"
                 border="1px solid"
@@ -212,6 +224,7 @@ export function CorpoLayout({
           <Drawer.Positioner>
             <Drawer.Content
               bg="rgba(0, 0, 0, 0.85)"
+              maxW="calc(100vw - 2rem)"
               borderRight="0px"
               borderColor="rgba(255, 255, 255, 0.08)"
               fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
@@ -282,7 +295,8 @@ export function CorpoLayout({
         flexDirection="column"
       >
         <Box
-          w="75vw"
+          w={{ base: '100%', md: '85vw', lg: '75vw' }}
+          maxW="100%"
           mx="auto"
           display="flex"
           flexDirection="column"
@@ -315,7 +329,8 @@ export function CorpoLayout({
         left={0}
         right={0}
         zIndex={15}
-        w="75vw"
+        w={{ base: '100%', md: '85vw', lg: '75vw' }}
+        maxW="100%"
         mx="auto"
       >
         <ChatInput
@@ -340,3 +355,5 @@ export function CorpoLayout({
     </Box>
   );
 }
+
+export const CorpoLayout = memo(CorpoLayoutComponent);

@@ -1,3 +1,9 @@
+/**
+ * ChatHeader.tsx — Header bar for the condensed chat layout (title, actions).
+ *
+ * @module components/chat/condensed/ChatHeader
+ */
+
 import { Tooltip } from '@/components/ui/tooltip';
 import type { useConversationStore } from '@/lib/conversation-store';
 import {
@@ -6,7 +12,7 @@ import {
   useProviderStatusStore,
 } from '@/lib/provider-status';
 import { Box, HStack, IconButton, Menu, Portal, Text } from '@chakra-ui/react';
-import React, { useEffect } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import {
   HiChatAlt,
   HiCollection,
@@ -20,39 +26,39 @@ import { headerTextShadowStyles } from '../shared/ChatStyles';
 import type { ConversationListRef } from './ConversationList';
 
 interface ChatHeaderProps {
-  showConversationList: boolean;
-  onToggleConversationList: () => void;
-  onCreateConversation: () => void;
-  canStop: boolean;
-  onStop: () => void;
-  canRegenerate: boolean;
-  onRegenerate: () => void;
-  sidebarHeaderBackgroundColor: string;
-  ttsEnabled: boolean;
-  onTtsToggle: () => void;
-  isTTSSpeaking: boolean;
-  onStopAudio: () => void;
-  onShowPerformanceSettings: () => void;
-  effectiveConversationId: string;
-  conversations: ReturnType<
+  readonly showConversationList: boolean;
+  readonly onToggleConversationList: () => void;
+  readonly onCreateConversation: () => void;
+  readonly canStop: boolean;
+  readonly onStop: () => void;
+  readonly canRegenerate: boolean;
+  readonly onRegenerate: () => void;
+  readonly sidebarHeaderBackgroundColor: string;
+  readonly ttsEnabled: boolean;
+  readonly onTtsToggle: () => void;
+  readonly isTTSSpeaking: boolean;
+  readonly onStopAudio: () => void;
+  readonly onShowPerformanceSettings: () => void;
+  readonly effectiveConversationId: string;
+  readonly conversations: ReturnType<
     typeof useConversationStore.getState
   >['conversations'];
-  loadConversationMessages: ReturnType<
+  readonly loadConversationMessages: ReturnType<
     typeof useConversationStore.getState
   >['loadConversationMessages'];
-  purgeDuplicateMessages: ReturnType<
+  readonly purgeDuplicateMessages: ReturnType<
     typeof useConversationStore.getState
   >['purgeDuplicateMessages'];
-  clearAllConversations: ReturnType<
+  readonly clearAllConversations: ReturnType<
     typeof useConversationStore.getState
   >['clearAllConversations'];
-  createConversation: ReturnType<
+  readonly createConversation: ReturnType<
     typeof useConversationStore.getState
   >['createConversation'];
-  conversationListRef: React.RefObject<ConversationListRef | null>;
+  readonly conversationListRef: React.RefObject<ConversationListRef | null>;
 }
 
-export const ChatHeader = ({
+const ChatHeaderComponent = ({
   showConversationList,
   onToggleConversationList,
   onCreateConversation,
@@ -78,15 +84,18 @@ export const ChatHeader = ({
     (state) => state.providerStatus
   );
   const checkProvider = useProviderStatusStore((state) => state.checkProvider);
+  const checkRef = useRef(checkProvider);
+  checkRef.current = checkProvider;
 
-  // Check provider status on mount and periodically
+  // Check provider status on mount and periodically (throttled; paused when hidden)
   useEffect(() => {
-    checkProvider();
+    checkRef.current();
     const interval = setInterval(() => {
-      checkProvider();
-    }, 60000); // Check every minute
+      if (typeof document !== 'undefined' && document.hidden) return;
+      checkRef.current();
+    }, 120000); // Check every 2 minutes
     return () => clearInterval(interval);
-  }, [checkProvider]);
+  }, []);
 
   const statusColor = getProviderStatusColor(providerStatus);
   const statusMessage = getProviderStatusMessage(providerStatus);
@@ -99,8 +108,8 @@ export const ChatHeader = ({
       position="relative"
       bg={sidebarHeaderBackgroundColor}
     >
-      <HStack justify="space-between" align="center">
-        <HStack gap={2}>
+      <HStack justify="space-between" align="center" flexWrap="wrap" minW={0}>
+        <HStack gap={2} flexWrap="wrap" minW={0}>
           {/* Provider status indicator */}
           <Tooltip
             content={statusMessage}
@@ -162,7 +171,8 @@ export const ChatHeader = ({
                 <Menu.Content
                   bg="transparent"
                   borderRadius="none"
-                  minW="200px"
+                  minW={{ base: 'min(200px, 85vw)', md: '200px' }}
+                  maxW="calc(100vw - 2rem)"
                   p={0}
                 >
                   <ChatDebugMenu
@@ -194,7 +204,7 @@ export const ChatHeader = ({
             {showConversationList ? 'CONVERSATIONS' : 'MESSAGES'}
           </Text>
         </HStack>
-        <HStack gap={2}>
+        <HStack gap={2} flexWrap="wrap" minW={0}>
           {!showConversationList && (
             <>
               {canStop && (
@@ -248,3 +258,5 @@ export const ChatHeader = ({
     </Box>
   );
 };
+
+export const ChatHeader = memo(ChatHeaderComponent);

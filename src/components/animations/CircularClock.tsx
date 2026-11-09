@@ -1,5 +1,6 @@
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -18,24 +19,46 @@ export const CircularClock = ({
   minutes,
   seconds,
   color = '#00D9FF',
-  size = 200,
+  size = 2000,
   showSeconds = true,
 }: CircularClockProps) => {
+  // Keep original intent scale: 80/70/60 vmin at the caller's 2000 baseline,
+  // scaled proportionally (clamped) so small defaults don't collapse the clock.
+  const scaleFactor = Math.min(
+    1.2,
+    Math.max(0.5, (size > 0 ? size : 2000) / 2000)
+  );
+  const baseVmin = Math.round(80 * scaleFactor);
+  const mdVmin = Math.round(70 * scaleFactor);
+  const lgVmin = Math.round(60 * scaleFactor);
+
   return (
     <Box
-      position="absolute"
-      top="50%"
-      left="50%"
-      transform="translate(-50%, -50%)"
-      width={`${size}px`}
-      height={`${size}px`}
+      position="relative"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      width={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      height={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      flexShrink={0}
       zIndex={5}
       pointerEvents="none"
+      touchAction="none"
     >
       <Canvas
         orthographic
+        dpr={MAX_DPR}
         camera={{ position: [0, 0, 5], zoom: 50 }}
         gl={{ antialias: true, alpha: true }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
       >
         <ClockScene
           hours={hours}
@@ -224,6 +247,7 @@ function ClockScene({
         Object.values(materials).forEach((mat) => mat.dispose());
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update colors when color prop changes
@@ -245,15 +269,19 @@ function ClockScene({
       return;
     }
 
-    // Angles: 12 o'clock at top; Three.js +Z is CCW, so negate for clockwise
-    const hourAngle = ((hours + minutes / 60) / 12) * Math.PI * 2 - Math.PI / 2;
-    const minuteAngle = (minutes / 60) * Math.PI * 2 - Math.PI / 2;
-    const secondAngle = (seconds / 60) * Math.PI * 2 - Math.PI / 2;
+    // Hands are BoxGeometries translated so they extend along +Y (12
+    // o'clock at rotation 0). Three.js rotation.z is counter-clockwise, so
+    // a clockwise clock face needs negative rotations proportional to the
+    // elapsed fraction. (The previous code subtracted PI/2 before negating,
+    // which shifted every hand 90 degrees CCW from the true time.)
+    const hourAngle = -(((hours % 12) + minutes / 60) / 12) * Math.PI * 2;
+    const minuteAngle = -(minutes / 60) * Math.PI * 2;
+    const secondAngle = -((seconds % 60) / 60) * Math.PI * 2;
 
-    meshes.hourHand.rotation.z = -hourAngle;
-    meshes.minuteHand.rotation.z = -minuteAngle;
+    meshes.hourHand.rotation.z = hourAngle;
+    meshes.minuteHand.rotation.z = minuteAngle;
     if (showSeconds) {
-      meshes.secondHand.rotation.z = -secondAngle;
+      meshes.secondHand.rotation.z = secondAngle;
       meshes.secondHand.visible = true;
     } else {
       meshes.secondHand.visible = false;

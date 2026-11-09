@@ -1,51 +1,63 @@
 import { Box, Text, VStack } from '@chakra-ui/react';
+import type { ReactElement } from 'react';
 
+/**
+ * @file Terminal-style full-screen import progress loader — text-based
+ * progress bar with █ and ░ characters for import operations.
+ */
+
+/** Number of blocks in the text progress bar. */
+const PROGRESS_BAR_BLOCKS = 20;
+
+/** Props for the terminal import progress overlay. */
 interface TerminalImportProgressProps {
   /**
    * Current step description
    */
-  currentStep: string;
+  readonly currentStep: string;
 
   /**
    * Current progress value
    */
-  progress: number;
+  readonly progress: number;
 
   /**
    * Total number of steps
    */
-  totalSteps: number;
+  readonly totalSteps: number;
 
   /**
    * Whether the loader is visible
    */
-  isVisible: boolean;
+  readonly isVisible: boolean;
 
   /**
    * Title text displayed at the top
    * @default '[DEEPSEEK IMPORT]'
    */
-  title?: string;
+  readonly title?: string;
 
   /**
    * Main message displayed below the title
    * @default 'Processing DeepSeek conversation data...'
    */
-  message?: string;
+  readonly message?: string;
 
   /**
    * Subtitle message displayed below main message
    * @default 'This may take a few moments for large files'
    */
-  subtitle?: string;
+  readonly subtitle?: string;
 }
 
 /**
  * Terminal-style full-screen import progress loader
  * Features text-based progress bar with █ and ░ characters
  * and full-screen overlay for import operations
+ * @param props - Import step, progress, and overlay texts.
+ * @returns The progress overlay element, or null when hidden.
  */
-export const TerminalImportProgress = ({
+export function TerminalImportProgress({
   currentStep,
   progress,
   totalSteps,
@@ -53,13 +65,14 @@ export const TerminalImportProgress = ({
   title = '[DEEPSEEK IMPORT]',
   message = 'Processing DeepSeek conversation data...',
   subtitle = 'This may take a few moments for large files',
-}: TerminalImportProgressProps) => {
+}: TerminalImportProgressProps): ReactElement | null {
   if (!isVisible) return null;
 
-  const progressPercent = Math.round((progress / totalSteps) * 100);
+  const completionRatio = totalSteps > 0 ? progress / totalSteps : 0;
+  const progressPercent = Math.round(completionRatio * 100);
+  const filledBlocks = Math.floor(completionRatio * PROGRESS_BAR_BLOCKS);
   const progressBar =
-    '█'.repeat(Math.floor((progress / totalSteps) * 20)) +
-    '░'.repeat(20 - Math.floor((progress / totalSteps) * 20));
+    '█'.repeat(filledBlocks) + '░'.repeat(PROGRESS_BAR_BLOCKS - filledBlocks);
 
   return (
     <Box
@@ -123,4 +136,4 @@ export const TerminalImportProgress = ({
       </VStack>
     </Box>
   );
-};
+}

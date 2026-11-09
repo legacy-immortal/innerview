@@ -1,12 +1,11 @@
+/**
+ * @file User settings domain types (TTS, transcription, generation, style, keyboard, performance).
+ * @module lib/settings-types.ts
+ */
 // Settings types for the frontend (mirrored from backend)
 export interface TTSSettings {
   provider:
-    | 'kokoro'
-    | 'xtts'
-    | 'tts-webui'
-    | 'elevenlabs'
-    | 'vercel-ai'
-    | 'browser';
+    'kokoro' | 'xtts' | 'tts-webui' | 'elevenlabs' | 'vercel-ai' | 'browser';
 
   // API Keys and Endpoints
   elevenLabsApiKey?: string;
@@ -147,10 +146,7 @@ export interface SystemTextAnimationSettings {
 
 /** Id of the system data source to show when idle (network, frametiming, context, time). */
 export type SystemVisualizationSourceId =
-  | 'network'
-  | 'frametiming'
-  | 'context'
-  | 'time';
+  'network' | 'frametiming' | 'context' | 'time';
 
 /** Per-type options for system/cycle visualizations (clock, gauge, pie, sparkline). */
 export interface SystemVisualizationTypeSettings {

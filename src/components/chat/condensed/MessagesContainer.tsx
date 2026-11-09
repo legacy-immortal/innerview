@@ -1,6 +1,13 @@
+/**
+ * MessagesContainer.tsx — Scroll container + virtualiser hosting the message stream.
+ *
+ * @module components/chat/condensed/MessagesContainer
+ */
+
 import { TerminalLoader } from '@/components/animations/TerminalLoader';
 import { Box, HStack, Text } from '@chakra-ui/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { memo, useMemo } from 'react';
 import type { UIMessage } from 'ai';
 import {
   emeraldGlowStyles,
@@ -12,16 +19,52 @@ import {
 import { MessageBubble } from './MessageBubble';
 
 interface MessagesContainerProps {
-  messages: UIMessage[];
-  isLoading: boolean;
-  isLoadingMessages: boolean;
-  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  messagesParentRef: React.RefObject<HTMLDivElement | null>;
-  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
-  onDeleteMessage?: (messageId: string) => void;
+  readonly messages: UIMessage[];
+  readonly isLoading: boolean;
+  readonly isLoadingMessages: boolean;
+  readonly messagesContainerRef: React.RefObject<HTMLDivElement | null>;
+  readonly messagesParentRef: React.RefObject<HTMLDivElement | null>;
+  readonly virtualizer: ReturnType<
+    typeof useVirtualizer<HTMLDivElement, Element>
+  >;
+  readonly onDeleteMessage?: (messageId: string) => void;
 }
 
-export const MessagesContainer = ({
+/** One virtualized row — memoized so streaming ticks only re-render the visible tail. */
+const VirtualRow = memo(function VirtualRow({
+  message,
+  start,
+  index,
+  onDeleteMessage,
+  measureRef,
+}: {
+  readonly message: UIMessage;
+  readonly start: number;
+  readonly index: number;
+  readonly onDeleteMessage?: (messageId: string) => void;
+  readonly measureRef: (node: HTMLDivElement | null) => void;
+}): React.JSX.Element {
+  return (
+    <Box
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      w="100%"
+      maxW="100%"
+      minW={0}
+      style={{ transform: `translateY(${start}px)` }}
+      data-index={index}
+      ref={(node: HTMLDivElement | null) => {
+        measureRef(node);
+      }}
+    >
+      <MessageBubble message={message} onDeleteMessage={onDeleteMessage} />
+    </Box>
+  );
+});
+
+const MessagesContainerComponent = ({
   messages,
   isLoading,
   isLoadingMessages,
@@ -30,6 +73,23 @@ export const MessagesContainer = ({
   virtualizer,
   onDeleteMessage,
 }: MessagesContainerProps) => {
+  const virtualItems = virtualizer.getVirtualItems();
+  const measureRef = useMemo(
+    () => (node: HTMLDivElement | null) => {
+      if (node) virtualizer.measureElement(node);
+    },
+    [virtualizer]
+  );
+  const nowLabel = useMemo(
+    () =>
+      new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    []
+  );
   return (
     <Box
       ref={messagesContainerRef}
@@ -37,13 +97,13 @@ export const MessagesContainer = ({
       top={0}
       left={0}
       right={0}
-      bottom="120px"
+      bottom={{ base: '108px', md: '120px' }}
       overflowY="auto"
       overflowX="hidden"
       w="100%"
       maxW="100%"
       minW={0}
-      p={4}
+      p={{ base: 2, md: 4 }}
       boxSizing="border-box"
       css={messagesContainerStyles}
     >
@@ -61,35 +121,19 @@ export const MessagesContainer = ({
           height: `${virtualizer.getTotalSize()}px`,
         }}
       >
-        {virtualizer.getVirtualItems().map((virtualItem) => {
+        {virtualItems.map((virtualItem) => {
           const message = messages[virtualItem.index];
           if (!message) return null;
 
           return (
-            <Box
+            <VirtualRow
               key={virtualItem.key}
-              position="absolute"
-              top={0}
-              left={0}
-              right={0}
-              w="100%"
-              maxW="100%"
-              minW={0}
-              style={{
-                transform: `translateY(${virtualItem.start}px)`,
-              }}
-              data-index={virtualItem.index}
-              ref={(node: HTMLDivElement | null) => {
-                if (node) {
-                  virtualizer.measureElement(node);
-                }
-              }}
-            >
-              <MessageBubble
-                message={message}
-                onDeleteMessage={onDeleteMessage}
-              />
-            </Box>
+              message={message}
+              start={virtualItem.start}
+              index={virtualItem.index}
+              onDeleteMessage={onDeleteMessage}
+              measureRef={measureRef}
+            />
           );
         })}
       </Box>
@@ -114,12 +158,7 @@ export const MessagesContainer = ({
               letterSpacing="0.05em"
               css={headerTextShadowStyles}
             >
-              {new Date().toLocaleTimeString('en-US', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}
+              {nowLabel}
             </Text>
             <Text
               as="span"
@@ -158,3 +197,5 @@ export const MessagesContainer = ({
     </Box>
   );
 };
+
+export const MessagesContainer = memo(MessagesContainerComponent);

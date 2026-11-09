@@ -1,3 +1,9 @@
+/**
+ * Image-dither background controls (image source, dither pattern, and palette).
+ *
+ * @module background/ImageDitherControls.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -13,22 +19,20 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 type ImageDitherSlice = NonNullable<BackgroundSettings['imagedither']>;
 
-const FONT_FAMILY =
-  "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace";
-
 export interface ImageDitherControlsProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: BackgroundSettings;
-  onSettingChange: <K extends keyof ImageDitherSlice>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingChange: <K extends keyof ImageDitherSlice>(
     key: K,
     value: ImageDitherSlice[K]
   ) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  readonly fileInputRef: React.RefObject<HTMLInputElement | null>;
+  readonly onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export function ImageDitherControls({
@@ -38,7 +42,7 @@ export function ImageDitherControls({
   onSettingChange,
   fileInputRef,
   onFileChange,
-}: ImageDitherControlsProps) {
+}: ImageDitherControlsProps): JSX.Element {
   return (
     <Collapsible.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
       <Collapsible.Trigger asChild>
@@ -46,6 +50,7 @@ export function ImageDitherControls({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -56,7 +61,7 @@ export function ImageDitherControls({
         </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <Box pt={2}>
+        <Box pt={2} maxW="100%" overflowX="hidden" boxSizing="border-box">
           <VStack gap={3} align="stretch">
             <Field.Root>
               <Field.Label fontSize="xs" color="gray.400" mb={2}>
@@ -140,9 +145,23 @@ export function ImageDitherControls({
                   {settings.imagedither?.pxSize ?? 4}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[settings.imagedither?.pxSize ?? 4]}
                     onValueChange={(e) =>
                       onSettingChange('pxSize', Math.round(e.value[0]))
@@ -170,7 +189,8 @@ export function ImageDitherControls({
                   max={32}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -192,9 +212,23 @@ export function ImageDitherControls({
                   {settings.imagedither?.colorSteps ?? 4}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[settings.imagedither?.colorSteps ?? 4]}
                     onValueChange={(e) =>
                       onSettingChange('colorSteps', Math.round(e.value[0]))
@@ -222,7 +256,8 @@ export function ImageDitherControls({
                   max={16}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -261,14 +296,21 @@ export function ImageDitherControls({
                   <Field.Label fontSize="xs" color="gray.400" mb={2}>
                     Front Color
                   </Field.Label>
-                  <HStack gap={2}>
+                  <HStack
+                    gap={2}
+                    w="full"
+                    minW={0}
+                    maxW="100%"
+                    flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                  >
                     <Input
                       type="color"
                       value={settings.imagedither?.colorFront ?? '#ffffff'}
                       onChange={(e) =>
                         onSettingChange('colorFront', e.target.value)
                       }
-                      w="50px"
+                      w={{ base: '100%', sm: '50px' }}
+                      minW={0}
                       h="24px"
                       p={0}
                       border="1px solid"
@@ -295,14 +337,21 @@ export function ImageDitherControls({
                   <Field.Label fontSize="xs" color="gray.400" mb={2}>
                     Back Color
                   </Field.Label>
-                  <HStack gap={2}>
+                  <HStack
+                    gap={2}
+                    w="full"
+                    minW={0}
+                    maxW="100%"
+                    flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                  >
                     <Input
                       type="color"
                       value={settings.imagedither?.colorBack ?? '#000000'}
                       onChange={(e) =>
                         onSettingChange('colorBack', e.target.value)
                       }
-                      w="50px"
+                      w={{ base: '100%', sm: '50px' }}
+                      minW={0}
                       h="24px"
                       p={0}
                       border="1px solid"
@@ -329,14 +378,21 @@ export function ImageDitherControls({
                   <Field.Label fontSize="xs" color="gray.400" mb={2}>
                     Highlight Color
                   </Field.Label>
-                  <HStack gap={2}>
+                  <HStack
+                    gap={2}
+                    w="full"
+                    minW={0}
+                    maxW="100%"
+                    flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                  >
                     <Input
                       type="color"
                       value={settings.imagedither?.colorHighlight ?? '#ffffff'}
                       onChange={(e) =>
                         onSettingChange('colorHighlight', e.target.value)
                       }
-                      w="50px"
+                      w={{ base: '100%', sm: '50px' }}
+                      minW={0}
                       h="24px"
                       p={0}
                       border="1px solid"
@@ -397,9 +453,23 @@ export function ImageDitherControls({
                   {(settings.imagedither?.scale ?? 1).toFixed(2)}
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[settings.imagedither?.scale ?? 1]}
                     onValueChange={(e) => onSettingChange('scale', e.value[0])}
                     min={0.1}
@@ -425,7 +495,8 @@ export function ImageDitherControls({
                   max={3}
                   step={0.01}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
@@ -447,9 +518,23 @@ export function ImageDitherControls({
                   {settings.imagedither?.rotation ?? 0}°
                 </Text>
               </HStack>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[settings.imagedither?.rotation ?? 0]}
                     onValueChange={(e) =>
                       onSettingChange('rotation', e.value[0])
@@ -477,7 +562,8 @@ export function ImageDitherControls({
                   max={180}
                   step={1}
                   size="xs"
-                  w="70px"
+                  w={{ base: '100%', sm: '70px' }}
+                  minW={0}
                 >
                   <NumberInput.Control />
                   <NumberInput.Input

@@ -1,19 +1,48 @@
 import { Box } from '@chakra-ui/react';
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
 
+/**
+ * @file Terminal-style content transition — slides content up/down with a
+ * scanline sweep and fading prompt glyph.
+ */
+
+/** Props for the terminal transition. */
 interface TerminalTransitionProps {
-  children: ReactNode;
-  isVisible: boolean;
-  direction?: 'up' | 'down';
-  duration?: number;
+  readonly children: ReactNode;
+  readonly isVisible: boolean;
+  readonly direction?: 'up' | 'down';
+  readonly duration?: number;
 }
 
-export const TerminalTransition = ({
+/**
+ * Compute the Y translation for the transitioning content.
+ * @param isAnimating - Whether the transition animation is running.
+ * @param isVisible - Whether the content is being shown.
+ * @param direction - Slide direction.
+ * @returns The translateY value for the content.
+ */
+function resolveTranslateY(
+  isAnimating: boolean,
+  isVisible: boolean,
+  direction: 'up' | 'down'
+): string {
+  if (!isAnimating) return '0%';
+  if (isVisible) return '0%';
+  return direction === 'up' ? '-100%' : '100%';
+}
+
+/**
+ * Animate content in and out with a terminal scanline sweep.
+ * @param props - Children, visibility, direction, and duration.
+ * @returns The transition wrapper element, or null when fully hidden.
+ */
+export function TerminalTransition({
   children,
   isVisible,
   direction = 'up',
   duration = 400,
-}: TerminalTransitionProps) => {
+}: TerminalTransitionProps): ReactElement | null {
   const [isAnimating, setIsAnimating] = useState(false);
   const [showContent, setShowContent] = useState(isVisible);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -29,17 +58,14 @@ export const TerminalTransition = ({
         setShowContent(true);
       }
 
-      // Delay hiding content until animation completes
-      if (!isVisible) {
-        timeoutRef.current = setTimeout(() => {
+      // Delay hiding content until animation completes; in both directions
+      // the content stays mounted for the full transition.
+      timeoutRef.current = setTimeout(() => {
+        if (!isVisible) {
           setShowContent(false);
-          setIsAnimating(false);
-        }, duration);
-      } else {
-        timeoutRef.current = setTimeout(() => {
-          setIsAnimating(false);
-        }, duration);
-      }
+        }
+        setIsAnimating(false);
+      }, duration);
     }
 
     return () => {
@@ -53,15 +79,7 @@ export const TerminalTransition = ({
     return null;
   }
 
-  const translateY = isAnimating
-    ? direction === 'up'
-      ? isVisible
-        ? '0%'
-        : '-100%'
-      : isVisible
-        ? '0%'
-        : '100%'
-    : '0%';
+  const translateY = resolveTranslateY(isAnimating, isVisible, direction);
 
   const opacity = isAnimating && !isVisible ? 0 : 1;
 
@@ -155,4 +173,4 @@ export const TerminalTransition = ({
       </Box>
     </Box>
   );
-};
+}

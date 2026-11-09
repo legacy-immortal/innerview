@@ -1,17 +1,24 @@
+/**
+ * @file Settings tab for layout mode and custom colors.
+ * @module components/settings/StylesTab.tsx
+ */
+import type { JSX } from 'react';
 import { memo } from 'react';
 import { VStack, Separator, Field, NativeSelect } from '@chakra-ui/react';
 import type { StyleSettings, LayoutMode } from '@/lib/settings-types';
 import { ColorPickerField } from './ColorPickerField';
 
 interface StylesTabProps {
-  styleSettings: StyleSettings;
-  setStyleSettings: React.Dispatch<React.SetStateAction<StyleSettings>>;
+  readonly styleSettings: StyleSettings;
+  readonly setStyleSettings: React.Dispatch<
+    React.SetStateAction<StyleSettings>
+  >;
 }
 
 export const StylesTab = memo(function StylesTab({
   styleSettings,
   setStyleSettings,
-}: StylesTabProps) {
+}: StylesTabProps): JSX.Element {
   const safeStyleSettings = styleSettings || {};
   const currentMode = safeStyleSettings.mode || 'condensed';
 

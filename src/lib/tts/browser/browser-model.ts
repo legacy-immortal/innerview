@@ -143,7 +143,7 @@ export class BrowserTTSModel implements StreamingTTSModel {
    * Browser TTS doesn't support true streaming
    * We simulate it by yielding the complete audio immediately
    */
-  async *generateStream(_options: TTSOptions): AsyncGenerator<Uint8Array> {
+  public async *generateStream(_options: TTSOptions): AsyncGenerator<Uint8Array> {
     // Browser TTS doesn't provide audio data directly
     // We can't stream it, so we yield an empty chunk as a signal
     // The actual playback happens via Web Speech API
@@ -154,7 +154,7 @@ export class BrowserTTSModel implements StreamingTTSModel {
    * Browser TTS doesn't generate audio files
    * Returns empty array as placeholder
    */
-  async generateComplete(_options: TTSOptions): Promise<Uint8Array> {
+  public async generateComplete(_options: TTSOptions): Promise<Uint8Array> {
     // Browser TTS doesn't provide audio data
     return new Uint8Array(0);
   }
@@ -163,7 +163,7 @@ export class BrowserTTSModel implements StreamingTTSModel {
    * Fetch available voices with fallback
    * Uses setTimeout pattern to handle async voice loading
    */
-  async fetchVoices(): Promise<BrowserVoice[]> {
+  public async fetchVoices(): Promise<BrowserVoice[]> {
     if (this.voicesCache) {
       return this.voicesCache;
     }

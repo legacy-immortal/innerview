@@ -1,475 +1,415 @@
-import { Color } from '@/components/animations/Color';
-import Dither from '@/components/animations/Dither';
-import { Hypnotic } from '@/components/animations/Hypnotic';
-import ImageDither from '@/components/animations/ImageDither';
-import Orb from '@/components/animations/Orb';
-import PixelBlast from '@/components/animations/PixelBlast';
-import Pulsar from '@/components/animations/Pulsar';
-import Seele from '@/components/animations/Seele';
-import Threads from '@/components/animations/Threads';
-import Waves from '@/components/animations/Waves';
-import { useSettingsStore } from '@/lib/settings-store';
+/**
+ * Background switcher. Renders the active background animation for the current settings.
+ *
+ * Performance:
+ * - Only the active background is mounted and only its code chunk is loaded
+ *   (`React.lazy`); inactive ("offscreen") backgrounds are not imported or rendered.
+ * - The mounted animation is keyed by type only, so prop/opacity tweaks update
+ *   in place instead of tearing down and recreating the canvas/WebGL context.
+ * - A single wrapper owns opacity, so there is exactly one compositing layer
+ *   instead of one translucent layer per branch.
+ * - `reducedMotion` / `lowPowerMode` (store flag or OS `prefers-reduced-motion`)
+ *   disable the animation entirely.
+ *
+ * @module background/BackgroundSwitcher.tsx
+ */
+import type { HypnoticBackgroundSettings } from '@/components/animations/hypnotic/types';
 import type { BackgroundSettings } from '@/lib/settings-types';
+import { useSettingsStore } from '@/lib/settings-store';
 import { Box } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+  type JSX,
+  type ReactNode,
+} from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
-// Delay in ms to allow WebGL context cleanup before mounting new animation
-const TRANSITION_DELAY_MS = 100;
+// Lazy-load each background so only the active chunk is fetched. Inactive
+// types are never imported, keeping offscreen backgrounds off the main thread.
+const Hypnotic = lazy(() =>
+  import('@/components/animations/Hypnotic').then((m) => ({
+    default: m.Hypnotic,
+  }))
+);
+const Dither = lazy(() => import('@/components/animations/Dither'));
+const Waves = lazy(() => import('@/components/animations/Waves'));
+const PixelBlast = lazy(() => import('@/components/animations/PixelBlast'));
+const Orb = lazy(() => import('@/components/animations/Orb'));
+const Threads = lazy(() => import('@/components/animations/Threads'));
+const Pulsar = lazy(() => import('@/components/animations/Pulsar'));
+const Seele = lazy(() => import('@/components/animations/Seele'));
+const Color = lazy(() =>
+  import('@/components/animations/Color').then((m) => ({ default: m.Color }))
+);
+const ImageDither = lazy(() => import('@/components/animations/ImageDither'));
 
 interface BackgroundSwitcherProps {
-  settings: BackgroundSettings;
+  readonly settings: BackgroundSettings;
 }
 
-export const BackgroundSwitcher = ({ settings }: BackgroundSwitcherProps) => {
+/** Single compositing layer: owns opacity + containment for every background. */
+const BackgroundFrame = memo(function BackgroundFrame({
+  opacity,
+  centered = false,
+  children,
+}: {
+  readonly opacity: number;
+  readonly centered?: boolean;
+  readonly children: ReactNode;
+}): JSX.Element {
+  return (
+    <Box
+      position="absolute"
+      top={0}
+      left={0}
+      width="100%"
+      height="100%"
+      zIndex={0}
+      pointerEvents="none"
+      overflow="hidden"
+      boxSizing="border-box"
+      {...(centered
+        ? { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+        : {})}
+      style={{
+        opacity,
+        contain: 'strict',
+        touchAction: 'none',
+        willChange: 'transform',
+        isolation: 'isolate',
+        backfaceVisibility: 'hidden',
+      }}
+    >
+      {children}
+    </Box>
+  );
+});
+
+/** Track the OS-level `prefers-reduced-motion` media query. */
+function usePrefersReducedMotion(): boolean {
+  const [prefersReduced, setPrefersReduced] = useState<boolean>(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return;
+    }
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = (): void => setPrefersReduced(query.matches);
+    onChange();
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  return prefersReduced;
+}
+
+/** Parse a `#rrggbb` hex color into an `[r, g, b]` tuple (0–1). */
+function parseHexColor(
+  hex: string | undefined
+): [number, number, number] | undefined {
+  if (!hex) return undefined;
+  const rgb = hex.replace('#', '').match(/.{2}/g);
+  if (!rgb || rgb.length < 3) return undefined;
+  return rgb.slice(0, 3).map((v) => parseInt(v, 16) / 255) as [
+    number,
+    number,
+    number,
+  ];
+}
+
+/** Shallow-compare settings so unrelated prop identity churn (new object, same fields) skips re-render/remount. */
+function areSettingsEqual(
+  prev: BackgroundSwitcherProps,
+  next: BackgroundSwitcherProps
+): boolean {
+  if (prev.settings === next.settings) return true;
+  const a = prev.settings as unknown as Record<string, unknown>;
+  const b = next.settings as unknown as Record<string, unknown>;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((k) => Object.is(a[k], b[k]));
+}
+
+export const BackgroundSwitcher = memo(function BackgroundSwitcher({
+  settings,
+}: BackgroundSwitcherProps): JSX.Element | null {
   const performanceSettings = useSettingsStore(
     useShallow((state) => state.settings?.performance ?? null)
   );
+  const osReducedMotion = usePrefersReducedMotion();
 
-  // Track the current animation type and manage graceful transitions
-  const [activeType, setActiveType] = useState<string | undefined>(
-    settings.type
-  );
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const previousTypeRef = useRef<string | undefined>(settings.type);
-  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const reducedMotion = performanceSettings?.reducedMotion ?? false;
+  const lowPowerMode = performanceSettings?.lowPowerMode ?? false;
+  const complexity = performanceSettings?.maxBackgroundComplexity ?? 'simple';
+  // Interactive effects (mouse, liquid, hover) only on full-fidelity, non-low-power.
+  const interactiveEnabled =
+    complexity === 'full' && !lowPowerMode && !reducedMotion;
 
-  // Handle animation type changes with a transition delay
-  // This allows the previous WebGL context to be properly disposed
-  useEffect(() => {
-    const newType = settings.type;
-
-    // Only trigger transition if the type actually changed
-    if (newType !== previousTypeRef.current) {
-      // Clear any pending transition
-      if (transitionTimeoutRef.current) {
-        clearTimeout(transitionTimeoutRef.current);
-        transitionTimeoutRef.current = null;
-      }
-
-      // Begin transition - unmount current animation
-      setIsTransitioning(true);
-      setActiveType(undefined);
-
-      // After delay, mount the new animation
-      transitionTimeoutRef.current = setTimeout(() => {
-        setActiveType(newType);
-        setIsTransitioning(false);
-        previousTypeRef.current = newType;
-        transitionTimeoutRef.current = null;
-      }, TRANSITION_DELAY_MS);
-    }
-
-    return () => {
-      if (transitionTimeoutRef.current) {
-        clearTimeout(transitionTimeoutRef.current);
-        transitionTimeoutRef.current = null;
-      }
-    };
-  }, [settings.type]);
-
-  // Ensure activeType stays in sync if somehow it gets out of sync
-  // (this shouldn't normally happen, but provides a safety net)
-  const effectiveActiveType =
-    isTransitioning || activeType === undefined ? undefined : activeType;
-
-  // Don't render background if animations are disabled
-  if (
+  const disabled =
     !performanceSettings?.backgroundAnimationsEnabled ||
-    performanceSettings?.maxBackgroundComplexity === 'minimal'
-  ) {
-    return null;
-  }
+    complexity === 'minimal' ||
+    reducedMotion ||
+    lowPowerMode ||
+    osReducedMotion;
 
-  // Apply performance optimizations to settings
-  const applyPerformanceOptimizations = (
-    backgroundSettings: BackgroundSettings
-  ): BackgroundSettings => {
-    if (!performanceSettings) return backgroundSettings;
+  const activeType = settings.type;
 
-    const complexity = performanceSettings.maxBackgroundComplexity;
-    const maxParticles = performanceSettings.maxParticles;
+  const optimizedSettings = useMemo<BackgroundSettings>(() => {
+    const maxParticles = performanceSettings?.maxParticles ?? 50;
+    const cap = lowPowerMode ? Math.min(maxParticles, 20) : maxParticles;
 
-    // Optimize based on complexity level
-    if (complexity === 'simple') {
-      // Reduce particle counts and disable expensive features
-      if (backgroundSettings.type === 'hypnotic') {
-        return {
-          ...backgroundSettings,
-          particlesEnabled: false,
-          breathingEnabled: false,
-          rotationSpeed1: (backgroundSettings.rotationSpeed1 ?? 0.1) * 0.5,
-          rotationSpeed2: (backgroundSettings.rotationSpeed2 ?? 0.1) * 0.5,
-          rotationSpeed3: (backgroundSettings.rotationSpeed3 ?? 0.1) * 0.5,
-        };
-      }
-    }
-
-    // Apply particle limits
-    if (
-      backgroundSettings.type === 'hypnotic' &&
-      backgroundSettings.particlesEnabled
-    ) {
+    if (settings.type === 'hypnotic') {
+      const simple = complexity === 'simple' || lowPowerMode;
       return {
-        ...backgroundSettings,
-        particlesCount: Math.min(
-          backgroundSettings.particlesCount ?? 50,
-          maxParticles
-        ),
+        ...settings,
+        ...(simple
+          ? {
+              particlesEnabled: false,
+              breathingEnabled: false,
+              rotationSpeed1: (settings.rotationSpeed1 ?? 0.1) * 0.5,
+              rotationSpeed2: (settings.rotationSpeed2 ?? 0.1) * 0.5,
+              rotationSpeed3: (settings.rotationSpeed3 ?? 0.1) * 0.5,
+            }
+          : {}),
+        ...(settings.particlesEnabled
+          ? {
+              particlesCount: Math.min(settings.particlesCount ?? 50, cap),
+            }
+          : {}),
       };
     }
+    return settings;
+  }, [settings, complexity, lowPowerMode, performanceSettings?.maxParticles]);
 
-    return backgroundSettings;
-  };
-
-  const optimizedSettings = applyPerformanceOptimizations(settings);
   const backgroundOpacity = optimizedSettings.opacity ?? 0.3;
 
-  // Don't render during transition or if no active type
-  if (!effectiveActiveType) {
-    return null;
-  }
+  const hypnoticSettings = useMemo<
+    HypnoticBackgroundSettings | undefined
+  >(() => {
+    if (optimizedSettings.intensity === undefined) {
+      return optimizedSettings.hypnotic;
+    }
+    return {
+      intensity: optimizedSettings.intensity,
+      primaryColor1: optimizedSettings.primaryColor1!,
+      primaryColor2: optimizedSettings.primaryColor2!,
+      secondaryColor1: optimizedSettings.secondaryColor1!,
+      secondaryColor2: optimizedSettings.secondaryColor2!,
+      tertiaryColor1: optimizedSettings.tertiaryColor1!,
+      tertiaryColor2: optimizedSettings.tertiaryColor2!,
+      breathingEnabled: optimizedSettings.breathingEnabled ?? false,
+      breathingSpeed: optimizedSettings.breathingSpeed ?? 0.02,
+      breathingIntensity: optimizedSettings.breathingIntensity ?? 0.1,
+      particlesEnabled: optimizedSettings.particlesEnabled ?? false,
+      particlesCount: optimizedSettings.particlesCount ?? 50,
+      particlesOpacity: optimizedSettings.particlesOpacity ?? 0.5,
+      rotationSpeed1: optimizedSettings.rotationSpeed1 ?? 0.1,
+      rotationSpeed2: optimizedSettings.rotationSpeed2 ?? 0.1,
+      rotationSpeed3: optimizedSettings.rotationSpeed3 ?? 0.1,
+    };
+  }, [optimizedSettings]);
 
-  const renderBackground = () => {
-    switch (effectiveActiveType) {
-      case 'hypnotic': {
-        // Use top-level properties if available, otherwise fall back to nested hypnotic property
-        const hypnoticSettings =
-          optimizedSettings.intensity !== undefined
-            ? {
-                intensity: optimizedSettings.intensity!,
-                primaryColor1: optimizedSettings.primaryColor1!,
-                primaryColor2: optimizedSettings.primaryColor2!,
-                secondaryColor1: optimizedSettings.secondaryColor1!,
-                secondaryColor2: optimizedSettings.secondaryColor2!,
-                tertiaryColor1: optimizedSettings.tertiaryColor1!,
-                tertiaryColor2: optimizedSettings.tertiaryColor2!,
-                breathingEnabled: optimizedSettings.breathingEnabled ?? false,
-                breathingSpeed: optimizedSettings.breathingSpeed ?? 0.02,
-                breathingIntensity: optimizedSettings.breathingIntensity ?? 0.1,
-                particlesEnabled: optimizedSettings.particlesEnabled ?? false,
-                particlesCount: optimizedSettings.particlesCount ?? 50,
-                particlesOpacity: optimizedSettings.particlesOpacity ?? 0.5,
-                rotationSpeed1: optimizedSettings.rotationSpeed1 ?? 0.1,
-                rotationSpeed2: optimizedSettings.rotationSpeed2 ?? 0.1,
-                rotationSpeed3: optimizedSettings.rotationSpeed3 ?? 0.1,
-              }
-            : optimizedSettings.hypnotic;
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Hypnotic settings={hypnoticSettings} />
-          </Box>
-        );
-      }
+  const ditherWaveColor = useMemo(
+    () => parseHexColor(optimizedSettings.dither?.waveColor),
+    [optimizedSettings.dither?.waveColor]
+  );
+
+  const pulsarSettings = useMemo(
+    () => ({
+      lineSpacing: optimizedSettings.pulsar?.lineSpacing ?? 0.13,
+      lineColor: optimizedSettings.pulsar?.lineColor ?? '#ffffff',
+      bgColor: optimizedSettings.pulsar?.bgColor ?? '#000000',
+      rotationX: optimizedSettings.pulsar?.rotationX ?? 0.49,
+      rotationY: optimizedSettings.pulsar?.rotationY ?? 0,
+      scale: optimizedSettings.pulsar?.scale ?? 0.78,
+      verticalScale: optimizedSettings.pulsar?.verticalScale ?? 0.03,
+      animationSpeed: optimizedSettings.pulsar?.animationSpeed ?? 0.2,
+    }),
+    [optimizedSettings.pulsar]
+  );
+
+  const seeleSettings = useMemo(
+    () => ({
+      textColor: optimizedSettings.seele?.textColor,
+      bgColor: optimizedSettings.seele?.bgColor,
+      topText: optimizedSettings.seele?.topText,
+      bottomText: optimizedSettings.seele?.bottomText,
+      numberSize: optimizedSettings.seele?.numberSize,
+      labelSize: optimizedSettings.seele?.labelSize,
+      pulseSpeed: optimizedSettings.seele?.pulseSpeed,
+      pulseIntensity: optimizedSettings.seele?.pulseIntensity,
+      scanlineSpeed: optimizedSettings.seele?.scanlineSpeed,
+      scanlineOpacity: optimizedSettings.seele?.scanlineOpacity,
+      scanlineColor: optimizedSettings.seele?.scanlineColor,
+      showNumber: optimizedSettings.seele?.showNumber,
+      seeleNumber: optimizedSettings.seele?.seeleNumber,
+    }),
+    [optimizedSettings.seele]
+  );
+
+  const colorSettings = useMemo(
+    () => ({
+      color: optimizedSettings.color?.color,
+      gradientEnabled: optimizedSettings.color?.gradientEnabled,
+      gradientColor: optimizedSettings.color?.gradientColor,
+      gradientDirection: optimizedSettings.color?.gradientDirection,
+      scanlineEnabled: optimizedSettings.color?.scanlineEnabled,
+      scanlineOpacity: optimizedSettings.color?.scanlineOpacity,
+      scanlineSpeed: optimizedSettings.color?.scanlineSpeed,
+      scanlineColor: optimizedSettings.color?.scanlineColor,
+    }),
+    [optimizedSettings.color]
+  );
+
+  const imageDitherSettings = useMemo(
+    () => ({
+      image: optimizedSettings.imagedither?.image,
+      type: optimizedSettings.imagedither?.type,
+      pxSize: optimizedSettings.imagedither?.pxSize,
+      colorSteps: optimizedSettings.imagedither?.colorSteps,
+      originalColors: optimizedSettings.imagedither?.originalColors,
+      colorFront: optimizedSettings.imagedither?.colorFront,
+      colorBack: optimizedSettings.imagedither?.colorBack,
+      colorHighlight: optimizedSettings.imagedither?.colorHighlight,
+      scale: optimizedSettings.imagedither?.scale,
+      rotation: optimizedSettings.imagedither?.rotation,
+      offsetX: optimizedSettings.imagedither?.offsetX,
+      offsetY: optimizedSettings.imagedither?.offsetY,
+      fit: optimizedSettings.imagedither?.fit,
+    }),
+    [optimizedSettings.imagedither]
+  );
+
+  // Keyed by type only: same-type tweaks update props in place (no remount),
+  // a type switch mounts exactly one new lazy chunk.
+  // Memoized so parent re-renders don't rebuild the element tree / remount canvas.
+  // (Hook must run before the disabled early-return below.)
+  const content = useMemo<JSX.Element | null>(() => {
+    switch (activeType) {
+      case 'hypnotic':
+      case undefined:
+        return <Hypnotic settings={hypnoticSettings} />;
       case 'dither':
         return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Dither
-              waveSpeed={optimizedSettings.dither?.waveSpeed}
-              waveFrequency={optimizedSettings.dither?.waveFrequency}
-              waveAmplitude={optimizedSettings.dither?.waveAmplitude}
-              waveColor={
-                optimizedSettings.dither?.waveColor
-                  ? ([
-                      ...(optimizedSettings.dither.waveColor
-                        .replace('#', '')
-                        .match(/.{2}/g) || []),
-                    ]
-                      .map((x) => parseInt(x, 16) / 255)
-                      .slice(0, 3) as [number, number, number])
-                  : undefined
-              }
-              enableMouseInteraction={
-                performanceSettings?.maxBackgroundComplexity === 'full'
-                  ? optimizedSettings.dither?.enableMouseInteraction
-                  : false
-              }
-              mouseRadius={optimizedSettings.dither?.mouseRadius}
-            />
-          </Box>
+          <Dither
+            waveSpeed={optimizedSettings.dither?.waveSpeed}
+            waveFrequency={optimizedSettings.dither?.waveFrequency}
+            waveAmplitude={optimizedSettings.dither?.waveAmplitude}
+            waveColor={ditherWaveColor}
+            enableMouseInteraction={
+              interactiveEnabled
+                ? optimizedSettings.dither?.enableMouseInteraction
+                : false
+            }
+            mouseRadius={optimizedSettings.dither?.mouseRadius}
+          />
         );
       case 'waves':
         return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Waves
-              waveSpeedX={optimizedSettings.waves?.speed}
-              waveSpeedY={optimizedSettings.waves?.speed}
-              waveAmpX={optimizedSettings.waves?.amplitude}
-              waveAmpY={optimizedSettings.waves?.amplitude}
-              lineColor={optimizedSettings.waves?.color}
-              enableMouseInteraction={
-                performanceSettings?.maxBackgroundComplexity === 'full'
-                  ? (optimizedSettings.waves?.enableMouseInteraction ?? false)
-                  : false
-              }
-              xGap={optimizedSettings.waves?.xGap}
-              yGap={optimizedSettings.waves?.yGap}
-              reverseX={optimizedSettings.waves?.reverseX ?? false}
-              reverseY={optimizedSettings.waves?.reverseY ?? false}
-            />
-          </Box>
+          <Waves
+            waveSpeedX={optimizedSettings.waves?.speed}
+            waveSpeedY={optimizedSettings.waves?.speed}
+            waveAmpX={optimizedSettings.waves?.amplitude}
+            waveAmpY={optimizedSettings.waves?.amplitude}
+            lineColor={optimizedSettings.waves?.color}
+            enableMouseInteraction={
+              interactiveEnabled
+                ? (optimizedSettings.waves?.enableMouseInteraction ?? false)
+                : false
+            }
+            xGap={optimizedSettings.waves?.xGap}
+            yGap={optimizedSettings.waves?.yGap}
+            reverseX={optimizedSettings.waves?.reverseX ?? false}
+            reverseY={optimizedSettings.waves?.reverseY ?? false}
+          />
         );
       case 'pixelblast':
         return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <PixelBlast
-              variant={optimizedSettings.pixelblast?.variant}
-              pixelSize={optimizedSettings.pixelblast?.pixelSize}
-              color={optimizedSettings.pixelblast?.color}
-              patternScale={optimizedSettings.pixelblast?.patternScale}
-              patternDensity={optimizedSettings.pixelblast?.patternDensity}
-              liquid={
-                performanceSettings?.maxBackgroundComplexity === 'full'
-                  ? optimizedSettings.pixelblast?.liquid
-                  : false
-              }
-              liquidStrength={optimizedSettings.pixelblast?.liquidStrength}
-              speed={optimizedSettings.pixelblast?.speed}
-            />
-          </Box>
+          <PixelBlast
+            variant={optimizedSettings.pixelblast?.variant}
+            pixelSize={optimizedSettings.pixelblast?.pixelSize}
+            color={optimizedSettings.pixelblast?.color}
+            patternScale={optimizedSettings.pixelblast?.patternScale}
+            patternDensity={optimizedSettings.pixelblast?.patternDensity}
+            liquid={
+              interactiveEnabled ? optimizedSettings.pixelblast?.liquid : false
+            }
+            liquidStrength={optimizedSettings.pixelblast?.liquidStrength}
+            speed={optimizedSettings.pixelblast?.speed}
+          />
         );
       case 'orb':
         return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            opacity={backgroundOpacity}
-          >
-            <Orb
-              hue={optimizedSettings.orb?.hue}
-              hoverIntensity={optimizedSettings.orb?.hoverIntensity}
-              rotateOnHover={
-                performanceSettings?.maxBackgroundComplexity === 'full'
-                  ? optimizedSettings.orb?.rotateOnHover
-                  : false
-              }
-            />
-          </Box>
+          <Orb
+            hue={optimizedSettings.orb?.hue}
+            hoverIntensity={optimizedSettings.orb?.hoverIntensity}
+            rotateOnHover={
+              interactiveEnabled ? optimizedSettings.orb?.rotateOnHover : false
+            }
+          />
         );
       case 'threads':
         return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Threads
-              color={optimizedSettings.threads?.color}
-              amplitude={optimizedSettings.threads?.amplitude}
-              distance={optimizedSettings.threads?.distance}
-              enableMouseInteraction={
-                performanceSettings?.maxBackgroundComplexity === 'full'
-                  ? optimizedSettings.threads?.enableMouseInteraction
-                  : false
-              }
-            />
-          </Box>
+          <Threads
+            color={optimizedSettings.threads?.color}
+            amplitude={optimizedSettings.threads?.amplitude}
+            distance={optimizedSettings.threads?.distance}
+            enableMouseInteraction={
+              interactiveEnabled
+                ? optimizedSettings.threads?.enableMouseInteraction
+                : false
+            }
+          />
         );
       case 'pulsar':
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Pulsar
-              settings={{
-                lineSpacing: optimizedSettings.pulsar?.lineSpacing ?? 0.13,
-                lineColor: optimizedSettings.pulsar?.lineColor ?? '#ffffff',
-                bgColor: optimizedSettings.pulsar?.bgColor ?? '#000000',
-                rotationX: optimizedSettings.pulsar?.rotationX ?? 0.49,
-                rotationY: optimizedSettings.pulsar?.rotationY ?? 0,
-                scale: optimizedSettings.pulsar?.scale ?? 0.78,
-                verticalScale: optimizedSettings.pulsar?.verticalScale ?? 0.03,
-                animationSpeed: optimizedSettings.pulsar?.animationSpeed ?? 0.2,
-              }}
-            />
-          </Box>
-        );
+        return <Pulsar settings={pulsarSettings} />;
       case 'seele':
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Seele
-              settings={{
-                textColor: optimizedSettings.seele?.textColor,
-                bgColor: optimizedSettings.seele?.bgColor,
-                topText: optimizedSettings.seele?.topText,
-                bottomText: optimizedSettings.seele?.bottomText,
-                numberSize: optimizedSettings.seele?.numberSize,
-                labelSize: optimizedSettings.seele?.labelSize,
-                pulseSpeed: optimizedSettings.seele?.pulseSpeed,
-                pulseIntensity: optimizedSettings.seele?.pulseIntensity,
-                scanlineSpeed: optimizedSettings.seele?.scanlineSpeed,
-                scanlineOpacity: optimizedSettings.seele?.scanlineOpacity,
-                scanlineColor: optimizedSettings.seele?.scanlineColor,
-                showNumber: optimizedSettings.seele?.showNumber,
-                seeleNumber: optimizedSettings.seele?.seeleNumber,
-              }}
-            />
-          </Box>
-        );
+        return <Seele settings={seeleSettings} />;
       case 'color':
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Color
-              settings={{
-                color: optimizedSettings.color?.color,
-                gradientEnabled: optimizedSettings.color?.gradientEnabled,
-                gradientColor: optimizedSettings.color?.gradientColor,
-                gradientDirection: optimizedSettings.color?.gradientDirection,
-                scanlineEnabled: optimizedSettings.color?.scanlineEnabled,
-                scanlineOpacity: optimizedSettings.color?.scanlineOpacity,
-                scanlineSpeed: optimizedSettings.color?.scanlineSpeed,
-                scanlineColor: optimizedSettings.color?.scanlineColor,
-              }}
-            />
-          </Box>
-        );
+        return <Color settings={colorSettings} />;
       case 'imagedither':
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <ImageDither
-              settings={{
-                image: optimizedSettings.imagedither?.image,
-                type: optimizedSettings.imagedither?.type,
-                pxSize: optimizedSettings.imagedither?.pxSize,
-                colorSteps: optimizedSettings.imagedither?.colorSteps,
-                originalColors: optimizedSettings.imagedither?.originalColors,
-                colorFront: optimizedSettings.imagedither?.colorFront,
-                colorBack: optimizedSettings.imagedither?.colorBack,
-                colorHighlight: optimizedSettings.imagedither?.colorHighlight,
-                scale: optimizedSettings.imagedither?.scale,
-                rotation: optimizedSettings.imagedither?.rotation,
-                offsetX: optimizedSettings.imagedither?.offsetX,
-                offsetY: optimizedSettings.imagedither?.offsetY,
-                fit: optimizedSettings.imagedither?.fit,
-              }}
-            />
-          </Box>
-        );
-      default: {
-        // Use top-level properties if available, otherwise fall back to nested hypnotic property
-        const hypnoticSettings =
-          optimizedSettings.intensity !== undefined
-            ? {
-                intensity: optimizedSettings.intensity!,
-                primaryColor1: optimizedSettings.primaryColor1!,
-                primaryColor2: optimizedSettings.primaryColor2!,
-                secondaryColor1: optimizedSettings.secondaryColor1!,
-                secondaryColor2: optimizedSettings.secondaryColor2!,
-                tertiaryColor1: optimizedSettings.tertiaryColor1!,
-                tertiaryColor2: optimizedSettings.tertiaryColor2!,
-                breathingEnabled: optimizedSettings.breathingEnabled ?? false,
-                breathingSpeed: optimizedSettings.breathingSpeed ?? 0.02,
-                breathingIntensity: optimizedSettings.breathingIntensity ?? 0.1,
-                particlesEnabled: optimizedSettings.particlesEnabled ?? false,
-                particlesCount: optimizedSettings.particlesCount ?? 50,
-                particlesOpacity: optimizedSettings.particlesOpacity ?? 0.5,
-                rotationSpeed1: optimizedSettings.rotationSpeed1 ?? 0.1,
-                rotationSpeed2: optimizedSettings.rotationSpeed2 ?? 0.1,
-                rotationSpeed3: optimizedSettings.rotationSpeed3 ?? 0.1,
-              }
-            : optimizedSettings.hypnotic;
-        return (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            zIndex={0}
-            pointerEvents="none"
-            opacity={backgroundOpacity}
-          >
-            <Hypnotic settings={hypnoticSettings} />
-          </Box>
-        );
-      }
+        return <ImageDither settings={imageDitherSettings} />;
+      default:
+        return <Hypnotic settings={hypnoticSettings} />;
     }
-  };
+  }, [
+    activeType,
+    hypnoticSettings,
+    optimizedSettings,
+    ditherWaveColor,
+    interactiveEnabled,
+    pulsarSettings,
+    seeleSettings,
+    colorSettings,
+    imageDitherSettings,
+  ]);
 
-  return <>{renderBackground()}</>;
-};
+  // Honor reduced motion / low power: render nothing animated.
+  if (disabled) {
+    return null;
+  }
+
+  return (
+    <BackgroundFrame
+      key={activeType}
+      opacity={backgroundOpacity}
+      centered={activeType === 'orb'}
+    >
+      <Suspense fallback={null}>{content}</Suspense>
+    </BackgroundFrame>
+  );
+}, areSettingsEqual);

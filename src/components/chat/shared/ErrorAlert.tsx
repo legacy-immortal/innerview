@@ -1,5 +1,12 @@
+/**
+ * ErrorAlert.tsx — Dismissible error banner with copy-to-clipboard diagnostics.
+ *
+ * @module components/chat/shared/ErrorAlert
+ */
+
 import { Box, IconButton } from '@chakra-ui/react';
 import { useCallback, useState } from 'react';
+import type { JSX } from 'react';
 import { HiCheck, HiClipboard, HiX } from 'react-icons/hi';
 import type { InterlocutorChatError } from '@/hooks/useInterlocutorChat';
 
@@ -17,9 +24,9 @@ export function ErrorAlert({
   error,
   onClose,
 }: {
-  error: InterlocutorChatError;
-  onClose: () => void;
-}) {
+  readonly error: InterlocutorChatError;
+  readonly onClose: () => void;
+}): JSX.Element {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = buildErrorCopyText(error);
@@ -41,9 +48,10 @@ export function ErrorAlert({
         display="flex"
         justifyContent="space-between"
         alignItems="flex-start"
+        flexWrap="wrap"
         gap={2}
       >
-        <Box flex={1}>
+        <Box flex={1} minW={0}>
           <Box
             fontSize="xs"
             color="red.400"

@@ -1,3 +1,7 @@
+/**
+ * @file Chakra UI system theme with performance-aware recipes, including the retro terminal switch.
+ * @module lib/chakra-theme.ts
+ */
 // Chakra UI theme configuration with performance-aware variants
 import { createSystem, defaultConfig } from '@chakra-ui/react';
 
@@ -566,11 +570,16 @@ export const highPerformanceTheme = createSystem({
   },
 });
 
-// Get theme based on performance settings
+/**
+ * Resolves the Chakra theme variant for the current performance settings.
+ * @param chakraAnimationsEnabled - Whether Chakra UI animations are enabled.
+ * @param reducedMotion - Whether the user prefers reduced motion.
+ * @returns The low-resource theme when animations are off or reduced, otherwise the standard theme.
+ */
 export function getThemeForPerformance(
   chakraAnimationsEnabled: boolean,
   reducedMotion: boolean
-) {
+): typeof standardTheme {
   if (!chakraAnimationsEnabled || reducedMotion) {
     return lowResourceTheme;
   }

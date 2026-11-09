@@ -1,3 +1,7 @@
+/**
+ * @file Device capability detection and performance tier resolution.
+ * @module lib/performance-detector.ts
+ */
 // Performance detection and resource management
 // Detects device capabilities and adjusts app features accordingly
 

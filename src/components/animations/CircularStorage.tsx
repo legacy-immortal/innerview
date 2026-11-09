@@ -1,5 +1,6 @@
 import { Box } from '@chakra-ui/react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -18,21 +19,39 @@ export const CircularStorage = ({
 }: CircularStorageProps) => {
   const percent = total > 0 ? Math.min(used / total, 1) : 0;
 
+  // Keep original intent scale: size=400 -> 65/55/45 vmin, scaled proportionally.
+  const scaleFactor = size > 0 ? size / 400 : 0.5;
+  const baseVmin = Math.round(65 * scaleFactor);
+  const mdVmin = Math.round(55 * scaleFactor);
+  const lgVmin = Math.round(45 * scaleFactor);
+
   return (
     <Box
-      position="absolute"
-      top="50%"
-      left="50%"
-      transform="translate(-50%, -50%)"
-      width={`${size}px`}
-      height={`${size}px`}
+      position="relative"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      width={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      height={{
+        base: `${baseVmin}vmin`,
+        md: `${mdVmin}vmin`,
+        lg: `${lgVmin}vmin`,
+      }}
+      flexShrink={0}
       zIndex={5}
       pointerEvents="none"
+      touchAction="none"
     >
       <Canvas
         orthographic
+        dpr={MAX_DPR}
         camera={{ position: [0, 0, 5], zoom: 50 }}
         gl={{ antialias: true, alpha: true }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
       >
         <PieChartScene percent={percent} color={color} />
       </Canvas>
@@ -46,28 +65,25 @@ function PieChartScene({ percent, color }: { percent: number; color: string }) {
   const unusedMeshRef = useRef<THREE.Mesh | null>(null);
   const usedMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const unusedMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  // Damped display value so the pie sweeps between the source's 2-second
+  // updates instead of jumping (previously there was no animation loop at
+  // all — geometry only swapped instantaneously in an effect).
+  const displayPercentRef = useRef(0);
+  const lastGeometryPercentRef = useRef(-1);
 
-  // Create initial meshes
-  useEffect(() => {
-    usedMaterialRef.current = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(color),
-      transparent: true,
-      opacity: 0.8,
-      side: THREE.DoubleSide,
-    });
+  // Build/rebuild pie geometries for the given percent.
+  const updateGeometry = (p: number) => {
+    const usedMesh = usedMeshRef.current;
+    const unusedMesh = unusedMeshRef.current;
+    if (!usedMesh || !unusedMesh) return;
 
-    unusedMaterialRef.current = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(color),
-      transparent: true,
-      opacity: 0.15,
-      side: THREE.DoubleSide,
-    });
-
-    // Create initial geometries
     const radius = 1;
     const startAngle = -Math.PI / 2;
-    const usedAngle = startAngle + percent * Math.PI * 2;
-    const unusedAngle = usedAngle + (1 - percent) * Math.PI * 2;
+    const usedAngle = startAngle + p * Math.PI * 2;
+    const unusedAngle = usedAngle + (1 - p) * Math.PI * 2;
+
+    usedMesh.geometry.dispose();
+    unusedMesh.geometry.dispose();
 
     const usedShape = new THREE.Shape();
     usedShape.moveTo(0, 0);
@@ -87,12 +103,36 @@ function PieChartScene({ percent, color }: { percent: number; color: string }) {
     unusedShape.absarc(0, 0, radius, usedAngle, unusedAngle, false);
     unusedShape.lineTo(0, 0);
 
+    usedMesh.geometry = new THREE.ShapeGeometry(usedShape);
+    unusedMesh.geometry = new THREE.ShapeGeometry(unusedShape);
+    lastGeometryPercentRef.current = p;
+
+    usedMesh.visible = p > 0;
+    unusedMesh.visible = p < 1;
+  };
+
+  // Create initial meshes
+  useEffect(() => {
+    usedMaterialRef.current = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide,
+    });
+
+    unusedMaterialRef.current = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+    });
+
     usedMeshRef.current = new THREE.Mesh(
-      new THREE.ShapeGeometry(usedShape),
+      new THREE.BufferGeometry(),
       usedMaterialRef.current
     );
     unusedMeshRef.current = new THREE.Mesh(
-      new THREE.ShapeGeometry(unusedShape),
+      new THREE.BufferGeometry(),
       unusedMaterialRef.current
     );
 
@@ -112,55 +152,36 @@ function PieChartScene({ percent, color }: { percent: number; color: string }) {
         unusedMaterialRef.current.dispose();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update geometries when percent or color changes
+  // Update colors when color changes
   useEffect(() => {
-    if (!usedMeshRef.current || !unusedMeshRef.current) return;
-
-    const radius = 1;
-    const startAngle = -Math.PI / 2;
-    const usedAngle = startAngle + percent * Math.PI * 2;
-    const unusedAngle = usedAngle + (1 - percent) * Math.PI * 2;
-
-    // Dispose old geometries
-    usedMeshRef.current.geometry.dispose();
-    unusedMeshRef.current.geometry.dispose();
-
-    // Create new geometries
-    const usedShape = new THREE.Shape();
-    usedShape.moveTo(0, 0);
-    usedShape.lineTo(
-      Math.cos(startAngle) * radius,
-      Math.sin(startAngle) * radius
-    );
-    usedShape.absarc(0, 0, radius, startAngle, usedAngle, false);
-    usedShape.lineTo(0, 0);
-
-    const unusedShape = new THREE.Shape();
-    unusedShape.moveTo(0, 0);
-    unusedShape.lineTo(
-      Math.cos(usedAngle) * radius,
-      Math.sin(usedAngle) * radius
-    );
-    unusedShape.absarc(0, 0, radius, usedAngle, unusedAngle, false);
-    unusedShape.lineTo(0, 0);
-
-    usedMeshRef.current.geometry = new THREE.ShapeGeometry(usedShape);
-    unusedMeshRef.current.geometry = new THREE.ShapeGeometry(unusedShape);
-
-    // Update colors
     if (usedMaterialRef.current) {
       usedMaterialRef.current.color.set(color);
     }
     if (unusedMaterialRef.current) {
       unusedMaterialRef.current.color.set(color);
     }
+  }, [color]);
 
-    // Update visibility
-    usedMeshRef.current.visible = percent > 0;
-    unusedMeshRef.current.visible = percent < 1;
-  }, [percent, color]);
+  // Animate the pie toward the target percent each frame.
+  useFrame((_state, delta) => {
+    if (!usedMeshRef.current || !unusedMeshRef.current) return;
+
+    const display =
+      displayPercentRef.current +
+      (percent - displayPercentRef.current) * Math.min(1, delta * 3);
+    displayPercentRef.current =
+      Math.abs(percent - display) < 0.0005 ? percent : display;
+
+    if (
+      Math.abs(displayPercentRef.current - lastGeometryPercentRef.current) >
+      0.0001
+    ) {
+      updateGeometry(displayPercentRef.current);
+    }
+  });
 
   if (!isReady) return null;
 

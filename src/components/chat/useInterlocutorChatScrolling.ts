@@ -1,0 +1,149 @@
+/**
+ * useInterlocutorChatScrolling.ts — Scrolling/virtualisation refs for the message stream.
+ *
+ * @module components/chat/useInterlocutorChatScrollin
+ */
+
+import type { ParsedStreamingMessage } from '@/hooks/useStreamingMessages';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useEffect, useRef, useState } from 'react';
+import type { ConversationListRef } from './condensed/ConversationList';
+
+interface UseInterlocutorChatScrollingOptions {
+  readonly processedMessages: ParsedStreamingMessage[];
+  readonly showConversationList: boolean;
+  readonly isLoading: boolean;
+}
+
+export const useInterlocutorChatScrolling = ({
+  processedMessages,
+  showConversationList,
+  isLoading,
+}: UseInterlocutorChatScrollingOptions) => {
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  const conversationListRef = useRef<ConversationListRef | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesParentRef = useRef<HTMLDivElement>(null);
+  const prevShowConversationListRef = useRef<boolean>(false);
+
+  // ============================================================================
+  // MESSAGE SCROLLING & VIRTUALIZATION
+  // ============================================================================
+  const virtualizer = useVirtualizer({
+    count: processedMessages.length,
+    getScrollElement: () => messagesContainerRef.current,
+    estimateSize: () => 150,
+    overscan: 5,
+    horizontal: false,
+    getItemKey: (index) =>
+      processedMessages[index]?.id ?? `msg-fallback-${index}`,
+  });
+
+  const prevMessageCountRef = useRef(processedMessages.length);
+  const shouldAutoScrollRef = useRef(true);
+
+  // Auto-scroll to bottom when new messages arrive or content updates during streaming
+  useEffect(() => {
+    if (
+      !showConversationList &&
+      processedMessages.length > 0 &&
+      messagesContainerRef.current
+    ) {
+      const isNewMessage =
+        processedMessages.length > prevMessageCountRef.current;
+      const isInitialLoad = prevMessageCountRef.current === 0;
+
+      if (
+        (isNewMessage || isInitialLoad || isLoading) &&
+        shouldAutoScrollRef.current
+      ) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (messagesContainerRef.current) {
+              const scrollElement = messagesContainerRef.current;
+              scrollElement.scrollTop = scrollElement.scrollHeight;
+            }
+          });
+        });
+      }
+
+      prevMessageCountRef.current = processedMessages.length;
+    }
+  }, [processedMessages.length, showConversationList, isLoading]);
+
+  // Track user scroll to prevent auto-scroll when user scrolls up
+  useEffect(() => {
+    const scrollElement = messagesContainerRef.current;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      shouldAutoScrollRef.current =
+        scrollHeight - scrollTop - clientHeight < 100;
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollElement.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll when switching from conversation list to messages view
+  useEffect(() => {
+    if (
+      !showConversationList &&
+      processedMessages.length > 0 &&
+      messagesContainerRef.current
+    ) {
+      const timeoutId = setTimeout(() => {
+        if (messagesContainerRef.current) {
+          const scrollElement = messagesContainerRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          shouldAutoScrollRef.current = true;
+        }
+      }, 150);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [showConversationList, processedMessages.length]);
+
+  // Initialize scroll position to bottom on mount
+  useEffect(() => {
+    if (
+      !showConversationList &&
+      processedMessages.length > 0 &&
+      messagesContainerRef.current
+    ) {
+      const scrollElement = messagesContainerRef.current;
+      requestAnimationFrame(() => {
+        if (scrollElement) {
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ============================================================================
+  // UI EFFECTS
+  // ============================================================================
+  // Show loader when switching to messages view
+  useEffect(() => {
+    if (prevShowConversationListRef.current && !showConversationList) {
+      setIsLoadingMessages(true);
+      const timeoutId = setTimeout(() => {
+        setIsLoadingMessages(false);
+      }, 800);
+      return () => clearTimeout(timeoutId);
+    }
+    prevShowConversationListRef.current = showConversationList;
+  }, [showConversationList]);
+
+  return {
+    conversationListRef,
+    messagesContainerRef,
+    messagesParentRef,
+    virtualizer,
+    isLoadingMessages,
+    setIsLoadingMessages,
+  };
+};

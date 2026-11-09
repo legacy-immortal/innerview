@@ -1,3 +1,7 @@
+/**
+ * @file Preloading of the Kokoro TTS and Whisper transcription models at startup.
+ * @module lib/model-preloader.ts
+ */
 // Model preloader for Kokoro TTS and Whisper transcription
 // Preloads models during startup if performance threshold is met
 

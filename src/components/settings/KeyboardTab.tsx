@@ -1,3 +1,8 @@
+/**
+ * @file Settings tab for keyboard shortcuts including the transcription hotkey.
+ * @module components/settings/KeyboardTab.tsx
+ */
+import type { JSX } from 'react';
 import { memo } from 'react';
 import {
   VStack,
@@ -11,17 +16,19 @@ import {
 import type { KeyboardSettings } from '@/lib/settings-types';
 
 interface KeyboardTabProps {
-  keyboardSettings: KeyboardSettings;
-  setKeyboardSettings: React.Dispatch<React.SetStateAction<KeyboardSettings>>;
+  readonly keyboardSettings: KeyboardSettings;
+  readonly setKeyboardSettings: React.Dispatch<
+    React.SetStateAction<KeyboardSettings>
+  >;
 }
 
 export const KeyboardTab = memo(function KeyboardTab({
   keyboardSettings,
   setKeyboardSettings,
-}: KeyboardTabProps) {
+}: KeyboardTabProps): JSX.Element {
   return (
     <VStack gap={4} align="stretch">
-      <HStack justify="space-between">
+      <HStack justify="space-between" flexWrap="wrap" gap={3}>
         <VStack align="start" gap={0}>
           <Text color="gray.200" fontSize="sm">
             Enable Keyboard Shortcuts

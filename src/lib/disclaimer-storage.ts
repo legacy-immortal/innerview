@@ -1,3 +1,7 @@
+/**
+ * @file localStorage persistence for disclaimer acceptance and a console-exposed settings reset.
+ * @module lib/disclaimer-storage.ts
+ */
 // Persists disclaimer acceptance in localStorage so the user is not prompted on refresh
 
 const STORAGE_KEY = 'innerview.disclaimerAccepted';
@@ -40,5 +44,7 @@ export function clearAllSettings(): void {
 
 // Expose to window for easy console access
 if (typeof window !== 'undefined') {
-  (window as unknown as { clearAllSettings: typeof clearAllSettings }).clearAllSettings = clearAllSettings;
+  (
+    window as unknown as { clearAllSettings: typeof clearAllSettings }
+  ).clearAllSettings = clearAllSettings;
 }

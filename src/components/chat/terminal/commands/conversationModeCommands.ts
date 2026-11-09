@@ -1,20 +1,32 @@
+/**
+ * conversationModeCommands.ts — Terminal conversation-mode command handlers.
+ *
+ * @module components/chat/terminal/commands/conversationModeCommand
+ */
+
 import type {
   CommandDefinition,
   ConversationWithOptionalCreatedAt,
 } from './commandModeCommands';
 
-export type ConversationModeContext = {
-  sortedConversations: ConversationWithOptionalCreatedAt[];
-  formatConversationsList: () => string;
-  getCurrentConversationId: () => string | null;
-  setMode: (
+export interface ConversationModeContext {
+  readonly sortedConversations: readonly ConversationWithOptionalCreatedAt[];
+  readonly formatConversationsList: () => string;
+  readonly getCurrentConversationId: () => string | null;
+  readonly setMode: (
     mode: 'filesystem' | 'conversation-selection' | 'conversation-active'
   ) => void;
-  setDisplayedMessageIds: (ids: Set<string>) => void;
-  clearStdout: () => void;
-  onExitToChat?: () => void;
-};
+  readonly setDisplayedMessageIds: (ids: Set<string>) => void;
+  readonly clearStdout: () => void;
+  readonly onExitToChat?: () => void;
+}
 
+/**
+ * Builds the conversation-mode command table.
+ *
+ * @param context Mode context (sorted list + navigation setters).
+ * @returns Map from command name to its definition.
+ */
 export const createConversationModeCommands = (
   context: ConversationModeContext
 ): Record<string, CommandDefinition> => {

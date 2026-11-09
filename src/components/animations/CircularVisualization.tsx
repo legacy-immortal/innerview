@@ -5,7 +5,7 @@ import type {
 import type { useSystemDataSource } from '@/hooks/useSystemDataSource';
 import { useSettingsStore } from '@/lib/settings-store';
 import { Box, Text } from '@chakra-ui/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { CircularClock } from './CircularClock';
 import { CircularGauge } from './CircularGauge';
@@ -72,14 +72,17 @@ export const CircularVisualization = ({
     [systemTextOpts]
   );
 
-  // Update gauge value
+  const vizType = systemDataSource.visualizationType;
+  const getValueFn = systemDataSource.getValue;
+  const isDocumentHidden = (): boolean =>
+    typeof document !== 'undefined' && document.hidden;
+
+  // Update gauge value (throttled to 2s, paused while tab hidden)
   useEffect(() => {
-    if (
-      systemDataSource.visualizationType === 'gauge' &&
-      systemDataSource.getValue
-    ) {
+    if (vizType === 'gauge' && getValueFn) {
       const update = () => {
-        const result = systemDataSource.getValue?.();
+        if (isDocumentHidden()) return;
+        const result = getValueFn();
         if (
           result &&
           typeof result === 'object' &&
@@ -90,19 +93,17 @@ export const CircularVisualization = ({
         }
       };
       update();
-      const interval = setInterval(update, 1000);
+      const interval = setInterval(update, 2000);
       return () => clearInterval(interval);
     }
-  }, [systemDataSource]);
+  }, [vizType, getValueFn]);
 
   // Update storage value
   useEffect(() => {
-    if (
-      systemDataSource.visualizationType === 'pie' &&
-      systemDataSource.getValue
-    ) {
+    if (vizType === 'pie' && getValueFn) {
       const update = async () => {
-        const result = await systemDataSource.getValue?.();
+        if (isDocumentHidden()) return;
+        const result = await getValueFn();
         if (
           result &&
           typeof result === 'object' &&
@@ -116,16 +117,14 @@ export const CircularVisualization = ({
       const interval = setInterval(update, 2000);
       return () => clearInterval(interval);
     }
-  }, [systemDataSource]);
+  }, [vizType, getValueFn]);
 
-  // Update time value
+  // Update time value (throttled to 2s; clock ticks visibly but cheap)
   useEffect(() => {
-    if (
-      systemDataSource.visualizationType === 'clock' &&
-      systemDataSource.getValue
-    ) {
+    if (vizType === 'clock' && getValueFn) {
       const update = () => {
-        const result = systemDataSource.getValue?.();
+        if (isDocumentHidden()) return;
+        const result = getValueFn();
         if (result && typeof result === 'object' && 'hours' in result) {
           setTimeValue(
             result as { hours: number; minutes: number; seconds: number }
@@ -133,10 +132,10 @@ export const CircularVisualization = ({
         }
       };
       update();
-      const interval = setInterval(update, 1000);
+      const interval = setInterval(update, 2000);
       return () => clearInterval(interval);
     }
-  }, [systemDataSource]);
+  }, [vizType, getValueFn]);
 
   // System data source label: [SYSTEM]: description or tokens (context); appear, hold, then fade
   const labelText =
@@ -155,10 +154,15 @@ export const CircularVisualization = ({
     systemDataSource.showSourceLabel && isIdle ? (
       <Box
         position="absolute"
-        top="50%"
-        left="50%"
-        transform="translate(-50%, -50%)"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
         zIndex={10}
+        pointerEvents="none"
         fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
         fontSize="md"
         letterSpacing="0.1em"
@@ -193,15 +197,14 @@ export const CircularVisualization = ({
 
   const visualizationType = systemDataSource.visualizationType || 'waveform';
 
-  const vizWrapperStyle = {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+  const vizWrapperStyle: CSSProperties = {
+    position: 'relative',
     display: 'flex',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    pointerEvents: 'none' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+    pointerEvents: 'none',
   };
 
   return (
@@ -218,11 +221,17 @@ export const CircularVisualization = ({
       pointerEvents="none"
       width="100vw"
       height="100dvh"
+      touchAction="none"
+      userSelect="none"
       opacity={isIdle ? 0.5 : 0.9}
       transition="opacity 0.3s ease-in-out"
     >
       <SystemLabel />
-      <Box css={vizWrapperStyle}>
+      <Box
+        width={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
+        height={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
+        css={vizWrapperStyle}
+      >
         {visualizationType === 'waveform' &&
           systemDataSource.currentSource.id === 'frametiming' &&
           systemDataSource.currentSource.getSparkData != null && (

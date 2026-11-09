@@ -1,3 +1,7 @@
+/**
+ * @file Public entry point for the streaming-first TTS module.
+ * @module lib/tts/index.ts
+ */
 // Streaming-first TTS Module
 export * from './types';
 export * from './kokoro';

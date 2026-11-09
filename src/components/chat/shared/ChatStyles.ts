@@ -1,3 +1,9 @@
+/**
+ * ChatStyles.ts — Static Chakra style objects shared across the chat components.
+ *
+ * @module components/chat/shared/ChatStyle
+ */
+
 // Static CSS style objects for chat components
 // These are truly static and don't depend on props or state
 

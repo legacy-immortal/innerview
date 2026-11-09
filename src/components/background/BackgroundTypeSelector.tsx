@@ -1,3 +1,9 @@
+/**
+ * Background type selector. Dropdown for the background type plus the opacity slider.
+ *
+ * @module background/BackgroundTypeSelector.tsx
+ */
+import type { JSX } from 'react';
 import type { BackgroundSettings, BackgroundType } from '@/lib/settings-types';
 import {
   Box,
@@ -9,10 +15,10 @@ import {
 } from '@chakra-ui/react';
 
 interface BackgroundTypeSelectorProps {
-  settings: BackgroundSettings;
-  onSettingsChange: (settings: BackgroundSettings) => void;
-  currentBackgroundType: BackgroundType;
-  onBackgroundTypeChange: (type: BackgroundType) => void;
+  readonly settings: BackgroundSettings;
+  readonly onSettingsChange: (settings: BackgroundSettings) => void;
+  readonly currentBackgroundType: BackgroundType;
+  readonly onBackgroundTypeChange: (type: BackgroundType) => void;
 }
 
 export function BackgroundTypeSelector({
@@ -20,7 +26,7 @@ export function BackgroundTypeSelector({
   onSettingsChange,
   currentBackgroundType,
   onBackgroundTypeChange,
-}: BackgroundTypeSelectorProps) {
+}: BackgroundTypeSelectorProps): JSX.Element {
   return (
     <>
       <Box
@@ -72,9 +78,23 @@ export function BackgroundTypeSelector({
           <Field.Label fontSize="xs" color="gray.300" mb={2}>
             Background Opacity
           </Field.Label>
-          <HStack gap={2} align="center" w="full">
-            <Box flex={1} w="full" minW={0}>
+          <HStack
+            gap={2}
+            align="center"
+            w="full"
+            maxW="100%"
+            flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+            touchAction="none"
+          >
+            <Box
+              flex={1}
+              w="full"
+              minW={0}
+              maxW="100%"
+              flexBasis={{ base: '100%', sm: 'auto' }}
+            >
               <Slider.Root
+                touchAction="none"
                 value={[settings.opacity ?? 0.3]}
                 onValueChange={(e) => {
                   onSettingsChange({

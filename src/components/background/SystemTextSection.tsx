@@ -1,3 +1,9 @@
+/**
+ * System text animation controls (appear, hold, and fade-out timing).
+ *
+ * @module background/SystemTextSection.tsx
+ */
+import type { JSX } from 'react';
 import type { SystemTextAnimationSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -11,10 +17,10 @@ import {
 } from '@chakra-ui/react';
 
 interface SystemTextSectionProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  systemText: SystemTextAnimationSettings;
-  onSystemTextChange: <K extends keyof SystemTextAnimationSettings>(
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly systemText: SystemTextAnimationSettings;
+  readonly onSystemTextChange: <K extends keyof SystemTextAnimationSettings>(
     key: K,
     value: SystemTextAnimationSettings[K]
   ) => void;
@@ -25,7 +31,7 @@ export function SystemTextSection({
   onOpenChange,
   systemText,
   onSystemTextChange,
-}: SystemTextSectionProps) {
+}: SystemTextSectionProps): JSX.Element {
   return (
     <Collapsible.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
       <Collapsible.Trigger asChild>
@@ -33,6 +39,7 @@ export function SystemTextSection({
           variant="ghost"
           size="xs"
           w="100%"
+          maxW="100%"
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
@@ -55,9 +62,23 @@ export function SystemTextSection({
               <Field.Label fontSize="xs" color="gray.300" mb={2}>
                 Appear (ms)
               </Field.Label>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[systemText.appearDurationMs]}
                     onValueChange={(e) =>
                       onSystemTextChange(
@@ -94,9 +115,23 @@ export function SystemTextSection({
               <Field.Label fontSize="xs" color="gray.300" mb={2}>
                 Hold (s)
               </Field.Label>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[systemText.holdDurationS]}
                     onValueChange={(e) =>
                       onSystemTextChange('holdDurationS', e.value[0])
@@ -130,9 +165,23 @@ export function SystemTextSection({
               <Field.Label fontSize="xs" color="gray.300" mb={2}>
                 Fade out (s)
               </Field.Label>
-              <HStack gap={2} align="center" w="full">
-                <Box flex={1} w="full" minW={0}>
+              <HStack
+                gap={2}
+                align="center"
+                w="full"
+                maxW="100%"
+                flexWrap={{ base: 'wrap', sm: 'nowrap' }}
+                touchAction="none"
+              >
+                <Box
+                  flex={1}
+                  w="full"
+                  minW={0}
+                  maxW="100%"
+                  flexBasis={{ base: '100%', sm: 'auto' }}
+                >
                   <Slider.Root
+                    touchAction="none"
                     value={[systemText.fadeOutDurationS]}
                     onValueChange={(e) =>
                       onSystemTextChange('fadeOutDurationS', e.value[0])

@@ -1,16 +1,40 @@
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
 import { TerminalProgressBar } from './TerminalProgressBar';
 
+/**
+ * @file Terminal-style loading overlay — staccato progress steps and an
+ * animated ellipsis, rendered on a full-screen black overlay.
+ */
+
+/** Chunky progress steps (percent) for the staccato loader animation. */
+const PROGRESS_STEPS: readonly number[] = [10, 25, 40, 55, 70, 85, 95, 100];
+
+/** Maximum animated dots shown after the loader message. */
+const MAX_DOTS = 3;
+
+/** Interval for the staccato progress steps, in milliseconds. */
+const PROGRESS_INTERVAL_MS = 100;
+
+/** Interval for the animated dots, in milliseconds. */
+const DOTS_INTERVAL_MS = 300;
+
+/** Props for the terminal loader. */
 interface TerminalLoaderProps {
-  isLoading: boolean;
-  message?: string;
+  readonly isLoading: boolean;
+  readonly message?: string;
 }
 
-export const TerminalLoader = ({
+/**
+ * Render the terminal loading overlay when loading.
+ * @param props - Loading flag and the message to display.
+ * @returns The loading overlay element, or null when not loading.
+ */
+export function TerminalLoader({
   isLoading,
   message = 'LOADING',
-}: TerminalLoaderProps) => {
+}: TerminalLoaderProps): ReactElement | null {
   const [progress, setProgress] = useState(0);
   const [dots, setDots] = useState('');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -22,8 +46,8 @@ export const TerminalLoader = ({
       let currentProgress = 0;
       intervalRef.current = setInterval(() => {
         // Increment in chunky steps (10%, 25%, 40%, etc.)
-        const steps = [10, 25, 40, 55, 70, 85, 95, 100];
-        const nextStep = steps.find((step) => step > currentProgress) || 100;
+        const nextStep =
+          PROGRESS_STEPS.find((step) => step > currentProgress) ?? 100;
         currentProgress = nextStep;
         setProgress(currentProgress);
 
@@ -33,15 +57,15 @@ export const TerminalLoader = ({
             intervalRef.current = null;
           }
         }
-      }, 100); // Staccato timing - abrupt changes
+      }, PROGRESS_INTERVAL_MS); // Staccato timing - abrupt changes
 
       // Animated dots
       dotsIntervalRef.current = setInterval(() => {
         setDots((prev) => {
-          if (prev.length >= 3) return '';
-          return prev + '.';
+          if (prev.length >= MAX_DOTS) return '';
+          return `${prev}.`;
         });
-      }, 300);
+      }, DOTS_INTERVAL_MS);
     } else {
       setProgress(0);
       setDots('');
@@ -142,4 +166,4 @@ export const TerminalLoader = ({
       </VStack>
     </Box>
   );
-};
+}

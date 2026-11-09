@@ -1,3 +1,8 @@
+/**
+ * @file Settings tab for performance tier presets and animation toggles.
+ * @module components/settings/PerformanceTab.tsx
+ */
+import type { JSX } from 'react';
 import { memo } from 'react';
 import {
   VStack,
@@ -12,19 +17,19 @@ import type { PerformanceSettings } from '@/lib/settings-types';
 import type { PerformanceTier } from '@/lib/performance-detector';
 
 interface PerformanceTabProps {
-  settings: PerformanceSettings;
-  updateSetting: <K extends keyof PerformanceSettings>(
+  readonly settings: PerformanceSettings;
+  readonly updateSetting: <K extends keyof PerformanceSettings>(
     key: K,
     value: PerformanceSettings[K]
   ) => void;
-  handleTierChange: (tier: PerformanceTier) => void;
+  readonly handleTierChange: (tier: PerformanceTier) => void;
 }
 
 export const PerformanceTab = memo(function PerformanceTab({
   settings,
   updateSetting,
   handleTierChange,
-}: PerformanceTabProps) {
+}: PerformanceTabProps): JSX.Element {
   return (
     <VStack gap={4} align="stretch">
       <Field.Root>
@@ -58,7 +63,7 @@ export const PerformanceTab = memo(function PerformanceTab({
           Animations
         </Text>
 
-        <HStack justify="space-between">
+        <HStack justify="space-between" flexWrap="wrap" gap={3}>
           <VStack align="start" gap={0}>
             <Text color="gray.200" fontSize="sm">
               Enable Animations
@@ -81,7 +86,7 @@ export const PerformanceTab = memo(function PerformanceTab({
           </Switch.Root>
         </HStack>
 
-        <HStack justify="space-between">
+        <HStack justify="space-between" flexWrap="wrap" gap={3}>
           <VStack align="start" gap={0}>
             <Text color="gray.200" fontSize="sm">
               Background Animations
@@ -105,7 +110,7 @@ export const PerformanceTab = memo(function PerformanceTab({
           </Switch.Root>
         </HStack>
 
-        <HStack justify="space-between">
+        <HStack justify="space-between" flexWrap="wrap" gap={3}>
           <VStack align="start" gap={0}>
             <Text color="gray.200" fontSize="sm">
               Chakra UI Animations
@@ -129,7 +134,7 @@ export const PerformanceTab = memo(function PerformanceTab({
           </Switch.Root>
         </HStack>
 
-        <HStack justify="space-between">
+        <HStack justify="space-between" flexWrap="wrap" gap={3}>
           <VStack align="start" gap={0}>
             <Text color="gray.200" fontSize="sm">
               Reduced Motion
@@ -195,7 +200,7 @@ export const PerformanceTab = memo(function PerformanceTab({
           Power Management
         </Text>
 
-        <HStack justify="space-between">
+        <HStack justify="space-between" flexWrap="wrap" gap={3}>
           <VStack align="start" gap={0}>
             <Text color="gray.200" fontSize="sm">
               Low Power Mode

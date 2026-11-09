@@ -1,3 +1,7 @@
+/**
+ * @file Transcription service dispatching to OpenAI or local providers.
+ * @module lib/transcription/transcription-service.ts
+ */
 // Transcription Service using Vercel AI SDK with multiple providers
 import { openai } from '@ai-sdk/openai';
 import {
@@ -26,7 +30,7 @@ export interface TranscriptionResult {
 }
 
 export class TranscriptionService {
-  async transcribe(
+  public async transcribe(
     audio: Uint8Array | ArrayBuffer | Blob,
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {

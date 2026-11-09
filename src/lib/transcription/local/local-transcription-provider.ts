@@ -25,7 +25,7 @@ export class LocalTranscriptionProvider implements AIProviderV2 {
   readonly specificationVersion = 'v2' as const;
 
   private models = new Map<string, TranscriptionModelV2>();
-  private config: LocalTranscriptionConfig;
+  private readonly config: LocalTranscriptionConfig;
 
   constructor(config?: Partial<LocalTranscriptionConfig>) {
     this.config = {
@@ -43,7 +43,7 @@ export class LocalTranscriptionProvider implements AIProviderV2 {
    * @returns TranscriptionModelV2 instance
    * @throws {NoSuchModelError} If the model is not available
    */
-  transcriptionModel(modelId: string): TranscriptionModelV2 {
+  public transcriptionModel(modelId: string): TranscriptionModelV2 {
     if (
       !LOCAL_TRANSCRIPTION_MODELS.includes(modelId as LocalTranscriptionModelId)
     ) {

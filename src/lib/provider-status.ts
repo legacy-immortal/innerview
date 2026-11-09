@@ -1,3 +1,7 @@
+/**
+ * @file Zustand store tracking AI provider availability with caching.
+ * @module lib/provider-status.ts
+ */
 // Provider status store - tracks AI provider availability
 import { create } from 'zustand';
 

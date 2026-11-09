@@ -1,3 +1,7 @@
+/**
+ * @file Streaming-first TTS contracts: options, model interface, and type guards.
+ * @module lib/tts/types.ts
+ */
 // Streaming-first TTS types and interfaces
 
 export interface TTSOptions {

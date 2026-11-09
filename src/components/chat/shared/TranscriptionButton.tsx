@@ -1,7 +1,14 @@
+/**
+ * TranscriptionButton.tsx — Voice-recording button with live waveform feedback.
+ *
+ * @module components/chat/shared/TranscriptionButton
+ */
+
 // Transcription Button Component with recording indicator and visualization
 import { CircularWaveform } from '@/components/animations/CircularWaveform';
 import { useTranscription } from '@/hooks/useTranscription';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
+import type { JSX } from 'react';
 
 // Terminal-style text shadow for consistency
 const textShadowStyles = {
@@ -52,60 +59,60 @@ export interface TranscriptionButtonProps {
   /**
    * Callback when transcription completes
    */
-  onTranscriptionComplete?: (text: string) => void;
+  readonly onTranscriptionComplete?: (text: string) => void;
 
   /**
    * Provider to use: 'openai' for production, 'local' for development
    */
-  provider?: 'openai' | 'local';
+  readonly provider?: 'openai' | 'local';
 
   /**
    * Language hint in ISO-639-1 format (e.g., 'en')
    */
-  language?: string;
+  readonly language?: string;
 
   /**
    * Model ID to use
    */
-  modelId?: string;
+  readonly modelId?: string;
 
   /**
    * Whether to show visualization
    */
-  showVisualization?: boolean;
+  readonly showVisualization?: boolean;
 
   /**
    * Size of the button
    */
-  size?: 'sm' | 'md' | 'lg';
+  readonly size?: 'sm' | 'md' | 'lg';
 
   /**
    * Custom key for push-to-talk (default: '`')
    */
-  pushToTalkKey?: string;
+  readonly pushToTalkKey?: string;
 
   /**
    * Whether to enable push-to-talk keyboard shortcut (default: true)
    * Set to false when using global keyboard shortcuts
    */
-  enablePushToTalk?: boolean;
+  readonly enablePushToTalk?: boolean;
 
   /** When true, button is disabled (e.g. while chat is streaming to avoid parallel load). */
-  disabled?: boolean;
+  readonly disabled?: boolean;
 
   // Controlled mode props - when provided, use external transcription state and callbacks
   /** When provided with onStopRecording, mouse uses these and display uses only external state (single source of truth). */
-  onStartRecording?: () => void;
+  readonly onStartRecording?: () => void;
   /** When provided with onStartRecording, mouse uses these and display uses only external state. */
-  onStopRecording?: () => void;
+  readonly onStopRecording?: () => void;
   /** External recording state (for keyboard shortcut triggered recording) */
-  externalIsRecording?: boolean;
+  readonly externalIsRecording?: boolean;
   /** External transcribing state */
-  externalIsTranscribing?: boolean;
+  readonly externalIsTranscribing?: boolean;
   /** External audio level for visualization */
-  externalAudioLevel?: number;
+  readonly externalAudioLevel?: number;
   /** Error from parent transcription hook (shown when in controlled mode). */
-  externalError?: Error | null;
+  readonly externalError?: Error | null;
 }
 
 export function TranscriptionButton({
@@ -124,7 +131,7 @@ export function TranscriptionButton({
   externalIsTranscribing,
   externalAudioLevel,
   externalError,
-}: TranscriptionButtonProps) {
+}: TranscriptionButtonProps): JSX.Element {
   const isControlled = onStartRecording != null && onStopRecording != null;
 
   const {
@@ -202,8 +209,8 @@ export function TranscriptionButton({
   };
 
   return (
-    <VStack gap={2} align="center" w="100%">
-      <Box position="relative" w="100%">
+    <VStack gap={2} align="center" w="auto" maxW="100%">
+      <Box position="relative" w="100%" minW={0} touchAction="none">
         <Button
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
@@ -211,9 +218,11 @@ export function TranscriptionButton({
           loading={isTranscribing}
           disabled={disabled || isTranscribing}
           w="100%"
-          minWidth="140px"
+          minWidth={{ base: '120px', sm: '140px' }}
+          maxW="100%"
           py={1.5}
           px={2}
+          touchAction="none"
           css={isRecording ? recordingButtonStyles : terminalButtonStyles}
         >
           <HStack gap={1.5} align="center" justify="center">
@@ -255,8 +264,8 @@ export function TranscriptionButton({
             transform="translate(-50%, -50%)"
             pointerEvents="none"
             zIndex={1}
-            w="120px"
-            h="120px"
+            w="min(120px, 30vw)"
+            h="min(120px, 30vw)"
           >
             <CircularWaveform
               isActive={isRecording}

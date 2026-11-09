@@ -58,8 +58,12 @@ export function streamPCMToProcessor(
     throw new Error('Invalid PCM data: expected non-empty Int16Array');
   }
 
+  // Copy into a freshly allocated ArrayBuffer so the transferable payload
+  // is always an ArrayBuffer (never ArrayBufferLike/SharedArrayBuffer) and
+  // respects the view's byte offset and length.
+  const pcmCopy = new Int16Array(pcmData);
   const message: { pcmData: ArrayBuffer; sampleRate?: number } = {
-    pcmData: pcmData.buffer,
+    pcmData: pcmCopy.buffer,
   };
 
   if (sampleRate !== undefined) {

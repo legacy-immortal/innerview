@@ -1,3 +1,8 @@
+/**
+ * @file Settings tab for text-to-speech provider selection and voice options.
+ * @module components/settings/TTSTab.tsx
+ */
+import type { JSX } from 'react';
 import { memo } from 'react';
 import {
   VStack,
@@ -13,17 +18,21 @@ import {
 } from '@/lib/tts/kokoro/kokoro-config';
 
 interface TTSTabProps {
-  ttsSettings: TTSSettings;
-  browserVoices: SpeechSynthesisVoice[];
-  updateTTSSetting: <K extends keyof TTSSettings>(
+  readonly ttsSettings: TTSSettings;
+  readonly browserVoices: SpeechSynthesisVoice[];
+  readonly updateTTSSetting: <K extends keyof TTSSettings>(
     key: K,
     value: TTSSettings[K]
   ) => void;
-  updateKokoroSetting: <K extends keyof NonNullable<TTSSettings['kokoro']>>(
+  readonly updateKokoroSetting: <
+    K extends keyof NonNullable<TTSSettings['kokoro']>,
+  >(
     key: K,
     value: NonNullable<TTSSettings['kokoro']>[K]
   ) => void;
-  updateBrowserSetting: <K extends keyof NonNullable<TTSSettings['browser']>>(
+  readonly updateBrowserSetting: <
+    K extends keyof NonNullable<TTSSettings['browser']>,
+  >(
     key: K,
     value: NonNullable<TTSSettings['browser']>[K]
   ) => void;
@@ -35,7 +44,7 @@ export const TTSTab = memo(function TTSTab({
   updateTTSSetting,
   updateKokoroSetting,
   updateBrowserSetting,
-}: TTSTabProps) {
+}: TTSTabProps): JSX.Element {
   return (
     <VStack gap={4} align="stretch">
       <Field.Root>
@@ -192,11 +201,7 @@ export const TTSTab = memo(function TTSTab({
                   updateKokoroSetting(
                     'dtype',
                     e.currentTarget.value as
-                      | 'q8'
-                      | 'fp32'
-                      | 'fp16'
-                      | 'q4'
-                      | 'q4f16'
+                      'q8' | 'fp32' | 'fp16' | 'q4' | 'q4f16'
                   )
                 }
                 bg="rgba(255, 255, 255, 0.05)"

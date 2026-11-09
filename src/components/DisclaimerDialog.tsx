@@ -13,7 +13,10 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import type { PerformanceMetrics, PerformanceTier } from '@/lib/performance-detector';
+import type {
+  PerformanceMetrics,
+  PerformanceTier,
+} from '@/lib/performance-detector';
 
 export interface DetectionStageDisplay {
   name: string;
@@ -42,7 +45,10 @@ interface DisclaimerDialogProps {
   detectedProviders: Array<{ name: string; baseURL: string }>;
   initialBaseURL?: string;
   initialApiKey?: string;
-  onAccept: (selectedTier: PerformanceTier, providerConfig: ProviderConfig) => void;
+  onAccept: (
+    selectedTier: PerformanceTier,
+    providerConfig: ProviderConfig
+  ) => void;
   onReject: () => void;
 }
 
@@ -75,7 +81,11 @@ export function DisclaimerDialog({
   const [readDisclaimer, setReadDisclaimer] = useState(false);
   const [useRemote, setUseRemote] = useState(!hasLocal || !initialIsLocal);
   const [selectedLocalBaseURL, setSelectedLocalBaseURL] = useState<string>(
-    initialIsLocal ? initialBaseURL! : hasLocal ? detectedProviders[0].baseURL : ''
+    initialIsLocal
+      ? initialBaseURL!
+      : hasLocal
+        ? detectedProviders[0].baseURL
+        : ''
   );
   const [remoteBaseURL, setRemoteBaseURL] = useState(
     initialBaseURL && !isLocalBaseURL(initialBaseURL) ? initialBaseURL : ''
@@ -218,7 +228,9 @@ export function DisclaimerDialog({
                             {p.name} ({p.baseURL})
                           </option>
                         ))}
-                        <option value={REMOTE_VALUE}>Use remote provider</option>
+                        <option value={REMOTE_VALUE}>
+                          Use remote provider
+                        </option>
                       </NativeSelect.Field>
                       <NativeSelect.Indicator />
                     </NativeSelect.Root>
@@ -296,18 +308,16 @@ export function DisclaimerDialog({
                     colorPalette="emerald"
                     disabled={
                       !readDisclaimer ||
-                      (useRemote || !hasLocal
-                        ? !remoteBaseURL.trim()
-                        : false)
+                      (useRemote || !hasLocal ? !remoteBaseURL.trim() : false)
                     }
                     onClick={() => {
-                      const providerConfig: ProviderConfig = useRemote ||
-                        !hasLocal
-                        ? {
-                            baseURL: remoteBaseURL.trim(),
-                            apiKey: remoteApiKey.trim() || undefined,
-                          }
-                        : { baseURL: selectedLocalBaseURL };
+                      const providerConfig: ProviderConfig =
+                        useRemote || !hasLocal
+                          ? {
+                              baseURL: remoteBaseURL.trim(),
+                              apiKey: remoteApiKey.trim() || undefined,
+                            }
+                          : { baseURL: selectedLocalBaseURL };
                       onAccept(selectedTier, providerConfig);
                     }}
                   >

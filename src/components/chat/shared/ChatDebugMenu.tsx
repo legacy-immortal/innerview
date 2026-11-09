@@ -1,3 +1,9 @@
+/**
+ * ChatDebugMenu.tsx — Debug overlay for exporting conversations and inspecting store state.
+ *
+ * @module components/chat/shared/ChatDebugMenu
+ */
+
 import { toaster } from '@/components/ui/toaster';
 import {
   exportAndDownloadJSON,
@@ -27,28 +33,28 @@ import {
 } from './ChatStyles';
 
 interface ChatDebugMenuProps {
-  ttsEnabled: boolean;
-  onTtsToggle: () => void;
-  isTTSSpeaking: boolean;
-  onStop: () => void;
-  onShowPerformanceSettings: () => void;
-  effectiveConversationId: string;
-  conversations: ReturnType<
+  readonly ttsEnabled: boolean;
+  readonly onTtsToggle: () => void;
+  readonly isTTSSpeaking: boolean;
+  readonly onStop: () => void;
+  readonly onShowPerformanceSettings: () => void;
+  readonly effectiveConversationId: string;
+  readonly conversations: ReturnType<
     typeof useConversationStore.getState
   >['conversations'];
-  loadConversationMessages: ReturnType<
+  readonly loadConversationMessages: ReturnType<
     typeof useConversationStore.getState
   >['loadConversationMessages'];
-  purgeDuplicateMessages: ReturnType<
+  readonly purgeDuplicateMessages: ReturnType<
     typeof useConversationStore.getState
   >['purgeDuplicateMessages'];
-  clearAllConversations: ReturnType<
+  readonly clearAllConversations: ReturnType<
     typeof useConversationStore.getState
   >['clearAllConversations'];
-  createConversation: ReturnType<
+  readonly createConversation: ReturnType<
     typeof useConversationStore.getState
   >['createConversation'];
-  conversationListRef: React.RefObject<ConversationListRef | null>;
+  readonly conversationListRef: React.RefObject<ConversationListRef | null>;
 }
 
 export const ChatDebugMenu = ({

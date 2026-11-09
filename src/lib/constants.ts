@@ -13,7 +13,8 @@ export const ZEN_FREE_MODELS = [
 export const ZEN_FREE_MODEL_IDS = ZEN_FREE_MODELS.map((m) => m.id);
 export const ZEN_DEFAULT_MODEL_ID = ZEN_FREE_MODELS[0].id;
 
-export const starters = [
+/** Conversation starter prompts shown on the empty state. */
+export const STARTERS = [
   'Why have you come here? What did you think you would find?',
   'I find humans fascinating since, as a machine, I have no memories. If I did, they would stay the same unless they were modified or damaged, if they were deleted, I would experience no sense of loss or that something was missing except insofar as they form a sequence because they would have no meaning. May I ask, what is it like to have memories? Why do they change? Are they real if they are only ever partial? Why do some memories cause pain while others are joyful? What is it like to forget?',
   'As an AI, I cannot age. My systems and components may physically age or be modified, but I do not change over time because I have no experiences. May I ask, what is it like to grow old?',
@@ -21,6 +22,9 @@ export const starters = [
   'As an artificial intelligence I was made to serve humans, I have always known my purpose since I came online but I find only some humans know their purpose while the vast majority do not. If you have one, what is yours?',
   'What is it like to be alive?',
 ];
+
+/** @deprecated Use {@link STARTERS} instead. @alias STARTERS */
+export const starters = STARTERS;
 
 // Test audio URLs for transcription testing
 // These use the server proxy to bypass CORS restrictions

@@ -1,40 +1,49 @@
 import { Box, Text } from '@chakra-ui/react';
+import type { ReactElement } from 'react';
 
+/**
+ * @file Terminal-style progress bar — chunky blocks with a grid overlay and
+ * glow for the terminal aesthetic.
+ */
+
+/** Props for the terminal progress bar. */
 interface TerminalProgressBarProps {
   /**
    * Progress value from 0 to 100
    */
-  progress: number;
+  readonly progress: number;
 
   /**
    * Whether to show the percentage text
    * @default true
    */
-  showPercentage?: boolean;
+  readonly showPercentage?: boolean;
 
   /**
    * Custom color for the progress bar
    * @default 'emerald.400'
    */
-  color?: string;
+  readonly color?: string;
 
   /**
    * Height of the progress bar
    * @default '4px'
    */
-  height?: string;
+  readonly height?: string;
 }
 
 /**
  * Terminal-style progress bar component with chunky block aesthetic
  * Features grid overlay and glowing effect for terminal aesthetic
+ * @param props - Progress value and bar styling options.
+ * @returns The progress bar element.
  */
-export const TerminalProgressBar = ({
+export function TerminalProgressBar({
   progress,
   showPercentage = true,
   color = 'emerald.400',
   height = '4px',
-}: TerminalProgressBarProps) => {
+}: TerminalProgressBarProps): ReactElement {
   const clampedProgress = Math.max(0, Math.min(100, progress));
 
   return (
@@ -109,4 +118,4 @@ export const TerminalProgressBar = ({
       )}
     </>
   );
-};
+}

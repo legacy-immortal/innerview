@@ -29,7 +29,15 @@ export const DataSparkline = ({
   const frameRef = useRef<number>(0);
 
   useEffect(() => {
-    const update = () => {
+    let lastUpdate = 0;
+    const update = (t: number) => {
+      // Throttle to ~10fps: sparkline data changes slowly, and each
+      // update triggers a React re-render. Also skip while tab hidden.
+      if (t - lastUpdate < 100 || document.hidden) {
+        frameRef.current = requestAnimationFrame(update);
+        return;
+      }
+      lastUpdate = t;
       const data = getSparkData();
       if (data.length < 2) {
         setPoints('');
@@ -64,9 +72,17 @@ export const DataSparkline = ({
       top="50%"
       left="50%"
       transform="translate(-50%, -50%)"
-      width={`${SPARKLINE_WIDTH}px`}
+      width={{
+        base: 'min(92vw, 420px)',
+        md: 'min(60vw, 520px)',
+      }}
+      maxW="92vw"
+      minW={0}
+      boxSizing="border-box"
+      px={{ base: 2, md: 4 }}
       zIndex={5}
       pointerEvents="none"
+      style={{ touchAction: 'none' }}
     >
       <Text
         fontFamily="'JetBrains Mono', 'Fira Code', monospace"
@@ -79,7 +95,7 @@ export const DataSparkline = ({
       </Text>
       <Text
         fontFamily="'JetBrains Mono', 'Fira Code', monospace"
-        fontSize="2xl"
+        fontSize="clamp(1.25rem, 5vmin, 1.5rem)"
         fontWeight={600}
         color={color}
         textAlign="center"
@@ -88,8 +104,9 @@ export const DataSparkline = ({
         {formatValue(currentValue)}
       </Text>
       <svg
-        width={SPARKLINE_WIDTH}
-        height={SPARKLINE_HEIGHT}
+        viewBox={`0 0 ${SPARKLINE_WIDTH} ${SPARKLINE_HEIGHT}`}
+        width="100%"
+        height="auto"
         style={{ display: 'block' }}
       >
         <defs>

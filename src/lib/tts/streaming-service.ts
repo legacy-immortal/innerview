@@ -1,3 +1,7 @@
+/**
+ * @file Streaming TTS service bridging model chunks to the PCM AudioWorklet processor.
+ * @module lib/tts/streaming-service.ts
+ */
 // Streaming TTS Service with PCM Processor integration
 import type { StreamingTTSModel, TTSOptions } from './types';
 import { convertWavToPCM, getWavSampleRate } from './utils/audio-converter';
@@ -85,7 +89,7 @@ export class StreamingTTSService {
   /**
    * Initialize audio context and PCM processor
    */
-  async initialize(sampleRate: number = 24000): Promise<void> {
+  public async initialize(sampleRate: number = 24000): Promise<void> {
     if (this.audioContext) {
       return;
     }
@@ -127,7 +131,7 @@ export class StreamingTTSService {
   /**
    * Stream TTS audio using PCM processor
    */
-  async streamAudio(
+  public async streamAudio(
     model: StreamingTTSModel,
     options: TTSOptions
   ): Promise<StreamingAudioResult> {
@@ -199,7 +203,7 @@ export class StreamingTTSService {
   /**
    * Set volume (0.0 to 1.0, can go higher for amplification)
    */
-  setVolume(volume: number): void {
+  public setVolume(volume: number): void {
     if (this.processorNode) {
       setProcessorVolume(this.processorNode, volume);
     }
@@ -208,7 +212,7 @@ export class StreamingTTSService {
   /**
    * Stop playback
    */
-  async stop(): Promise<void> {
+  public async stop(): Promise<void> {
     this.isPlaying = false;
 
     // Clear buffer before disconnecting
@@ -240,7 +244,7 @@ export class StreamingTTSService {
   /**
    * Get buffer status
    */
-  async getBufferStatus(): Promise<BufferStatus | null> {
+  public async getBufferStatus(): Promise<BufferStatus | null> {
     if (!this.processorNode) {
       return null;
     }
@@ -256,28 +260,28 @@ export class StreamingTTSService {
   /**
    * Check if currently playing
    */
-  getIsPlaying(): boolean {
+  public getIsPlaying(): boolean {
     return this.isPlaying;
   }
 
   /**
    * Get current processor node (for visualization)
    */
-  getProcessorNode(): PCMProcessorNode | null {
+  public getProcessorNode(): PCMProcessorNode | null {
     return this.processorNode;
   }
 
   /**
    * Get current audio context (for visualization)
    */
-  getAudioContext(): AudioContext | null {
+  public getAudioContext(): AudioContext | null {
     return this.audioContext;
   }
 
   /**
    * Get current analyser node (for visualization)
    */
-  getAnalyserNode(): AnalyserNode | null {
+  public getAnalyserNode(): AnalyserNode | null {
     return this.analyserNode;
   }
 }

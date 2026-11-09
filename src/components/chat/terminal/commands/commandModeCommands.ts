@@ -1,13 +1,19 @@
+/**
+ * commandModeCommands.ts — Terminal command-mode command definitions and handlers.
+ *
+ * @module components/chat/terminal/commands/commandModeCommand
+ */
+
 import type {
   Conversation,
   ConversationMessage,
 } from '@/lib/conversation-store';
 
-export type CommandDefinition = {
-  description: string;
-  usage: string;
-  fn: (...args: string[]) => string;
-};
+export interface CommandDefinition {
+  readonly description: string;
+  readonly usage: string;
+  readonly fn: (...args: string[]) => string;
+}
 
 // Type for conversations that may have optional createdAt and messageCount (for compatibility)
 export type ConversationWithOptionalCreatedAt = Omit<
@@ -18,26 +24,32 @@ export type ConversationWithOptionalCreatedAt = Omit<
   messageCount?: number;
 };
 
-export type CommandModeContext = {
-  sortedConversations: ConversationWithOptionalCreatedAt[];
-  formatConversationsList: () => string;
-  formatConversationsTree: () => string;
-  loadConversationMessages: (id: string) => ConversationMessage[];
-  onConversationLoad: (id: string) => void;
-  onCreateConversation: () => void;
-  deleteConversation: (id: string) => void;
-  setMode: (
+export interface CommandModeContext {
+  readonly sortedConversations: readonly ConversationWithOptionalCreatedAt[];
+  readonly formatConversationsList: () => string;
+  readonly formatConversationsTree: () => string;
+  readonly loadConversationMessages: (id: string) => ConversationMessage[];
+  readonly onConversationLoad: (id: string) => void;
+  readonly onCreateConversation: () => void;
+  readonly deleteConversation: (id: string) => void;
+  readonly setMode: (
     mode:
       | 'filesystem'
       | 'conversation-selection'
       | 'conversation-preview'
       | 'conversation-active'
   ) => void;
-  setDisplayedMessageIds: (ids: Set<string>) => void;
-  setDetailConversationId?: (id: string | null) => void;
-  onExitToChat?: () => void;
-};
+  readonly setDisplayedMessageIds: (ids: Set<string>) => void;
+  readonly setDetailConversationId?: (id: string | null) => void;
+  readonly onExitToChat?: () => void;
+}
 
+/**
+ * Builds the filesystem/command-mode command table.
+ *
+ * @param context Mode context (store actions + navigation setters).
+ * @returns Map from command name to its definition.
+ */
 export const createCommandModeCommands = (
   context: CommandModeContext
 ): Record<string, CommandDefinition> => {

@@ -1,12 +1,17 @@
+/**
+ * @file Reusable color-picker with hex input, swatch, and reset affordance.
+ * @module components/settings/ColorPickerField.tsx
+ */
+import type { JSX } from 'react';
 import { HStack, Field, Input, Button } from '@chakra-ui/react';
 
 interface ColorPickerFieldProps {
-  label: string;
-  helperText: string;
-  value: string | undefined;
-  defaultValue: string;
-  onChange: (value: string) => void;
-  onReset: () => void;
+  readonly label: string;
+  readonly helperText: string;
+  readonly value: string | undefined;
+  readonly defaultValue: string;
+  readonly onChange: (value: string) => void;
+  readonly onReset: () => void;
 }
 
 export function ColorPickerField({
@@ -16,7 +21,7 @@ export function ColorPickerField({
   defaultValue,
   onChange,
   onReset,
-}: ColorPickerFieldProps) {
+}: ColorPickerFieldProps): JSX.Element {
   const currentValue = value || defaultValue;
   const isHexColor = currentValue.startsWith('#');
   const colorValue =
@@ -28,7 +33,7 @@ export function ColorPickerField({
       <Field.HelperText color="gray.500" fontSize="xs">
         {helperText}
       </Field.HelperText>
-      <HStack gap={2}>
+      <HStack gap={2} flexWrap="wrap">
         <Input
           type="text"
           value={currentValue}

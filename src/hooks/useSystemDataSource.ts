@@ -1,5 +1,5 @@
 import type { WaveformSettings } from '@/components/background/BackgroundControlPanel';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type DataSource = {
   id: string;
@@ -371,7 +371,7 @@ export const useSystemDataSource = (
         intervalRef.current = null;
       }
     };
-  }, [isIdle, cycleInterval, cycleEnabled, currentSourceIndex]);
+  }, [isIdle, cycleInterval, cycleEnabled]);
 
   // Update time for data generation
   useEffect(() => {
@@ -387,25 +387,46 @@ export const useSystemDataSource = (
   }, [isIdle]);
 
   const currentSource = DATA_SOURCES[currentSourceIndex];
-  const getData = (pointCount: number): number[] => {
-    if (!isIdle) return [];
-    return currentSource.getData(pointCount, timeRef.current);
-  };
+  const getData = useCallback(
+    (pointCount: number): number[] => {
+      if (!isIdle) return [];
+      return currentSource.getData(pointCount, timeRef.current);
+    },
+    [isIdle, currentSource]
+  );
 
-  const getValue =
-    currentSource.id === 'context'
-      ? () =>
-          contextUsage != null
-            ? { value: contextUsage.used, max: contextUsage.max }
-            : { value: 0, max: 100 }
-      : currentSource.getValue;
+  const getValue = useCallback(():
+    ReturnType<NonNullable<DataSource['getValue']>> | undefined => {
+    if (currentSource.id === 'context') {
+      return contextUsage != null
+        ? { value: contextUsage.used, max: contextUsage.max }
+        : { value: 0, max: 100 };
+    }
+    return currentSource.getValue?.();
+    // contextUsage ref-stable: {used,max} changes identity each render unless memoized by caller
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentSource.id,
+    currentSource.getValue,
+    contextUsage?.used,
+    contextUsage?.max,
+  ]);
 
-  return {
-    currentSource,
-    showSourceLabel,
-    getData,
-    visualizationType: currentSource.visualizationType || 'waveform',
-    getValue,
-    navigateToVisualizationType,
-  };
+  return useMemo(
+    () => ({
+      currentSource,
+      showSourceLabel,
+      getData,
+      visualizationType: currentSource.visualizationType || 'waveform',
+      getValue,
+      navigateToVisualizationType,
+    }),
+    [
+      currentSource,
+      showSourceLabel,
+      getData,
+      getValue,
+      navigateToVisualizationType,
+    ]
+  );
 };

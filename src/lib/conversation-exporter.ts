@@ -1,3 +1,7 @@
+/**
+ * @file Conversation export: JSON and markdown/plaintext generation plus file download.
+ * @module lib/conversation-exporter.ts
+ */
 // Conversation export utility
 // Handles exporting conversations to JSON or markdown formats
 

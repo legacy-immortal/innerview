@@ -1,3 +1,7 @@
+/**
+ * @file Transcription startup initialization and end-to-end test audio validation.
+ * @module lib/transcription/transcription-init.ts
+ */
 // Transcription initialization and testing
 // Downloads a test audio file and validates transcription service during startup
 
