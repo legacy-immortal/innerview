@@ -1,5 +1,5 @@
 import { toUIMessageStream } from '@ai-sdk/langchain';
-import { createUIMessageStreamResponse } from 'ai';
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { truncate } from 'es-toolkit/compat';
 import { Hono } from 'hono';
 import {
@@ -9,6 +9,8 @@ import {
 } from '../agents/index.js';
 import { getConfig } from '../config/index.js';
 import { logChat as logger } from '../logger.js';
+import { statusTracker } from '../services/status-tracker.js';
+import { throttleReadableStream } from '../utils/streaming.js';
 
 const app = new Hono();
 
@@ -100,6 +102,25 @@ app.post('/api/chat', async (c) => {
       logger.warn('Rejected: empty user message');
       return c.json({ error: 'Message content cannot be empty' }, 400);
     }
+
+    // Dev/test mock: return a canned UI message stream without an upstream LLM.
+    if (process.env.MOCK_LLM === '1') {
+      logger.info('MOCK_LLM: returning canned response');
+      const textId = `mock-text-${Date.now()}`;
+      const mockStream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: 'text-start', id: textId });
+          writer.write({
+            type: 'text-delta',
+            id: textId,
+            delta: `Mock response (MOCK_LLM=1). You said: ${userContent.slice(0, 200)}`,
+          });
+          writer.write({ type: 'text-end', id: textId });
+        },
+      });
+      return createUIMessageStreamResponse({ stream: mockStream });
+    }
+
     const requestMessages = Array.isArray(messages) ? messages : [];
     const normalizedForAgent = requestMessages.map(
       (m: { role?: string; content?: unknown; parts?: unknown }) => ({
@@ -107,15 +128,22 @@ app.post('/api/chat', async (c) => {
         content: getMessageText(m ?? {}),
       })
     );
-    logger.info('Normalized for agent: %s', JSON.stringify(normalizedForAgent));
-    const stream = await invokeAgent(
-      normalizedForAgent,
-      cid,
-      generationSettings
-    );
-    const uiStream = toUIMessageStream(stream) as Parameters<
+    // Avoid serializing the full conversation into logs on every turn.
+    logger.info('Normalized for agent: count=%s', normalizedForAgent.length);
+    statusTracker.setModelLoading('chat', true);
+    let stream: Awaited<ReturnType<typeof invokeAgent>>;
+    try {
+      stream = await invokeAgent(normalizedForAgent, cid, generationSettings);
+    } finally {
+      statusTracker.setModelLoading('chat', false);
+    }
+    const rawUiStream = toUIMessageStream(stream) as Parameters<
       typeof createUIMessageStreamResponse
     >[0]['stream'];
+    // Throttle/coalesce bursty token chunks before they hit the socket.
+    const uiStream = throttleReadableStream(
+      rawUiStream as unknown as ReadableStream<Uint8Array>
+    ) as unknown as typeof rawUiStream;
     return createUIMessageStreamResponse({ stream: uiStream });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
