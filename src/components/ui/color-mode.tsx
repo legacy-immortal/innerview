@@ -181,7 +181,7 @@ export interface UseColorModeReturn {
   toggleColorMode: () => void;
 }
 
-export function useColorMode(): UseColorModeReturn {
+function useColorMode(): UseColorModeReturn {
   const { resolvedTheme, setTheme } = useTheme();
   const toggleColorMode = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
@@ -193,10 +193,7 @@ export function useColorMode(): UseColorModeReturn {
   };
 }
 
-export function useColorModeValue<T>(light: T, dark: T) {
-  const { colorMode } = useColorMode();
-  return colorMode === 'dark' ? dark : light;
-}
+// (useColorModeValue removed: unused; re-add if needed)
 
 export function ColorModeIcon() {
   const { colorMode } = useColorMode();

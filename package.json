@@ -22,7 +22,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.97",
     "@ai-sdk/elevenlabs": "^3.0.80",
-    "@ai-sdk/langchain": "^3.0.163",
+    "@ai-sdk/langchain": "^3.0.166",
     "@ai-sdk/openai": "^4.0.109",
     "@ai-sdk/provider": "^3.0.19",
     "@ai-sdk/react": "^3.0.326",
@@ -40,11 +40,12 @@
     "@react-three/postprocessing": "^3.2.2",
     "@tanstack/react-virtual": "^3.14.26",
     "@types/three": "^0.181.0",
-    "ai": "^6.0.323",
+    "ai": "6.0.323",
     "chalk": "^5.6.2",
     "es-toolkit": "^1.53.2",
     "framer-motion": "^12.43.0",
     "kokoro-js": "^1.2.1",
+    "leva": "^0.10.1",
     "localforage": "^1.10.0",
     "marked": "^17.0.6",
     "marked-terminal": "^7.3.1",
@@ -64,9 +65,7 @@
     "zod": "^4.6.6",
     "zustand": "^5.1.0"
   },
-  "overrides": {
-    "ai": "^6.0.70"
-  },
+  "overrides": {},
   "devDependencies": {
     "@ai-sdk/provider-utils": "^5.0.75",
     "@eslint/js": "^9.39.5",

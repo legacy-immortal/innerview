@@ -333,7 +333,16 @@ const ChatInputComponent = ({
             maxTokens={maxContextTokens}
             usage={{
               inputTokens: tokenUsage.inputTokens,
+              inputTokenDetails: {
+                noCacheTokens: tokenUsage.inputTokens,
+                cacheReadTokens: undefined,
+                cacheWriteTokens: undefined,
+              },
               outputTokens: tokenUsage.outputTokens,
+              outputTokenDetails: {
+                textTokens: tokenUsage.outputTokens,
+                reasoningTokens: undefined,
+              },
               totalTokens: tokenUsage.totalTokens,
             }}
             modelId="gpt-4o"
