@@ -64,6 +64,40 @@ app.post('/api/chat', async (c) => {
       latestContent || '(empty)'
     );
 
+    // Extract the latest user message (also used by MOCK_LLM dev path).
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage || latestMessage.role !== 'user') {
+      logger.warn(
+        'Rejected: invalid message format (latest role=%s)',
+        latestMessage?.role
+      );
+      return c.json({ error: 'Invalid message format' }, 400);
+    }
+    const userContent = getMessageText(latestMessage);
+    if (!userContent) {
+      logger.warn('Rejected: empty user message');
+      return c.json({ error: 'Message content cannot be empty' }, 400);
+    }
+
+    // Dev/test mock: short-circuit before provider checks so UI can be
+    // click-tested without an upstream LLM or local provider running.
+    if (process.env.MOCK_LLM === '1') {
+      logger.info('MOCK_LLM: returning canned response');
+      const textId = `mock-text-${Date.now()}`;
+      const mockStream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: 'text-start', id: textId });
+          writer.write({
+            type: 'text-delta',
+            id: textId,
+            delta: `Mock response (MOCK_LLM=1). You said: ${userContent.slice(0, 200)}`,
+          });
+          writer.write({ type: 'text-end', id: textId });
+        },
+      });
+      return createUIMessageStreamResponse({ stream: mockStream });
+    }
+
     // Resolve API key: Zen uses ZEN_API_KEY from env; others use client-provided key
     const baseURL = generationSettings?.baseURL?.trim().replace(/\/+$/, '');
     const isZen = baseURL === ZEN_BASE_URL.replace(/\/+$/, '');
@@ -86,39 +120,6 @@ app.post('/api/chat', async (c) => {
         },
         503
       );
-    }
-
-    // Extract the latest user message
-    const latestMessage = messages[messages.length - 1];
-    if (!latestMessage || latestMessage.role !== 'user') {
-      logger.warn(
-        'Rejected: invalid message format (latest role=%s)',
-        latestMessage?.role
-      );
-      return c.json({ error: 'Invalid message format' }, 400);
-    }
-    const userContent = getMessageText(latestMessage);
-    if (!userContent) {
-      logger.warn('Rejected: empty user message');
-      return c.json({ error: 'Message content cannot be empty' }, 400);
-    }
-
-    // Dev/test mock: return a canned UI message stream without an upstream LLM.
-    if (process.env.MOCK_LLM === '1') {
-      logger.info('MOCK_LLM: returning canned response');
-      const textId = `mock-text-${Date.now()}`;
-      const mockStream = createUIMessageStream({
-        execute: ({ writer }) => {
-          writer.write({ type: 'text-start', id: textId });
-          writer.write({
-            type: 'text-delta',
-            id: textId,
-            delta: `Mock response (MOCK_LLM=1). You said: ${userContent.slice(0, 200)}`,
-          });
-          writer.write({ type: 'text-end', id: textId });
-        },
-      });
-      return createUIMessageStreamResponse({ stream: mockStream });
     }
 
     const requestMessages = Array.isArray(messages) ? messages : [];
