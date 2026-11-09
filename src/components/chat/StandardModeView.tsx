@@ -101,30 +101,24 @@ const StandardModeViewComponent = ({
       />
     )}
 
-    {shouldShowControlPanel() && backgroundControlsOpen && (
-      <BackgroundControlPanel
-        settings={backgroundSettings}
-        onSettingsChange={onBackgroundSettingsChange}
-        waveformLayers={waveformLayers}
-        onWaveformLayersChange={onWaveformLayersChange}
-        waveformSettings={waveformSettings}
-        onWaveformSettingsChange={onWaveformSettingsChange}
-        onLocalWaveformSettingsChange={onLocalWaveformSettingsChange}
-        waveformEnabled={waveformEnabled}
-        onWaveformEnabledChange={onWaveformEnabledChange}
-      />
-    )}
-
     {shouldShowControlPanel() && (
-      <BackgroundControlsToggle
-        open={backgroundControlsOpen}
-        onToggle={onBackgroundControlsToggle}
-      />
+      <Box display={backgroundControlsOpen ? 'contents' : 'none'}>
+        <BackgroundControlPanel
+          settings={backgroundSettings}
+          onSettingsChange={onBackgroundSettingsChange}
+          waveformLayers={waveformLayers}
+          onWaveformLayersChange={onWaveformLayersChange}
+          waveformSettings={waveformSettings}
+          onWaveformSettingsChange={onWaveformSettingsChange}
+          onLocalWaveformSettingsChange={onLocalWaveformSettingsChange}
+          waveformEnabled={waveformEnabled}
+          onWaveformEnabledChange={onWaveformEnabledChange}
+        />
+      </Box>
     )}
 
-    {/* Responsive: narrower sidebar and hidden by default on small screens
-        (Chakra md = 48rem = 768px). Widths stay clamped to 85vw so the
-        sidebar never overflows small/tablet viewports. */}
+    {/* Sliders toggle lives inside the sidebar's control strip (one aligned
+        row); no detached floating corner button. */}
     <Box
       position="relative"
       zIndex={10}
@@ -141,6 +135,14 @@ const StandardModeViewComponent = ({
         visible={window.innerWidth < 768 ? false : sidebarVisible}
         onVisibilityChange={onSidebarVisibleChange}
         backgroundColor={sidebarBackgroundColor}
+        toolbar={
+          shouldShowControlPanel() ? (
+            <BackgroundControlsToggle
+              open={backgroundControlsOpen}
+              onToggle={onBackgroundControlsToggle}
+            />
+          ) : undefined
+        }
       >
         <Box
           display="flex"

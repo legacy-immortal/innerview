@@ -7,7 +7,7 @@
 import { CircularVisualization } from '@/components/animations/CircularVisualization';
 import { BackgroundControlPanel } from '@/components/background/BackgroundControlPanel';
 import { BackgroundSwitcher } from '@/components/background/BackgroundSwitcher';
-import { Box } from '@chakra-ui/react';
+import { Box, HStack } from '@chakra-ui/react';
 import { memo } from 'react';
 import { BackgroundControlsToggle } from './BackgroundControlsToggle';
 import { TerminalChat } from './terminal/TerminalChat';
@@ -67,25 +67,31 @@ const TerminalModeViewComponent = ({
       />
     )}
 
-    {shouldShowControlPanel() && backgroundControlsOpen && (
-      <BackgroundControlPanel
-        settings={backgroundSettings}
-        onSettingsChange={onBackgroundSettingsChange}
-        waveformLayers={waveformLayers}
-        onWaveformLayersChange={onWaveformLayersChange}
-        waveformSettings={waveformSettings}
-        onWaveformSettingsChange={onWaveformSettingsChange}
-        onLocalWaveformSettingsChange={onLocalWaveformSettingsChange}
-        waveformEnabled={waveformEnabled}
-        onWaveformEnabledChange={onWaveformEnabledChange}
-      />
+    {shouldShowControlPanel() && (
+      <Box display={backgroundControlsOpen ? 'contents' : 'none'}>
+        <BackgroundControlPanel
+          settings={backgroundSettings}
+          onSettingsChange={onBackgroundSettingsChange}
+          waveformLayers={waveformLayers}
+          onWaveformLayersChange={onWaveformLayersChange}
+          waveformSettings={waveformSettings}
+          onWaveformSettingsChange={onWaveformSettingsChange}
+          onLocalWaveformSettingsChange={onLocalWaveformSettingsChange}
+          waveformEnabled={waveformEnabled}
+          onWaveformEnabledChange={onWaveformEnabledChange}
+        />
+      </Box>
     )}
 
+    {/* Terminal has no sidebar chrome, so the sliders toggle stays in a
+        fixed top-left corner strip of its own. */}
     {shouldShowControlPanel() && (
-      <BackgroundControlsToggle
-        open={backgroundControlsOpen}
-        onToggle={onBackgroundControlsToggle}
-      />
+      <HStack position="fixed" top={3} left={3} zIndex={20}>
+        <BackgroundControlsToggle
+          open={backgroundControlsOpen}
+          onToggle={onBackgroundControlsToggle}
+        />
+      </HStack>
     )}
 
     <TerminalLayout>

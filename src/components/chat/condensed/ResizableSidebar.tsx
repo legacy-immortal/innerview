@@ -19,6 +19,8 @@ interface ResizableSidebarProps {
   readonly backgroundColor?: string; // CSS color value (hex, rgb, rgba, transparent, etc.)
   readonly hideToggle?: boolean; // Hide toggle buttons (for terminal mode)
   readonly fullWidth?: boolean; // Make sidebar full width (for terminal mode)
+  /** Optional controls rendered at the start of the sidebar's control strip. */
+  readonly toolbar?: ReactNode;
 }
 
 export const ResizableSidebar = ({
@@ -32,6 +34,7 @@ export const ResizableSidebar = ({
   backgroundColor = 'transparent',
   hideToggle = false,
   fullWidth = false,
+  toolbar,
 }: ResizableSidebarProps) => {
   const [internalVisible, setInternalVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(defaultWidth);
@@ -203,37 +206,45 @@ export const ResizableSidebar = ({
         )}
         {sidebarVisible && (
           <>
-            {/* Header with action buttons */}
+            {/* Header strip: optional app-level controls (e.g. background
+            controls) on the left; sidebar actions on the right. One aligned
+            row instead of a floating toggle stacked over the header. */}
             {!hideToggle && (
               <HStack
                 p={2}
-                justify="flex-end"
+                justify="space-between"
                 gap={2}
                 borderBottom="1px solid"
                 borderColor="rgba(255, 255, 255, 0.08)"
+                minW={0}
               >
-                <IconButton
-                  aria-label="Hide sidebar"
-                  size="sm"
-                  variant="ghost"
-                  colorPalette="gray"
-                  onClick={() => setSidebarVisible(false)}
-                >
-                  <HiChevronLeft />
-                </IconButton>
-                <IconButton
-                  aria-label={
-                    isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
-                  }
-                  size="sm"
-                  variant="ghost"
-                  colorPalette="gray"
-                  onClick={handleFullscreen}
-                  transform={isFullscreen ? 'rotate(180deg)' : 'none'}
-                  transition="transform 0.2s"
-                >
-                  <HiArrowsExpand />
-                </IconButton>
+                <HStack gap={1} minW={0}>
+                  {toolbar}
+                </HStack>
+                <HStack gap={2}>
+                  <IconButton
+                    aria-label="Hide sidebar"
+                    size="sm"
+                    variant="ghost"
+                    colorPalette="gray"
+                    onClick={() => setSidebarVisible(false)}
+                  >
+                    <HiChevronLeft />
+                  </IconButton>
+                  <IconButton
+                    aria-label={
+                      isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
+                    }
+                    size="sm"
+                    variant="ghost"
+                    colorPalette="gray"
+                    onClick={handleFullscreen}
+                    transform={isFullscreen ? 'rotate(180deg)' : 'none'}
+                    transition="transform 0.2s"
+                  >
+                    <HiArrowsExpand />
+                  </IconButton>
+                </HStack>
               </HStack>
             )}
             {children}
