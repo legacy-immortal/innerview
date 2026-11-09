@@ -74,28 +74,53 @@ function detectGPUTier(): 'low' | 'medium' | 'high' {
   }
 }
 
-// Measure frame rate using requestAnimationFrame
+// Measure frame rate using requestAnimationFrame. Times out so detection
+// never hangs in headless/backgrounded/throttled contexts where rAF may
+// be paused or severely delayed.
 async function measureFrameRate(duration = 1000): Promise<number> {
   return new Promise((resolve) => {
     let frames = 0;
-    let lastTime = performance.now();
-    const startTime = lastTime;
+    let settled = false;
+    const startTime = performance.now();
+    let rafId = 0;
+    const fallbackFps = 30;
 
-    function countFrame() {
+    const finish = (fps: number): void => {
+      if (settled) return;
+      settled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      resolve(fps);
+    };
+
+    function countFrame(): void {
+      if (settled) return;
       frames++;
       const currentTime = performance.now();
 
       if (currentTime - startTime >= duration) {
-        const fps = Math.round((frames * 1000) / (currentTime - startTime));
-        resolve(fps);
+        const elapsed = currentTime - startTime;
+        const fps =
+          elapsed > 0 ? Math.round((frames * 1000) / elapsed) : fallbackFps;
+        finish(fps);
         return;
       }
 
-      lastTime = currentTime;
-      requestAnimationFrame(countFrame);
+      rafId = requestAnimationFrame(countFrame);
     }
 
-    requestAnimationFrame(countFrame);
+    // Hard timeout: rAF can stall in headless/background tabs. Resolve with
+    // a conservative estimate rather than hanging bootstrap forever.
+    window.setTimeout(() => {
+      if (settled) return;
+      const elapsed = performance.now() - startTime;
+      const fps =
+        frames > 0 && elapsed > 0
+          ? Math.round((frames * 1000) / elapsed)
+          : fallbackFps;
+      finish(fps);
+    }, duration + 1500);
+
+    rafId = requestAnimationFrame(countFrame);
   });
 }
 
@@ -204,46 +229,119 @@ function detectTranscriptionCapabilities(): {
   };
 }
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T
+): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const tid = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(fallback);
+    }, ms);
+    promise.then(
+      (v) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(tid);
+        resolve(v);
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(tid);
+        resolve(fallback);
+      }
+    );
+  });
+}
+
 // Detect performance metrics
 export async function detectPerformance(): Promise<PerformanceMetrics> {
   const hardwareConcurrency = navigator.hardwareConcurrency || 2;
   const deviceMemory = (navigator as { deviceMemory?: number }).deviceMemory;
 
-  const supportsWebGL2 = !!document
-    .createElement('canvas')
-    .getContext('webgl2');
+  let supportsWebGL2 = false;
+  let supportsWebGPU = false;
+  let gpuTier: 'low' | 'medium' | 'high' = 'medium';
+  try {
+    supportsWebGL2 = !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    supportsWebGL2 = false;
+  }
+  try {
+    supportsWebGPU = !!(navigator.gpu || (window as { gpu?: unknown }).gpu);
+  } catch {
+    supportsWebGPU = false;
+  }
+  try {
+    gpuTier = detectGPUTier();
+  } catch {
+    gpuTier = 'medium';
+  }
 
-  const supportsWebGPU = !!(navigator.gpu || (window as { gpu?: unknown }).gpu);
-
-  const gpuTier = detectGPUTier();
-  const frameRate = await measureFrameRate(500); // Quick 500ms test
+  // measureFrameRate has its own hard timeout; wrap again as a safety net.
+  const frameRate = await withTimeout(measureFrameRate(500), 4000, 30);
 
   // Detect TTS capabilities
   const ttsCapabilities = detectTTSCapabilities();
 
-  // Wait for voices to load if speech synthesis is supported
+  // Wait briefly for voices to load if speech synthesis is supported.
+  // Uses addEventListener to avoid clobbering global handlers; always
+  // resolves within the timeout so detection cannot hang.
   if (
     ttsCapabilities.supportsSpeechSynthesis &&
     ttsCapabilities.availableVoices === 0
   ) {
-    // Wait a bit for voices to load
-    await new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) {
+        resolve();
+        return;
+      }
       if (window.speechSynthesis.getVoices().length > 0) {
-        resolve(undefined);
-      } else {
-        const timeout = setTimeout(() => resolve(undefined), 500);
-        window.speechSynthesis.onvoiceschanged = () => {
-          clearTimeout(timeout);
-          resolve(undefined);
-        };
+        resolve();
+        return;
+      }
+      let settled = false;
+      const done = (): void => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        try {
+          window.speechSynthesis.removeEventListener('voiceschanged', done);
+        } catch {
+          // ignore
+        }
+        resolve();
+      };
+      const timeoutId = window.setTimeout(done, 500);
+      try {
+        window.speechSynthesis.addEventListener('voiceschanged', done);
+      } catch {
+        done();
       }
     });
-    // Update voice count after waiting
-    ttsCapabilities.availableVoices = window.speechSynthesis.getVoices().length;
+    try {
+      ttsCapabilities.availableVoices =
+        window.speechSynthesis.getVoices().length;
+    } catch {
+      // keep default
+    }
   }
 
   // Detect transcription capabilities
-  const transcriptionCapabilities = detectTranscriptionCapabilities();
+  let transcriptionCapabilities = {
+    supportsMediaRecorder: false,
+    supportsGetUserMedia: false,
+    supportsLocalTranscription: false,
+  };
+  try {
+    transcriptionCapabilities = detectTranscriptionCapabilities();
+  } catch {
+    // keep defaults
+  }
 
   const metrics: Omit<PerformanceMetrics, 'score' | 'tier'> = {
     hardwareConcurrency,
@@ -376,6 +474,48 @@ export function getPerformanceSettingsForTier(
   };
 }
 
+/**
+ * Device memory (GB) below which local model preload is considered
+ * overburdening: downloading and warming Kokoro/Whisper while memory is
+ * this low risks jank, tab crashes, or swap thrash on the host.
+ */
+export const LOW_DEVICE_MEMORY_GB = 4;
+
+/**
+ * Whether this device's hardware is overburdened for automatic model
+ * preload. True when the overall tier is low, the GPU tier is low, or
+ * reported device memory is below {@link LOW_DEVICE_MEMORY_GB}. When true,
+ * callers must not preload Kokoro/Whisper automatically; they should ask
+ * the user to opt in first.
+ *
+ * @param metrics - Detected performance metrics.
+ * @returns True if automatic preload would overburden the device.
+ */
+export function isHardwareOverburdened(metrics: PerformanceMetrics): boolean {
+  if (metrics.tier === 'low') return true;
+  if (metrics.gpuTier === 'low') return true;
+  if (
+    metrics.deviceMemory !== undefined &&
+    metrics.deviceMemory < LOW_DEVICE_MEMORY_GB
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Whether this device can run the local Kokoro/Whisper models at all
+ * (WASM/WebGPU or local-transcription support). This is a capability check
+ * only; use {@link isHardwareOverburdened} to decide whether preloading
+ * should require explicit opt-in.
+ *
+ * @param metrics - Detected performance metrics.
+ * @returns True if local model preload is technically supported.
+ */
+export function canPreloadModels(metrics: PerformanceMetrics): boolean {
+  return Boolean(metrics.supportsLocalTranscription || metrics.supportsWebGPU);
+}
+
 // Quick synchronous detection (uses cached values if available)
 let cachedMetrics: PerformanceMetrics | null = null;
 let detectionPromise: Promise<PerformanceMetrics> | null = null;
@@ -393,10 +533,34 @@ export function detectPerformanceCached(): Promise<PerformanceMetrics> {
     return detectionPromise;
   }
 
-  detectionPromise = detectPerformance().then((metrics) => {
-    cachedMetrics = metrics;
-    return metrics;
-  });
+  detectionPromise = detectPerformance()
+    .then((metrics) => {
+      cachedMetrics = metrics;
+      return metrics;
+    })
+    .catch((err) => {
+      // Allow retry on failure and never strand callers on a rejected cache.
+      detectionPromise = null;
+      console.error('[detectPerformance] failed, using fallback:', err);
+      const fallback: PerformanceMetrics = {
+        tier: 'low',
+        score: 0,
+        hardwareConcurrency:
+          typeof navigator !== 'undefined'
+            ? navigator.hardwareConcurrency || 2
+            : 2,
+        frameRate: 30,
+        supportsWebGL2: false,
+        supportsWebGPU: false,
+        supportsSpeechSynthesis: false,
+        availableVoices: 0,
+        supportsMediaRecorder: false,
+        supportsGetUserMedia: false,
+        supportsLocalTranscription: false,
+      };
+      cachedMetrics = fallback;
+      return fallback;
+    });
 
   return detectionPromise;
 }

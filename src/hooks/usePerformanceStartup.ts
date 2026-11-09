@@ -148,6 +148,8 @@ export function usePerformanceStartup(
   // start again. Guards against the detection effect re-running
   // post-bootstrap (e.g. parent re-renders) triggering new downloads.
   const bootstrapFinishedRef = useRef(false);
+  // Mirrors isModelPreloading state for the global failsafe timer.
+  const isModelPreloadingRef = useRef(false);
 
   /**
    * Move from detection to the disclaimer or app.
@@ -198,6 +200,7 @@ export function usePerformanceStartup(
     }
     transcriptionTestStartedRef.current = true;
     console.log('[PerformanceStartup] Starting Whisper preload (bootstrap)...');
+    isModelPreloadingRef.current = true;
     setIsModelPreloading(true);
     const promise = preloadWhisperModel((progress) => {
       setWhisperProgress(progress);
@@ -214,6 +217,7 @@ export function usePerformanceStartup(
         });
       })
       .finally(() => {
+        isModelPreloadingRef.current = false;
         setIsModelPreloading(false);
       });
     whisperPreloadPromiseRef.current = promise;
@@ -595,10 +599,28 @@ export function usePerformanceStartup(
     }
 
     void detectAndConfigure();
+    // Global failsafe: detection/animation must never strand the user on the
+    // bootstrap screen (e.g. rAF/timer stalls in headless or a hung probe).
+    // Does not fire while opt-in is pending (user decision required) or while
+    // an intentional Whisper preload is showing progress.
+    const failsafeId = window.setTimeout(() => {
+      if (
+        !aborted &&
+        !startupFinishedRef.current &&
+        !modelPreloadOptInPendingRef.current &&
+        !isModelPreloadingRef.current
+      ) {
+        console.warn(
+          '[PerformanceStartup] Failsafe: forcing startup completion'
+        );
+        finishStartup();
+      }
+    }, 45000);
     // NOTE: `onComplete` deliberately excluded — finishStartup uses onCompleteRef.
     // Cleanup aborts StrictMode's first invocation so it doesn't interleave.
     return () => {
       aborted = true;
+      window.clearTimeout(failsafeId);
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
