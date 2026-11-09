@@ -257,6 +257,7 @@ export function usePerformanceStartup(
     if (bootstrapFinishedRef.current) {
       return;
     }
+    let aborted = false;
     async function detectAndConfigure() {
       try {
         // Check if we already have performance settings
@@ -277,6 +278,7 @@ export function usePerformanceStartup(
           let stepIndex = 0;
 
           progressIntervalRef.current = setInterval(() => {
+            if (aborted) return;
             if (stepIndex < progressSteps.length) {
               currentProgress = progressSteps[stepIndex];
               setProgress(currentProgress);
@@ -295,6 +297,7 @@ export function usePerformanceStartup(
             status: DetectionStage['status'],
             value?: string
           ) => {
+            if (aborted) return;
             setStages((prev) => {
               const updated = [...prev];
               updated[index] = { ...updated[index], status, value };
@@ -308,6 +311,7 @@ export function usePerformanceStartup(
           await new Promise((resolve) => setTimeout(resolve, 200));
 
           const detectedMetrics = await detectPerformanceCached();
+          if (aborted) return;
           setMetrics(detectedMetrics);
 
           // Update stages progressively with actual values
@@ -584,16 +588,22 @@ export function usePerformanceStartup(
         }
         // If waiting for the opt-in decision, stay on the detection view
         // until the user confirms or declines.
-        if (!modelPreloadOptInPendingRef.current) {
+        if (!aborted && !modelPreloadOptInPendingRef.current) {
           finishStartup();
         }
       }
     }
 
-    detectAndConfigure();
-    // NOTE: `onComplete` is deliberately excluded — callers pass an
-    // unstable inline callback (index.tsx), which would re-run detection
-    // post-bootstrap. finishStartup invokes the latest via onCompleteRef.
+    void detectAndConfigure();
+    // NOTE: `onComplete` deliberately excluded — finishStartup uses onCompleteRef.
+    // Cleanup aborts StrictMode's first invocation so it doesn't interleave.
+    return () => {
+      aborted = true;
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
   }, [
     savePerformanceSettings,
     getPerformanceSettings,
