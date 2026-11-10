@@ -3,6 +3,7 @@
  * @module lib/backend-status
  */
 import { create } from 'zustand';
+import { apiUrl } from './api-base';
 
 /** CPU load snapshot from {@link GET /api/status}. */
 export interface CpuStatus {
@@ -90,7 +91,7 @@ export const useBackendStatusStore = create<BackendStatusStore>((set) => ({
 
   refresh: async (): Promise<BackendStatus | null> => {
     try {
-      const response = await fetch('/api/status', {
+      const response = await fetch(apiUrl('/api/status'), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

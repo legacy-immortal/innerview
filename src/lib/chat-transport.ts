@@ -5,10 +5,11 @@
 // Chat transport configuration for AI SDK
 import type { ChatTransport, UIMessage } from 'ai';
 import { DefaultChatTransport } from 'ai';
+import { apiUrl } from './api-base';
 import { useSettingsStore } from './settings-store';
 
 /** Chat API endpoint for streamed conversation requests. */
-export const CHAT_API = '/api/chat';
+export const CHAT_API = apiUrl('/api/chat');
 
 /** @deprecated Use {@link CHAT_API} instead. @alias CHAT_API */
 export const chatApi = CHAT_API;

@@ -4,6 +4,7 @@
  */
 // Provider status store - tracks AI provider availability
 import { create } from 'zustand';
+import { apiUrl } from './api-base';
 
 /** Snapshot of the current AI provider availability and metadata. */
 export interface ProviderStatus {
@@ -52,7 +53,7 @@ export const useProviderStatusStore = create<ProviderStatusStore>(
       set({ providerStatus: { status: 'checking' } });
 
       try {
-        const response = await fetch('/api/provider/status', {
+        const response = await fetch(apiUrl('/api/provider/status'), {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

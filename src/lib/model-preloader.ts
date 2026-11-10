@@ -5,6 +5,7 @@
 // Model preloader for Kokoro TTS and Whisper transcription
 // Preloads models during startup if performance threshold is met
 
+import { apiUrl } from './api-base';
 import {
   initializeTranscriptionService,
   type TranscriptionTestProgress,
@@ -198,7 +199,7 @@ export async function preloadWhisperModel(
     // when the model is already ready/cached in memory.
     let backendReady = false;
     try {
-      const statusRes = await fetch('/api/transcription/status');
+      const statusRes = await fetch(apiUrl('/api/transcription/status'));
       if (statusRes.ok) {
         const status = (await statusRes.json()) as { ready?: boolean };
         backendReady = status.ready === true;

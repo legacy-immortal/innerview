@@ -7,6 +7,7 @@
  * generation endpoint, discovers available models, and exposes connection
  * status plus error state to the settings UI.
  */
+import { apiUrl } from '@/lib/api-base';
 import { ZEN_BASE_URL, ZEN_FREE_MODEL_IDS } from '@/lib/constants';
 import type { GenerationSettings } from '@/lib/settings-types';
 import type { Dispatch, SetStateAction } from 'react';
@@ -64,7 +65,7 @@ export function useGenerationConnection(
 
           let models: string[];
           if (isZen) {
-            const response = await fetch('/api/provider/test', {
+            const response = await fetch(apiUrl('/api/provider/test'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ baseURL }),

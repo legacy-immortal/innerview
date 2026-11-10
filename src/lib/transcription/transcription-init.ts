@@ -10,6 +10,7 @@
 // Transcription initialization and testing
 // Downloads a test audio file and validates transcription service during startup
 
+import { apiUrl } from '../api-base';
 import { transcriptionService } from './transcription-service';
 
 /**
@@ -103,7 +104,7 @@ async function pollBackendPreloadProgress(
   );
   for (;;) {
     try {
-      const response = await fetch('/api/transcription/status');
+      const response = await fetch(apiUrl('/api/transcription/status'));
       if (response.ok) {
         const status = (await response.json()) as BackendTranscriptionStatus;
         const p = status.progress;
@@ -139,12 +140,12 @@ async function pollBackendPreloadProgress(
 // Test audio URLs - use server proxy to bypass CORS restrictions
 // The server proxies these external URLs: /api/test-audio/:sampleId
 // All samples contain spoken dialog for Whisper transcription testing
-const TEST_AUDIO_URL = '/api/test-audio/jfk';
+const TEST_AUDIO_URL = apiUrl('/api/test-audio/jfk');
 
 // Alternative test files (via server proxy)
 const ALTERNATIVE_TEST_URLS = [
-  '/api/test-audio/mlk',
-  '/api/test-audio/librivox',
+  apiUrl('/api/test-audio/mlk'),
+  apiUrl('/api/test-audio/librivox'),
 ];
 
 /**
@@ -265,7 +266,7 @@ export async function testTranscriptionService(
       }
 
       try {
-        const statusResponse = await fetch('/api/transcription/status');
+        const statusResponse = await fetch(apiUrl('/api/transcription/status'));
         if (statusResponse.ok) {
           const status = (await statusResponse.json()) as {
             ready: boolean;
@@ -296,9 +297,12 @@ export async function testTranscriptionService(
                   message: 'Initializing backend transcription model...',
                 });
               }
-              const preloadRequest = fetch('/api/transcription/preload', {
-                method: 'POST',
-              });
+              const preloadRequest = fetch(
+                apiUrl('/api/transcription/preload'),
+                {
+                  method: 'POST',
+                }
+              );
               await pollBackendPreloadProgress(onProgress, preloadRequest);
               await preloadRequest;
             }
@@ -397,7 +401,7 @@ export async function testTranscriptionService(
       formData.append('language', 'en');
       formData.append('task', 'transcribe');
 
-      const response = await fetch('/api/transcription', {
+      const response = await fetch(apiUrl('/api/transcription'), {
         method: 'POST',
         body: formData,
       });

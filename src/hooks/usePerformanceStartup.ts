@@ -35,6 +35,7 @@ import {
   type ProviderStatus,
 } from '@/lib/provider-status';
 import { useSettingsStore } from '@/lib/settings-store';
+import { apiUrl } from '@/lib/api-base';
 import { useEffect, useRef, useState } from 'react';
 import {
   buildStagesFromMetrics,
@@ -224,7 +225,7 @@ export function usePerformanceStartup(
         try {
           const controller = new AbortController();
           const tid = window.setTimeout(() => controller.abort(), 4000);
-          const res = await fetch('/api/provider/scan', {
+          const res = await fetch(apiUrl('/api/provider/scan'), {
             signal: controller.signal,
           }).then((r) => r.json());
           window.clearTimeout(tid);

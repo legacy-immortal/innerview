@@ -3,6 +3,8 @@
  * @module lib/constants
  */
 // OpenCode Zen: curated models at https://opencode.ai/docs/zen
+import { apiUrl } from './api-base';
+
 /** Base URL for OpenCode Zen's OpenAI-compatible API. */
 export const ZEN_BASE_URL = 'https://opencode.ai/zen/v1';
 
@@ -41,9 +43,9 @@ export const starters: readonly string[] = STARTERS;
 /** Test audio endpoint paths (server-proxied to avoid CORS). */
 export const TEST_AUDIO_URLS = {
   // JFK "Ask not what your country can do for you" - ~11s WAV, clear speech
-  jfk: '/api/test-audio/jfk',
+  jfk: apiUrl('/api/test-audio/jfk'),
   // MLK speech excerpt
-  mlk: '/api/test-audio/mlk',
+  mlk: apiUrl('/api/test-audio/mlk'),
   // LibriVox public domain audiobook (hosted on Internet Archive)
-  librivox: '/api/test-audio/librivox',
+  librivox: apiUrl('/api/test-audio/librivox'),
 } as const;

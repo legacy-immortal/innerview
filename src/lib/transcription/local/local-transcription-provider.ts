@@ -14,6 +14,7 @@ import type {
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
 import { LocalTranscriptionModel } from './local-transcription-model';
+import { apiUrl } from '../../api-base';
 import { LocalTranscriptionConfig } from './local-transcription-config';
 
 /** Supported local transcription model ids. */
@@ -41,7 +42,7 @@ export class LocalTranscriptionProvider implements AIProviderV2 {
   constructor(config?: Partial<LocalTranscriptionConfig>) {
     this.config = {
       mode: config?.mode || 'browser',
-      backendUrl: config?.backendUrl || '/api/transcription',
+      backendUrl: config?.backendUrl || apiUrl('/api/transcription'),
       modelId: config?.modelId || 'Xenova/whisper-base',
       quantized: config?.quantized !== false,
       ...config,
