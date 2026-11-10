@@ -42,7 +42,7 @@ const useInterlocutorChatStateImpl = () => {
     (state) => state.settings?.generation?.streamingEnabled !== false
   );
   const storedLayoutMode = useSettingsStore(
-    (state) => state.settings?.style?.mode || 'condensed'
+    (state) => state.settings?.style?.mode || 'corpo'
   );
   const layoutMode =
     typeof window !== 'undefined'

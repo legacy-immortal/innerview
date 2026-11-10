@@ -34,14 +34,14 @@ export const StylesTab = memo(function StylesTab({
   // Defensive fallback: styleSettings may be undefined before the store loads,
   // so coalesce to {} to keep field values and resets predictable.
   const safeStyleSettings = styleSettings || {};
-  const currentMode = safeStyleSettings.mode || 'condensed';
+  const currentMode = safeStyleSettings.mode || 'corpo';
 
   return (
     <VStack gap={4} align="stretch">
       <Field.Root>
         <Field.Label color="gray.300">Layout Mode</Field.Label>
         <Field.HelperText color="gray.500" fontSize="xs">
-          Choose the layout style: Condensed (current), Corpo (ChatGPT-like), or
+          Choose the layout style: Condensed, Corpo (ChatGPT-like, default), or
           Terminal (fullscreen terminal)
         </Field.HelperText>
         <NativeSelect.Root>

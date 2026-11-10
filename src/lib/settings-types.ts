@@ -337,7 +337,7 @@ export interface KeyboardSettings {
 export type LayoutMode = 'condensed' | 'corpo' | 'terminal';
 
 export interface StyleSettings {
-  mode?: LayoutMode; // Layout mode: 'condensed' (current), 'corpo' (ChatGPT-like), 'terminal' (fullscreen terminal)
+  mode?: LayoutMode; // Layout mode: 'condensed', 'corpo' (default), 'terminal' (fullscreen terminal)
   sidebarBackgroundColor?: string; // CSS color value (hex, rgb, rgba, transparent, etc.)
   sidebarHeaderBackgroundColor?: string; // Background color for sidebar header sections
   sidebarConversationItemBackgroundColor?: string; // Default background for conversation items

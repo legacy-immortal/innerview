@@ -151,7 +151,7 @@ export const InterlocutorChat = (): JSX.Element => {
   // TERMINAL MODE - Clear current conversation on entry / exit to chat
   // ============================================================================
   const exitTerminalToChat = useCallback(() => {
-    updateStyleSettings({ mode: 'condensed' });
+    updateStyleSettings({ mode: 'corpo' });
   }, [updateStyleSettings]);
 
   useHotkeys(
