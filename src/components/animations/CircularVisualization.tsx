@@ -234,72 +234,80 @@ export const CircularVisualization = ({
       transition="opacity 0.3s ease-in-out"
     >
       <SystemLabel />
+      {/* Outer box: layout-sized and flex-centered by parent. Inner box: visual
+          transform (scale/offset) applied as inline style so transform and
+          transform-origin stay atomic and cannot desync during adjustments. */}
       <Box
         position="relative"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
         flexShrink={0}
-        pointerEvents="none"
         width={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
         height={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
-        style={{
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: 'center center',
-        }}
       >
-        {/* Audio playback takes priority: render the live audio waveform. */}
-        {isActive && (
-          <CircularWaveform
-            isActive={isActive}
-            audioElement={audioElement}
-            analyserNode={analyserNode}
-            useSpeechSynthesis={useSpeechSynthesis}
-            isIdle={isIdle}
-            layers={layers}
-            settings={settings}
-            systemDataSource={systemDataSource}
-          />
-        )}
-        {/* Idle system sources with waveform type render the circular waveform. */}
-        {!isActive && visualizationType === 'waveform' && (
-          <CircularWaveform
-            isActive={false}
-            audioElement={null}
-            analyserNode={null}
-            useSpeechSynthesis={false}
-            isIdle={isIdle}
-            layers={layers}
-            settings={settings}
-            systemDataSource={systemDataSource}
-          />
-        )}
-        {visualizationType === 'gauge' && gaugeValue && (
-          <CircularGauge
-            value={gaugeValue.value}
-            max={gaugeValue.max}
-            size={500}
-            color={color}
-          />
-        )}
-        {visualizationType === 'pie' && storageValue && (
-          <CircularStorage
-            used={storageValue.value}
-            total={storageValue.max}
-            size={400}
-            color={color}
-          />
-        )}
-        {visualizationType === 'clock' && timeValue && (
-          <CircularClock
-            hours={timeValue.hours}
-            minutes={timeValue.minutes}
-            seconds={timeValue.seconds}
-            size={2000}
-            color={color}
-            showSeconds={showSeconds}
-          />
-        )}
+        <Box
+          position="absolute"
+          inset="0"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          pointerEvents="none"
+          style={{
+            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          {/* Audio playback takes priority: render the live audio waveform. */}
+          {isActive && (
+            <CircularWaveform
+              isActive={isActive}
+              audioElement={audioElement}
+              analyserNode={analyserNode}
+              useSpeechSynthesis={useSpeechSynthesis}
+              isIdle={isIdle}
+              layers={layers}
+              settings={settings}
+              systemDataSource={systemDataSource}
+            />
+          )}
+          {/* Idle system sources with waveform type render the circular waveform. */}
+          {!isActive && visualizationType === 'waveform' && (
+            <CircularWaveform
+              isActive={false}
+              audioElement={null}
+              analyserNode={null}
+              useSpeechSynthesis={false}
+              isIdle={isIdle}
+              layers={layers}
+              settings={settings}
+              systemDataSource={systemDataSource}
+            />
+          )}
+          {visualizationType === 'gauge' && gaugeValue && (
+            <CircularGauge
+              value={gaugeValue.value}
+              max={gaugeValue.max}
+              size={500}
+              color={color}
+            />
+          )}
+          {visualizationType === 'pie' && storageValue && (
+            <CircularStorage
+              used={storageValue.value}
+              total={storageValue.max}
+              size={400}
+              color={color}
+            />
+          )}
+          {visualizationType === 'clock' && timeValue && (
+            <CircularClock
+              hours={timeValue.hours}
+              minutes={timeValue.minutes}
+              seconds={timeValue.seconds}
+              size={2000}
+              color={color}
+              showSeconds={showSeconds}
+            />
+          )}
+        </Box>
       </Box>
     </Box>
   );
