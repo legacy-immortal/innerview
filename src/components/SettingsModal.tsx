@@ -69,13 +69,28 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <Dialog.Positioner>
           <Dialog.Content
             position="relative"
-            maxW={['90vw', '70vw', '900px']}
+            w={{
+              base: 'calc(100vw - 1rem)',
+              sm: 'calc(100vw - 2rem)',
+              md: '90vw',
+              lg: '900px',
+            }}
+            maxW={{
+              base: 'calc(100vw - 1rem)',
+              sm: 'calc(100vw - 2rem)',
+              md: '90vw',
+              lg: '900px',
+            }}
+            maxH={{ base: 'calc(100dvh - 1rem)', sm: 'calc(100dvh - 2rem)' }}
+            display="flex"
+            flexDirection="column"
+            overflow="hidden"
             bg="rgba(0, 0, 0, 0.9)"
             border="1px solid"
             borderColor="rgba(255, 255, 255, 0.1)"
             fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
           >
-            <Dialog.Header position="relative" pb={4} pr={8}>
+            <Dialog.Header position="relative" pb={4} pr={10} flexShrink={0}>
               <Dialog.Title color="white" fontSize="lg" mb={2}>
                 Settings
               </Dialog.Title>
@@ -97,7 +112,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <LuX />
               </IconButton>
             </Dialog.Header>
-            <Dialog.Body>
+            <Dialog.Body
+              flex="1"
+              minH={0}
+              overflowY="auto"
+              overflowX="hidden"
+              css={{
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
               <Dialog.Description color="gray.400" fontSize="sm" mb={4}>
                 {meta.detectedTier && (
                   <Text>
@@ -126,9 +149,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   borderBottom="1px solid"
                   borderColor="rgba(255, 255, 255, 0.1)"
                   mb={4}
+                  overflowX="auto"
+                  overflowY="hidden"
+                  flexWrap="nowrap"
+                  maxW="100%"
+                  css={{
+                    WebkitOverflowScrolling: 'touch',
+                    scrollbarWidth: 'thin',
+                    '&::-webkit-scrollbar': { height: '4px' },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      borderRadius: '2px',
+                    },
+                  }}
                 >
                   <Tabs.Trigger
                     value="performance"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -137,6 +175,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="tts"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -145,6 +185,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="transcription"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -153,6 +195,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="keyboard"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -161,6 +205,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="styles"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -169,6 +215,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="generation"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -177,6 +225,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </Tabs.Trigger>
                   <Tabs.Trigger
                     value="agent"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
                     css={{
                       textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
                     }}
@@ -252,7 +302,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 )}
               </Tabs.Root>
 
-              <HStack gap={2} justify="flex-end" mt={6}>
+              <HStack gap={2} justify="flex-end" mt={6} flexWrap="wrap">
                 <Button
                   variant="ghost"
                   colorPalette="gray"
