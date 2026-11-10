@@ -179,8 +179,10 @@ export function WaveformLayerMesh({
         amplitude =
           Math.sign(amplitude) *
           Math.pow(Math.abs(amplitude), settings.amplitudePowerAudio);
-      } else if (!isIdle) {
-        // Synthetic waveform only when not idle (e.g. no audio yet); when idle we show real data only
+      } else {
+        // Synthetic idle waveform so the visualization is always visible,
+        // even when system data buffers are empty (e.g. no network/frame
+        // activity yet). Same across all screen sizes and devices.
         const baseWave = Math.sin(
           angle * layer.frequency + layer.phase + time * settings.animationSpeed
         );
