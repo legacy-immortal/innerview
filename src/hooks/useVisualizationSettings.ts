@@ -1,3 +1,12 @@
+/**
+ * @file useVisualizationSettings.ts — Visualization settings hook for waveform and background.
+ * @module hooks/useVisualizationSettings
+ *
+ * Visualization settings hook for waveform and background. Loads waveform
+ * layers/settings/enabled and background settings from the settings store on
+ * mount, debounces saves, and exposes stable setter callbacks plus current
+ * state to visualization components.
+ */
 import { DEFAULT_SYSTEM_TEXT } from '@/components/animations/systemTextAnimation';
 import type {
   WaveformLayer,
@@ -7,6 +16,7 @@ import { useSettingsStore } from '@/lib/settings-store';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import { useCallback, useEffect, useState } from 'react';
 
+/** Default waveform settings applied when no stored value exists. */
 const defaultWaveformSettings: WaveformSettings = {
   pointCount: 256,
   breathingEnabled: true,
@@ -46,6 +56,14 @@ const defaultBackgroundSettings: BackgroundSettings = {
   rotationSpeed3: 0.20944,
 };
 
+/**
+ * Visualization settings hook for waveform and background.
+ * Loads waveform layers/settings/enabled and background settings from the
+ * settings store on mount, debounces waveform/background saves (300ms), and
+ * saves waveform enabled immediately. Exposes current state plus stable
+ * setter callbacks.
+ * @returns Current visualization state and setter callbacks.
+ */
 export const useVisualizationSettings = () => {
   const getWaveformEnabled = useSettingsStore(
     (state) => state.getWaveformEnabled
@@ -169,14 +187,23 @@ export const useVisualizationSettings = () => {
   }, []);
 
   return {
+    /** Current waveform layer definitions. */
     waveformLayers,
+    /** Current waveform settings. */
     waveformSettings,
+    /** Whether waveform visualization is enabled. */
     waveformEnabled,
+    /** Current background settings. */
     backgroundSettings,
+    /** Set waveform layers (debounced save to store). */
     setWaveformLayers: handleWaveformLayersChange,
+    /** Set waveform settings (debounced save to store). */
     setWaveformSettings: handleWaveformSettingsChange,
+    /** Set waveform settings immediately without saving to store. */
     setLocalWaveformSettings: handleLocalWaveformSettingsChange,
+    /** Set waveform enabled state (immediate save to store). */
     setWaveformEnabled: handleWaveformEnabledChange,
+    /** Set background settings (debounced save to store). */
     setBackgroundSettings: handleBackgroundSettingsChange,
   };
 };

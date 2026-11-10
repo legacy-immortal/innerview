@@ -1,3 +1,13 @@
+/**
+ * @file message-conversion.ts — Convert between ConversationMessage store format and AI SDK UIMessage format.
+ * @module utils/message-conversion
+ *
+ * Pure helpers for converting between the conversation store's
+ * ConversationMessage format and the AI SDK's UIMessage format. Parses
+ * reasoning tags consistently between streaming and non-streaming paths,
+ * extracts message text, and preserves rich part data (citations, tool
+ * calls, files, search results).
+ */
 import type { ConversationMessage } from '@/lib/conversation-store';
 import { isTextUIPart, type TextPart, type UIMessage } from 'ai';
 import {
@@ -6,8 +16,17 @@ import {
 } from './streaming-parser';
 
 /**
- * Parse reasoning tags from text content
- * Uses the streaming parser for consistency between streaming and non-streaming parsing
+ * Parse reasoning tags from text content.
+ * Uses the streaming parser for consistency between streaming and
+ * non-streaming parsing.
+ * @param text - Raw text that may contain reasoning tags.
+ * @param tagName - The reasoning tag name to parse (e.g. 'thinking').
+ * @returns The cleaned text and an array of reasoning strings.
+ * @example
+ * ```ts
+ * const { text, reasoning } = parseReasoningTags('Hello <think>hidden</think> world', 'think');
+ * // { text: 'Hello  world', reasoning: ['hidden'] }
+ * ```
  */
 export const parseReasoningTags = (
   text: string,

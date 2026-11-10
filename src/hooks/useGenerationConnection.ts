@@ -1,11 +1,32 @@
-// Provider connection test for the generation settings (extracted from useSettingsModal.ts).
+/**
+ * @file useGenerationConnection.ts — Provider connection test for generation settings.
+ * @module hooks/useGenerationConnection
+ *
+ * Provider connection test for the generation settings (extracted from
+ * useSettingsModal.ts). Tests connectivity to an OpenAI-compatible or Zen
+ * generation endpoint, discovers available models, and exposes connection
+ * status plus error state to the settings UI.
+ */
 import { ZEN_BASE_URL, ZEN_FREE_MODEL_IDS } from '@/lib/constants';
 import type { GenerationSettings } from '@/lib/settings-types';
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useState } from 'react';
 
+/** Connection lifecycle status for the generation endpoint test. */
 export type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
 
+/**
+ * Provider connection test for the generation settings.
+ * Tests connectivity to an OpenAI-compatible or Zen generation endpoint,
+ * discovers available models, and updates the generation settings store.
+ * @param setGenerationSettings - Store setter for generation settings.
+ * @returns Connection status, error message, and the testConnection action.
+ * @example
+ * ```tsx
+ * const { connectionStatus, connectionError, testConnection } =
+ *   useGenerationConnection(setGenerationSettings);
+ * ```
+ */
 export function useGenerationConnection(
   setGenerationSettings: Dispatch<SetStateAction<GenerationSettings>>
 ) {
@@ -13,6 +34,15 @@ export function useGenerationConnection(
     useState<ConnectionStatus>('idle');
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  /**
+   * Test connectivity to the configured generation endpoint and discover
+   * available models. For Zen endpoints it calls POST /api/provider/test;
+   * for other OpenAI-compatible endpoints it GETs /v1/models with the
+   * optional bearer token. Results are written into the generation settings
+   * store (baseURL, availableModels) and connection status/error state.
+   * @returns A promise that resolves once the test settles (status is set
+   * to 'connected' or 'error').
+   */
   const testConnection = useCallback(async () => {
     setGenerationSettings((current) => {
       const { baseURL: rawURL } = current;
@@ -104,5 +134,9 @@ export function useGenerationConnection(
     });
   }, [setGenerationSettings]);
 
+  /**
+   * Current connection status ('idle' | 'testing' | 'connected' | 'error'),
+   * any error message from the last test, and the testConnection action.
+   */
   return { connectionStatus, connectionError, testConnection };
 }

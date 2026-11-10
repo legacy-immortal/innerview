@@ -1,4 +1,13 @@
-// Transcription test state/handlers hook (extracted from TranscriptionTab.tsx).
+/**
+ * @file useTranscriptionTest.ts — Transcription test state and handlers hook.
+ * @module hooks/useTranscriptionTest
+ *
+ * Transcription test state/handlers hook (extracted from TranscriptionTab.tsx).
+ * Manages transcription test state (idle/running/success/error), progress,
+ * logs, segments, custom file loading (MP3), and audio playback. Runs both
+ * the standard transcription test and custom-file transcription via the
+ * transcription service.
+ */
 import type { TranscriptionSettings } from '@/lib/settings-types';
 import {
   testTranscriptionService,
@@ -9,6 +18,7 @@ import {
 import { useConst } from '@chakra-ui/react';
 import { useCallback, useRef, useState } from 'react';
 
+/** State of a transcription test run. */
 export interface TestState {
   status: 'idle' | 'running' | 'success' | 'error';
   progress: number;
@@ -16,9 +26,24 @@ export interface TestState {
   result?: string;
   error?: string;
   segments?: TranscriptionSegment[];
-  logs: string[]; // Recent log messages
+  /** Recent log messages. */
+  logs: string[];
 }
 
+/**
+ * Transcription test state and handlers hook.
+ * Manages transcription test state (idle/running/success/error), progress,
+ * logs, segments, custom file loading (MP3), and audio playback. Runs both
+ * the standard transcription test and custom-file transcription via the
+ * transcription service.
+ * @param transcriptionSettings - Transcription settings (provider, local mode, etc.).
+ * @returns Test state, refs, and handler functions for running transcription tests.
+ * @example
+ * ```tsx
+ * const { runTranscriptionTest, transcribeLoadedFile, testState, handleLoadMP3 } =
+ *   useTranscriptionTest(transcriptionSettings);
+ * ```
+ */
 export function useTranscriptionTest(
   transcriptionSettings: TranscriptionSettings
 ) {
@@ -167,6 +192,9 @@ export function useTranscriptionTest(
           // Use backend API when mode is 'backend', otherwise use direct service
           testBackendAPI:
             transcriptionSettings.provider === 'local' && mode === 'backend',
+          // Explicit opt-in: the user clicked "Run Test" and this panel
+          // shows a dedicated progress UI while the backend model preloads.
+          allowModelPreload: true,
         }
       );
 
@@ -201,17 +229,29 @@ export function useTranscriptionTest(
   }, [transcriptionSettings.provider, transcriptionSettings.local?.mode]);
 
   return {
+    /** Supported transcription models offered to the user. */
     transcriptionModels,
+    /** Ref to the hidden file input used to load custom MP3 files. */
     fileInputRef,
+    /** Ref to the audio element used for playback of loaded files. */
     audioRef,
+    /** Current standard test state. */
     testState,
+    /** Currently loaded custom file (file + object URL) or null. */
     loadedFile,
+    /** Current custom-file test state. */
     customTestState,
+    /** Last log message of the standard test (or null). */
     lastLog,
+    /** Last log message of the custom test (or null). */
     customLastLog,
+    /** Open the file input dialog to select an MP3. */
     handleLoadMP3,
+    /** Handle MP3 file selection: revoke old URL, set new URL/audio source. */
     onMP3FileChange,
+    /** Transcribe the currently loaded custom MP3 file. */
     transcribeLoadedFile,
+    /** Run the standard transcription test via testTranscriptionService. */
     runTranscriptionTest,
   };
 }

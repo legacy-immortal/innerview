@@ -1,24 +1,60 @@
+/**
+ * @file useTTS.ts — TTS hook for speaking assistant messages and MP3 playback.
+ * @module hooks/useTTS
+ *
+ * TTS hook for speaking assistant messages and MP3 playback. Uses the
+ * streaming TTS service (Kokoro or browser provider), exposes speaking state,
+ * analyser node for visualization, and MP3 file load/playback. Speaks new
+ * assistant messages automatically when TTS is enabled.
+ */
 import { ttsService } from '@/lib/tts/tts-service';
 import { isTextUIPart, TextPart, type UIMessage } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+/** Options for the TTS hook. */
 interface UseTTSOptions {
+  /** Whether TTS is enabled. */
   enabled: boolean;
+  /** Assistant messages to speak the last of. */
   messages?: UIMessage[];
+  /** Whether a generation is loading (suppresses auto-speak). */
   isLoading?: boolean;
 }
 
+/** Return shape of the TTS hook. */
 interface UseTTSReturn {
+  /** Whether TTS is currently speaking. */
   isTTSSpeaking: boolean;
+  /** Whether Kokoro provider is in use. */
   isUsingKokoro: boolean;
+  /** Whether an MP3 is currently playing. */
   isPlayingMP3: boolean;
+  /** Analyser node for visualization (null for browser/MP3 fallback). */
   analyserNode: AnalyserNode | null;
+  /** Audio element for MP3 playback (null when not playing MP3). */
   audioElement: HTMLAudioElement | null;
+  /** Speak a text string via the TTS service. */
   speakMessage: (text: string) => Promise<void>;
+  /** Stop all TTS playback. */
   stopTTS: () => void;
+  /** Handle loading an MP3 file from an input change event. */
   handleMP3FileLoad: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+/**
+ * TTS hook for speaking assistant messages and MP3 playback.
+ * Uses the streaming TTS service (Kokoro or browser provider), exposes
+ * speaking state and analyser node for visualization, and MP3 file
+ * load/playback. Speaks new assistant messages automatically when TTS is
+ * enabled and not already speaking.
+ * @param options - { enabled, messages, isLoading }.
+ * @returns Speaking state, audio nodes, and speak/stop/MP3 handlers.
+ * @example
+ * ```tsx
+ * const { isTTSSpeaking, analyserNode, speakMessage, stopTTS, handleMP3FileLoad } =
+ *   useTTS({ enabled, messages, isLoading });
+ * ```
+ */
 export const useTTS = ({
   enabled,
   messages = [],

@@ -1,8 +1,12 @@
 /**
- * Hook for processing streaming messages with reasoning tag parsing
- * Transforms raw streamed messages into parsed format with separate reasoning parts
+ * @file useStreamingMessages.ts — Hook for processing streaming messages with reasoning tag parsing.
+ * @module hooks/useStreamingMessages
+ *
+ * Hook for processing streaming messages with reasoning tag parsing.
+ * Transforms raw streamed messages into parsed format with separate reasoning
+ * parts. For the last message while streaming, parses reasoning tags in
+ * real-time; for completed messages uses the standard parts array.
  */
-
 import {
   StreamingReasoningParser,
   extractPartsContent,
@@ -11,24 +15,39 @@ import {
 import type { UIMessage } from 'ai';
 import { useEffect, useMemo, useRef } from 'react';
 
+/** A UIMessage with parsed reasoning parts and streaming metadata. */
 export interface ParsedStreamingMessage extends Omit<UIMessage, 'parts'> {
   parts: UIMessage['parts'];
-  // Additional streaming metadata
+  /** Whether this message is currently being streamed. */
   isStreaming: boolean;
+  /** Parsed reasoning parts for the streaming message. */
   parsedReasoningParts: StreamingPart[];
 }
 
+/** Options for useStreamingMessages. */
 interface UseStreamingMessagesOptions {
+  /** The full message array. */
   messages: UIMessage[];
+  /** The reasoning tag name to parse (e.g. 'thinking'). */
   reasoningTag: string;
+  /** Whether streaming parsing is enabled. */
   streamingEnabled: boolean;
+  /** Whether a stream is currently loading. */
   isLoading: boolean;
 }
 
 /**
- * Process messages and parse reasoning tags from streaming content
- * For the last message (when streaming), parses reasoning tags in real-time
- * For completed messages, uses the standard parts array
+ * Process messages and parse reasoning tags from streaming content.
+ * For the last message (when streaming), parses reasoning tags in real-time.
+ * For completed messages, uses the standard parts array.
+ * @param options - { messages, reasoningTag, streamingEnabled, isLoading }.
+ * @returns Array of parsed streaming messages.
+ * @example
+ * ```tsx
+ * const parsed = useStreamingMessages({
+ *   messages, reasoningTag: 'thinking', streamingEnabled: true, isLoading,
+ * });
+ * ```
  */
 export function useStreamingMessages({
   messages,
@@ -143,8 +162,18 @@ export function useStreamingMessages({
 }
 
 /**
- * Finalize a streaming message by completing parsing
- * Call this when streaming ends to ensure all content is properly parsed
+ * Finalize a streaming message by completing parsing.
+ * Call this when streaming ends to ensure all content is properly parsed.
+ * Extracts all text content, parses reasoning tags from the complete text,
+ * and builds the final parts array (non-text parts first, then reasoning,
+ * then text).
+ * @param message - The UIMessage to finalize.
+ * @param reasoningTag - The reasoning tag name used during parsing.
+ * @returns The message with finalized parts.
+ * @example
+ * ```tsx
+ * const final = finalizeStreamingMessage(message, 'thinking');
+ * ```
  */
 export function finalizeStreamingMessage(
   message: UIMessage,

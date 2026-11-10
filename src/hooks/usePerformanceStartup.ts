@@ -1,4 +1,14 @@
-// Performance detection orchestration hook (extracted from PerformanceStartup.tsx).
+/**
+ * @file usePerformanceStartup.ts — Performance detection orchestration hook.
+ * @module hooks/usePerformanceStartup
+ *
+ * Performance detection orchestration hook (extracted from PerformanceStartup.tsx).
+ * Runs device performance detection on startup, stages progress through CPU,
+ * memory, GPU, WebGL, WebGPU, frame rate, speech synthesis, transcription,
+ * and AI provider checks, handles the model preload opt-in flow (Whisper as
+ * a blocking bootstrap step, Kokoro as non-blocking idle download), and owns
+ * the startup completion latch and a 45s failsafe that never strands the user.
+ */
 import {
   getDisclaimerAccepted,
   setDisclaimerAccepted,
@@ -97,6 +107,25 @@ function scheduleIdleCallback(callback: () => void): void {
   }
 }
 
+/**
+ * Performance detection orchestration hook.
+ * Runs device performance detection on startup, stages progress through CPU,
+ * memory, GPU, WebGL, WebGPU, frame rate, speech synthesis, transcription,
+ * and AI provider checks, handles the model preload opt-in flow (Whisper as
+ * a blocking bootstrap step; Kokoro as a non-blocking idle download), and
+ * owns the startup completion latch plus a 45s failsafe that never strands
+ * the user. Exposed on `window.__innerviewForceStartup` as a dev/testing
+ * escape hatch.
+ * @param onComplete - Callback fired when startup finishes (disclaimer
+ * accepted or detection complete).
+ * @returns Performance startup state and actions.
+ * @example
+ * ```tsx
+ * const { isDetecting, progress, stages, handleDisclaimerAccept,
+ *   confirmModelPreloadOptIn, declineModelPreloadOptIn } =
+ *   usePerformanceStartup(() => setStartupComplete(true));
+ * ```
+ */
 export function usePerformanceStartup(
   onComplete: () => void
 ): PerformanceStartupState {
@@ -198,8 +227,9 @@ export function usePerformanceStartup(
 
   // Dev/testing escape hatch: force past detection if a probe stalls.
   if (typeof window !== 'undefined') {
-    (window as unknown as { __innerviewForceStartup?: () => void })
-      .__innerviewForceStartup = finishStartup;
+    (
+      window as unknown as { __innerviewForceStartup?: () => void }
+    ).__innerviewForceStartup = finishStartup;
   }
 
   // In-flight Whisper preload promise (bootstrapping step, started once).

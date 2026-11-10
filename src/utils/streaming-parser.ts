@@ -1,6 +1,13 @@
 /**
- * Streaming parser for LLM responses
- * Handles real-time parsing of reasoning tags and content during token streaming
+ * @file streaming-parser.ts — Streaming parser for LLM reasoning tags.
+ * @module utils/streaming-parser
+ *
+ * Streaming parser for LLM responses. Handles real-time parsing of reasoning
+ * tags and content during token streaming. Detects opening/closing tags
+ * (e.g. </think>, <thinking>) case-insensitively, buffers partial tags across token
+ * boundaries so split tokens are handled correctly, and yields StreamingPart
+ * entries. Used by useStreamingMessages and message-conversion for consistent
+ * parsing across streaming and non-streaming paths.
  */
 
 export type StreamingPartType = 'text' | 'reasoning' | 'tool-call';
@@ -66,9 +73,7 @@ export class StreamingReasoningParser {
     return new RegExp(`<(${tagAlternatives})(?:\\s[^>]*)?>`, 'i');
   }
 
-  /**
-   * Get the current reasoning tag name
-   */
+  /** The current reasoning tag name being matched. */
   get tagName(): string {
     return this._tagName;
   }
@@ -84,14 +89,17 @@ export class StreamingReasoningParser {
   }
 
   /**
-   * Reset parser state for a new message
+   * Reset parser state for a new message.
+   * Clears the buffer, parts, and reasoning flag so the parser can be reused.
    */
   reset(): void {
     this.state = this.createInitialState();
   }
 
   /**
-   * Update the reasoning tag (e.g., when user changes settings)
+   * Update the reasoning tag (e.g., when user changes settings).
+   * Rebuilds the tag pattern list and opening-tag regex from the new tag.
+   * @param newTagName - New reasoning tag name (e.g. 'thinking').
    */
   setReasoningTag(newTagName: string): void {
     this._tagName = newTagName;
@@ -100,21 +108,27 @@ export class StreamingReasoningParser {
   }
 
   /**
-   * Get the current parser state
+   * Get the current parser state.
+   * Returns a shallow copy so callers cannot mutate internal state.
+   * @returns A copy of the current StreamingParserState.
    */
   getState(): StreamingParserState {
     return { ...this.state };
   }
 
   /**
-   * Get all parsed parts
+   * Get all parsed parts.
+   * @returns A copy of the parsed StreamingPart array.
    */
   getParts(): StreamingPart[] {
     return [...this.state.parts];
   }
 
   /**
-   * Process a new token/chunk and return updated parts
+   * Process a new token/chunk and return updated parts.
+   * Adds the token to the buffer and processes it for tag boundaries.
+   * @param token - New text token to process.
+   * @returns The updated parsed parts array.
    */
   processToken(token: string): StreamingPart[] {
     // Add token to buffer for tag detection
@@ -345,7 +359,10 @@ export class StreamingReasoningParser {
   }
 
   /**
-   * Finalize parsing - flush any remaining buffer content
+   * Finalize parsing - flush any remaining buffer content.
+   * Flushes leftover buffer as text (or reasoning if still in a tag), marks
+   * all parts complete, and returns the final parts array.
+   * @returns The final parsed StreamingPart array.
    */
   finalize(): StreamingPart[] {
     // Flush any remaining buffer as text (or reasoning if we're still in a tag)
@@ -365,8 +382,17 @@ export class StreamingReasoningParser {
 }
 
 /**
- * Parse reasoning tags from a complete (non-streaming) response
- * Uses the same logic as the streaming parser for consistency
+ * Parse reasoning tags from a complete (non-streaming) response.
+ * Uses the same logic as the streaming parser for consistency between
+ * streaming and non-streaming paths.
+ * @param text - Complete text that may contain reasoning tags.
+ * @param reasoningTag - The reasoning tag name to parse (default 'thinking').
+ * @returns Parsed parts with reasoning and text separated.
+ * @example
+ * ```ts
+ * const parts = parseReasoningFromComplete('Hello </think>world', 'think');
+ * // parts: [{type:'text',content:'Hello '},{type:'reasoning',content:'world'}]
+ * ```
  */
 export function parseReasoningFromComplete(
   text: string,
@@ -378,8 +404,15 @@ export function parseReasoningFromComplete(
 }
 
 /**
- * Extract text and reasoning arrays from parsed parts
- * Useful for converting streaming output to stored message format
+ * Extract text and reasoning arrays from parsed parts.
+ * Useful for converting streaming output to stored message format.
+ * @param parts - Parsed streaming parts array.
+ * @returns Object with concatenated text and an array of reasoning strings.
+ * @example
+ * ```ts
+ * const { text, reasoning } = extractPartsContent(parts);
+ * // text: 'Hello world', reasoning: ['hidden thought']
+ * ```
  */
 export function extractPartsContent(parts: StreamingPart[]): {
   text: string;

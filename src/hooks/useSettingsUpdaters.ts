@@ -1,4 +1,12 @@
-// Stable per-domain update callbacks for the settings modal (extracted from useSettingsModal.ts).
+/**
+ * @file useSettingsUpdaters.ts — Stable per-domain update callbacks for the settings modal.
+ * @module hooks/useSettingsUpdaters
+ *
+ * Stable per-domain update callbacks for the settings modal (extracted from
+ * useSettingsModal.ts). Provides memoized callbacks for updating performance,
+ * TTS, and transcription settings, including tier changes and resets that
+ * re-detect performance and regenerate settings.
+ */
 import {
   detectPerformanceCached,
   generatePerformanceSettings,
@@ -140,14 +148,23 @@ export function useSettingsUpdaters(
   );
 
   return {
+    /** Set a single performance setting key (stable callback). */
     updatePerformanceSetting,
+    /** Change performance tier: re-detects metrics and merges tier config. */
     changePerformanceTier,
+    /** Reset performance settings to auto-detected values. */
     resetPerformance,
+    /** Set a single TTS setting key (stable callback). */
     updateTTSSetting,
+    /** Update a key within TTS kokoro settings. */
     updateTTSKokoro,
+    /** Update a key within TTS browser settings. */
     updateTTSBrowser,
+    /** Set a single transcription setting key (stable callback). */
     updateTranscriptionSetting,
+    /** Update a key within transcription openai settings. */
     updateTranscriptionOpenAI,
+    /** Update a key within transcription local settings. */
     updateTranscriptionLocal,
   };
 }

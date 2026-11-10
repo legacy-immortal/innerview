@@ -1,8 +1,26 @@
+/**
+ * @file markdown-to-terminal.ts — Converts markdown to plain-text terminal output.
+ * @module utils/markdown-to-terminal
+ *
+ * Converts markdown text to plain-text terminal output. Uses terminal-friendly
+ * formatting (no ANSI codes, browser-compatible). Parses markdown to HTML via
+ * `marked`, maps common HTML elements to text equivalents, decodes HTML
+ * entities, and strips remaining markdown syntax.
+ */
 import { marked } from 'marked';
 
 /**
- * Converts markdown text to plain text terminal output
- * Uses terminal-friendly formatting (no ANSI codes, browser-compatible)
+ * Converts markdown text to plain text terminal output.
+ * Parses markdown to HTML via `marked`, maps common HTML elements (headings,
+ * code blocks, links, lists, blockquotes, etc.) to text equivalents, decodes
+ * HTML entities, strips remaining markdown syntax, and collapses whitespace.
+ * @param markdown - Raw markdown string.
+ * @returns Plain-text terminal rendering of the markdown.
+ * @example
+ * ```ts
+ * const plain = markdownToTerminal('# Hello\n\n**bold** and [link](https://example.com)');
+ * // 'Hello\n\nbold and link (https://example.com)'
+ * ```
  */
 export const markdownToTerminal = (markdown: string): string => {
   if (!markdown) {

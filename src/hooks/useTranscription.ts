@@ -1,6 +1,18 @@
-// React hook for push-to-talk transcription
+/**
+ * @file useTranscription.ts — React hook for push-to-talk transcription.
+ * @module hooks/useTranscription
+ *
+ * React hook for push-to-talk transcription. Manages recording state
+ * (MediaRecorder + AudioContext visualization), transcription via the
+ * transcription service (OpenAI or local provider), and a dedicated opt-in
+ * loading phase for the browser Whisper model that never auto-downloads
+ * post-bootstrap.
+ */
+import { useSettingsStore } from '@/lib/settings-store';
 import {
+  localTranscription,
   transcriptionService,
+  type LocalTranscriptionModel,
   type TranscriptionOptions,
   type TranscriptionResult,
 } from '@/lib/transcription';
@@ -42,6 +54,16 @@ export interface UseTranscriptionOptions {
    * Set to false when useGlobalKeyboardShortcuts handles the key; set to true for standalone use.
    */
   enablePushToTalk?: boolean;
+
+  /**
+   * Opt-in for the browser (Transformers.js) Whisper model. Defaults to
+   * `false`: the browser model must NEVER auto-load post-bootstrap. When
+   * `false`, local browser-mode transcription fails fast with an opt-in
+   * error instead of downloading. When `true`, the model is loaded through
+   * the dedicated loading phase ({@link ensureModelLoaded}) — surfaced via
+   * `isModelLoading` — never silently inside `doGenerate`.
+   */
+  allowBrowserModelLoad?: boolean;
 }
 
 export interface UseTranscriptionReturn {
@@ -54,6 +76,25 @@ export interface UseTranscriptionReturn {
    * Whether transcription is in progress
    */
   isTranscribing: boolean;
+
+  /**
+   * Whether the (opt-in) browser model is loading in its dedicated phase.
+   * Distinct from `isTranscribing` so the UI can show a loading indicator.
+   */
+  isModelLoading: boolean;
+
+  /**
+   * Whether the (opt-in) browser model has been loaded via
+   * {@link ensureModelLoaded}. Always true for non-browser providers.
+   */
+  isModelLoaded: boolean;
+
+  /**
+   * Dedicated opt-in loading phase for the browser Whisper model. No-op for
+   * OpenAI/backend providers. When browser-mode loading was not opted into
+   * (`allowBrowserModelLoad: false`), this fails fast and never downloads.
+   */
+  ensureModelLoaded: () => Promise<void>;
 
   /**
    * Current audio level (0-1) for visualization
@@ -97,10 +138,13 @@ export function useTranscription(
     onTranscriptionError,
     pushToTalkKey: _pushToTalkKey = '`',
     enablePushToTalk: _enablePushToTalk = false,
+    allowBrowserModelLoad = false,
   } = options;
 
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [result, setResult] = useState<TranscriptionResult | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -113,6 +157,72 @@ export function useTranscription(
   const streamRef = useRef<MediaStream | null>(null);
   const onstopHandledRef = useRef(false);
   const isRecordingRef = useRef(false);
+
+  // Helpers (no-op for OpenAI/backend: nothing to load post-bootstrap) ----
+
+  /**
+   * Resolve the effective local mode from settings (defaults to `backend`,
+   * matching transcription-service). Only `browser` needs a loading phase.
+   */
+  const getLocalMode = useCallback((): 'browser' | 'backend' => {
+    const localMode = useSettingsStore.getState().getTranscriptionSettings()
+      ?.local?.mode;
+    return localMode === 'browser' ? 'browser' : 'backend';
+  }, []);
+
+  /**
+   * Check whether the next transcribe would need the browser model.
+   * @returns True only for local + browser mode.
+   */
+  const needsBrowserModel = useCallback((): boolean => {
+    return provider === 'local' && getLocalMode() === 'browser';
+  }, [provider, getLocalMode]);
+
+  /**
+   * Dedicated opt-in loading phase for the browser Whisper model.
+   * - Non-browser providers / backend mode: no-op (already bootstrapped).
+   * - Browser mode without opt-in: fails fast, never downloads.
+   * - Browser mode with opt-in: loads via the cached provider model
+   *   instance so a later transcribe reuses it (no double download).
+   */
+  const ensureModelLoaded = useCallback(async () => {
+    if (!needsBrowserModel()) {
+      setIsModelLoaded(true);
+      return;
+    }
+    if (!allowBrowserModelLoad) {
+      const error = new Error(
+        'Browser Whisper model is opt-in only and was not enabled. ' +
+          'Enable browser transcription in settings (opt-in), or use the ' +
+          'backend model loaded during bootstrap.'
+      );
+      setError(error);
+      onTranscriptionError?.(error);
+      throw error;
+    }
+    // Already loaded: nothing to do (fresh instances re-check below).
+    localTranscription.setAllowBrowserModelLoad(true);
+    const model = localTranscription.transcriptionModel(
+      'whisper-browser'
+    ) as unknown as LocalTranscriptionModel;
+    if (model.isBrowserModelLoaded()) {
+      setIsModelLoaded(true);
+      return;
+    }
+    setIsModelLoading(true);
+    setError(null);
+    try {
+      await model.ensureBrowserModelLoaded();
+      setIsModelLoaded(true);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Model load failed');
+      setError(error);
+      onTranscriptionError?.(error);
+      throw error;
+    } finally {
+      setIsModelLoading(false);
+    }
+  }, [allowBrowserModelLoad, needsBrowserModel, onTranscriptionError]);
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -220,6 +330,11 @@ export function useTranscription(
         });
 
         try {
+          // Dedicated opt-in loading phase BEFORE transcribing: browser
+          // mode without opt-in fails fast here (never downloads); with
+          // opt-in it loads visibly via `isModelLoading`, not silently
+          // inside the transcribe call.
+          await ensureModelLoaded();
           setIsTranscribing(true);
           const arrayBuffer = await audioBlob.arrayBuffer();
           const audioData = new Uint8Array(arrayBuffer);
@@ -262,6 +377,7 @@ export function useTranscription(
     }
   }, [
     cleanup,
+    ensureModelLoaded,
     provider,
     language,
     modelId,
@@ -307,6 +423,9 @@ export function useTranscription(
   return {
     isRecording,
     isTranscribing,
+    isModelLoading,
+    isModelLoaded,
+    ensureModelLoaded,
     audioLevel,
     startRecording,
     stopRecording,

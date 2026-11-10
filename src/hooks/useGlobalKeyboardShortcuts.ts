@@ -1,5 +1,13 @@
-// Global keyboard shortcuts hook using native event listeners for transcription
-// and react-hotkeys-hook for form submission
+/**
+ * @file useGlobalKeyboardShortcuts.ts — Global keyboard shortcuts hook for push-to-talk transcription and form submission.
+ * @module hooks/useGlobalKeyboardShortcuts
+ *
+ * Global keyboard shortcuts hook using native event listeners for push-to-talk
+ * transcription and react-hotkeys-hook for form submission. Holds the
+ * transcription key to record and releases to transcribe (no toggle), ignores
+ * input focus and key repeats, and exposes setInputFocused so consumers can
+ * suppress shortcuts while typing.
+ */
 import { useCallback, useEffect, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
@@ -42,8 +50,21 @@ function matchesTranscriptionKey(
 }
 
 /**
- * Global keyboard shortcuts hook
- * Handles transcription push-to-talk and form submission shortcuts
+ * Global keyboard shortcuts hook.
+ * Handles transcription push-to-talk (hold-to-record, release-to-transcribe
+ * with no toggle) via native keydown/keyup listeners, plus form submission
+ * shortcuts via react-hotkeys-hook. Ignores input focus and key repeats so
+ * shortcuts don't fire while typing. Consumers call setInputFocused to signal
+ * whether an input/textarea is focused.
+ * @param options - Shortcut configuration (callbacks, keys, enabled flags).
+ * @returns setInputFocused and the input-focus ref.
+ * @example
+ * ```tsx
+ * const { setInputFocused } = useGlobalKeyboardShortcuts({
+ *   onTranscriptionStart, onTranscriptionStop, transcriptionKey: '`',
+ *   onSubmit, submitKeypress: 'shift+enter', enabled: true,
+ * });
+ * ```
  */
 export function useGlobalKeyboardShortcuts({
   onTranscriptionStart,
@@ -168,7 +189,9 @@ export function useGlobalKeyboardShortcuts({
   );
 
   return {
+    /** Callback to signal whether an input/textarea is focused (suppresses shortcuts). */
     setInputFocused,
+    /** Ref tracking whether an input/textarea is currently focused. */
     isInputFocusedRef,
   };
 }

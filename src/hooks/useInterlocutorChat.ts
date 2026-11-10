@@ -1,27 +1,62 @@
+/**
+ * @file useInterlocutorChat.ts — Interlocutor AI chat hook wrapping useChat with transport and error handling.
+ * @module hooks/useInterlocutorChat
+ *
+ * Interlocutor AI chat hook wrapping Vercel AI SDK's useChat with a custom
+ * chat transport and provider-status rechecking on errors. Handles message
+ * syncing to prevent "zombie" messages from reappearing after deletion, and
+ * classifies backend/provider errors into actionable error objects.
+ */
 import { createChatTransport } from '@/lib/chat-transport';
 import { useProviderStatusStore } from '@/lib/provider-status';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { useEffect, useRef } from 'react';
 
+/** Error shape returned by the interlocutor chat hook on failure. */
 export interface InterlocutorChatError {
+  /** Human-readable error message. */
   message: string;
+  /** Provider-specific error code (e.g. PROVIDER_UNAVAILABLE, NETWORK_ERROR). */
   code?: string;
+  /** User-facing suggestion for resolving the error. */
   suggestion?: string;
+  /** Original error stack trace, when available. */
   stack?: string;
 }
 
+/** Return shape of useInterlocutorChat. */
 export interface UseInterlocutorChatReturn {
-  // Actions
+  /** Send a message to the AI provider. */
   sendMessage: (options: { text: string }) => void;
+  /** Stop an in-flight stream. */
   stop: () => void;
+  /** Regenerate the last assistant message. */
   regenerate: () => void;
-  // State
+  /** Current chat status. */
   status: 'idle' | 'submitted' | 'streaming' | 'error' | 'ready';
-  // Streaming messages from useChat (includes in-progress assistant message)
+  /** Streaming messages from useChat (includes in-progress assistant message). */
   streamingMessages: UIMessage[];
 }
 
+/**
+ * Interlocutor AI chat hook.
+ * Wraps Vercel AI SDK's useChat with a custom chat transport backed by
+ * createChatTransport. Rechecks provider status on errors and classifies
+ * them into actionable InterlocutorChatError objects. Syncs external
+ * message changes into useChat's internal state to prevent zombie messages
+ * from reappearing after deletion.
+ * @param messages - External message array to sync with useChat.
+ * @param conversationId - Conversation id (defaults to 'default').
+ * @param onFinish - Callback fired when a message finishes streaming.
+ * @param onError - Callback fired on chat/classified errors.
+ * @returns Chat actions, status, and streaming messages.
+ * @example
+ * ```tsx
+ * const { sendMessage, stop, status, streamingMessages } =
+ *   useInterlocutorChat(messages, conversationId, onFinish, onError);
+ * ```
+ */
 export const useInterlocutorChat = (
   messages: UIMessage[],
   conversationId?: string,

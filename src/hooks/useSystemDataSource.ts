@@ -1,13 +1,33 @@
+/**
+ * @file useSystemDataSource.ts — System visualization data source hook (frame timing, network, backend, time, context).
+ * @module hooks/useSystemDataSource
+ *
+ * System visualization data source hook. Provides waveform/gauge/pie/clock
+ * data sources (network activity, frame timing, backend status, time, context
+ * usage) with a reference-counted, opt-in collector lifecycle (rAF frame
+ * timing + network PerformanceObserver, throttled and paused while hidden).
+ * Exposes current source, cycling, label visibility, getData/getValue, and
+ * navigation between visualization types.
+ */
 import type { WaveformSettings } from '@/components/background/BackgroundControlPanel';
+import { getLatestBackendStatus } from '@/lib/backend-status';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+/** A system visualization data source producing waveform or gauge data. */
 export type DataSource = {
+  /** Stable source id. */
   id: string;
+  /** Human-readable source name. */
   name: string;
+  /** Human-readable description. */
   description: string;
+  /** Produce `pointCount` samples at the given time. */
   getData: (pointCount: number, time: number) => number[];
+  /** Optional waveform settings override. */
   waveformSettings?: Partial<WaveformSettings>;
+  /** Visualization type rendered for this source. */
   visualizationType?: 'waveform' | 'gauge' | 'pie' | 'clock';
+  /** Optional gauge/single value (may be a promise for async sources). */
   getValue?: () =>
     | number
     | { value: number; max: number }
@@ -17,17 +37,31 @@ export type DataSource = {
   getSparkData?: () => number[];
 };
 
-// Real-time frame timing data (using Performance API)
+// Real-time frame timing + network activity buffers (shared across hook instances).
+// The collectors that fill these buffers are opt-in: they only run while at least
+// one useSystemDataSource instance is mounted with isIdle=true (visualizations shown),
+// they are throttled, and they pause while the document is hidden.
 let frameTimingBuffer: number[] = [];
 let fpsBuffer: number[] = [];
-let lastFrameTime = performance.now();
+let lastFrameTime = 0;
 const FRAME_TIMING_BUFFER_SIZE = 512;
 const FPS_BUFFER_SIZE = 300;
+const FRAME_SAMPLE_INTERVAL_MS = 33; // throttle buffer writes to ~30Hz max
+let lastFrameSampleTime = 0;
 
-const updateFrameTiming = () => {
+const sampleFrameTiming = () => {
   const now = performance.now();
-  const frameDurationMs = now - lastFrameTime;
+  const frameDurationMs = lastFrameTime === 0 ? 16.67 : now - lastFrameTime;
   lastFrameTime = now;
+
+  // Throttle buffer writes; FPS still derived from the instantaneous delta.
+  if (
+    lastFrameSampleTime !== 0 &&
+    now - lastFrameSampleTime < FRAME_SAMPLE_INTERVAL_MS
+  ) {
+    return;
+  }
+  lastFrameSampleTime = now;
 
   const fps = frameDurationMs > 0 ? 1000 / frameDurationMs : 0;
   fpsBuffer.push(fps);
@@ -42,14 +76,7 @@ const updateFrameTiming = () => {
   if (frameTimingBuffer.length > FRAME_TIMING_BUFFER_SIZE) {
     frameTimingBuffer.shift();
   }
-
-  requestAnimationFrame(updateFrameTiming);
 };
-
-// Start frame timing collection
-if (typeof window !== 'undefined') {
-  requestAnimationFrame(updateFrameTiming);
-}
 
 const getFrameTimingData = (pointCount: number, _time: number): number[] => {
   const data: number[] = [];
@@ -75,14 +102,40 @@ const getFpsSparkData = (): number[] => fpsBuffer.slice();
 let networkActivityBuffer: number[] = [];
 let networkCountBuffer: number[] = [];
 let networkRequestCount = 0;
-let lastNetworkCheck = 0;
 const NETWORK_CHECK_INTERVAL = 50;
 const NETWORK_BUFFER_SIZE = 256;
 const NETWORK_COUNT_BUFFER_SIZE = 300;
 let performanceObserver: PerformanceObserver | null = null;
 
-// Track network requests
-if (typeof window !== 'undefined' && 'PerformanceObserver' in window) {
+const sampleNetworkActivity = () => {
+  networkCountBuffer.push(networkRequestCount);
+  if (networkCountBuffer.length > NETWORK_COUNT_BUFFER_SIZE) {
+    networkCountBuffer.shift();
+  }
+
+  const activityLevel = Math.min(networkRequestCount / 10, 1);
+  const normalized = activityLevel * 2 - 1;
+  networkActivityBuffer.push(normalized);
+  if (networkActivityBuffer.length > NETWORK_BUFFER_SIZE) {
+    networkActivityBuffer.shift();
+  }
+
+  networkRequestCount = 0;
+};
+
+// Opt-in collector lifecycle: reference-counted so multiple hook instances share
+// one frame-timing rAF + one network interval. Started on first acquire, torn
+// down on last release, and paused while document.hidden.
+let collectorRefCount = 0;
+let frameRafId: number | null = null;
+let networkIntervalId: ReturnType<typeof setInterval> | null = null;
+let visibilityListenerActive = false;
+
+const ensureNetworkObserver = () => {
+  if (performanceObserver != null) return;
+  if (typeof window === 'undefined' || !('PerformanceObserver' in window)) {
+    return;
+  }
   try {
     performanceObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries();
@@ -95,41 +148,85 @@ if (typeof window !== 'undefined' && 'PerformanceObserver' in window) {
         }
       }
     });
-
     performanceObserver.observe({ entryTypes: ['resource'] });
   } catch {
+    performanceObserver = null;
     // Performance Observer not supported or failed to initialize
   }
-}
-
-const updateNetworkActivity = () => {
-  const now = performance.now();
-
-  if (now - lastNetworkCheck >= NETWORK_CHECK_INTERVAL) {
-    lastNetworkCheck = now;
-
-    networkCountBuffer.push(networkRequestCount);
-    if (networkCountBuffer.length > NETWORK_COUNT_BUFFER_SIZE) {
-      networkCountBuffer.shift();
-    }
-
-    const activityLevel = Math.min(networkRequestCount / 10, 1);
-    const normalized = activityLevel * 2 - 1;
-    networkActivityBuffer.push(normalized);
-    if (networkActivityBuffer.length > NETWORK_BUFFER_SIZE) {
-      networkActivityBuffer.shift();
-    }
-
-    networkRequestCount = 0;
-  }
-
-  requestAnimationFrame(updateNetworkActivity);
 };
 
-// Start network activity collection
-if (typeof window !== 'undefined') {
-  requestAnimationFrame(updateNetworkActivity);
-}
+const disconnectNetworkObserver = () => {
+  performanceObserver?.disconnect();
+  performanceObserver = null;
+};
+
+const runFrameTimingLoop = () => {
+  if (document.hidden) {
+    frameRafId = null;
+    return;
+  }
+  sampleFrameTiming();
+  frameRafId = requestAnimationFrame(runFrameTimingLoop);
+};
+
+const startCollectors = () => {
+  if (typeof window === 'undefined') return;
+  // Reset frame baseline so resuming does not record a huge delta.
+  lastFrameTime = performance.now();
+  lastFrameSampleTime = 0;
+  if (frameRafId == null && !document.hidden) {
+    frameRafId = requestAnimationFrame(runFrameTimingLoop);
+  }
+  ensureNetworkObserver();
+  if (networkIntervalId == null && !document.hidden) {
+    networkIntervalId = setInterval(
+      sampleNetworkActivity,
+      NETWORK_CHECK_INTERVAL
+    );
+  }
+};
+
+const stopCollectors = () => {
+  if (frameRafId != null) {
+    cancelAnimationFrame(frameRafId);
+    frameRafId = null;
+  }
+  if (networkIntervalId != null) {
+    clearInterval(networkIntervalId);
+    networkIntervalId = null;
+  }
+  disconnectNetworkObserver();
+};
+
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopCollectors();
+  } else if (collectorRefCount > 0) {
+    startCollectors();
+  }
+};
+
+const acquireCollectors = () => {
+  collectorRefCount += 1;
+  if (collectorRefCount === 1) {
+    if (typeof document !== 'undefined' && !visibilityListenerActive) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      visibilityListenerActive = true;
+    }
+    startCollectors();
+  }
+};
+
+const releaseCollectors = () => {
+  collectorRefCount = Math.max(0, collectorRefCount - 1);
+  if (collectorRefCount === 0) {
+    stopCollectors();
+    if (visibilityListenerActive && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      visibilityListenerActive = false;
+    }
+  }
+};
 
 const getNetworkActivityData = (
   pointCount: number,
@@ -220,6 +317,34 @@ const DATA_SOURCES: DataSource[] = [
     getValue: undefined, // Supplied by hook from contextUsage param
   },
   {
+    id: 'backend',
+    name: 'Backend',
+    description: 'CPU, memory & queue from /api/status',
+    getData: (pointCount: number): number[] => {
+      const snapshot = getLatestBackendStatus();
+      const cpu = (snapshot?.cpu.usagePercent ?? 0) / 100; // 0..1
+      const mem = (snapshot?.memory.usagePercent ?? 0) / 100; // 0..1
+      const load = Math.min(1, Math.max(cpu, mem));
+      // Map 0..1 load to -1..1 waveform, gently animated with time.
+      return Array.from({ length: pointCount }, (_, i) => {
+        const wave = Math.sin(i * 0.18 + Date.now() / 500) * 0.25;
+        return Math.max(-1, Math.min(1, load * 2 - 1 + wave * load));
+      });
+    },
+    visualizationType: 'gauge',
+    getValue: () => {
+      const snapshot = getLatestBackendStatus();
+      if (!snapshot) return { value: 0, max: 100 };
+      // Gauge shows the busier of CPU% and queue pressure.
+      const queuePressure =
+        (snapshot.requests.active + snapshot.queue.depth) * 25;
+      return {
+        value: Math.max(snapshot.cpu.usagePercent ?? 0, queuePressure),
+        max: 100,
+      };
+    },
+  },
+  {
     id: 'time',
     name: 'Time',
     description: 'Current time',
@@ -253,6 +378,26 @@ export const SYSTEM_SOURCE_OPTIONS = DATA_SOURCES.map((s) => ({
   name: s.name,
 }));
 
+/**
+ * System visualization data source hook.
+ * Provides cycling through system visualization data sources (network,
+ * frame timing, backend, time, context) with a reference-counted opt-in
+ * collector lifecycle. While `isIdle` is true, frame-timing (rAF) and
+ * network (PerformanceObserver) collectors run throttled and pause when the
+ * document is hidden.
+ * @param isIdle - Whether visualizations are shown (starts/stops collectors).
+ * @param cycleInterval - Ms between auto-cycle advances (default 4000).
+ * @param selectedSourceId - Manually selected source id (null/undefined = first).
+ * @param cycleEnabled - Whether auto-cycling is enabled (default true).
+ * @param contextUsage - Optional { used, max } for the context gauge source.
+ * @returns Current source, label visibility, getData, visualizationType,
+ * getValue, and navigateToVisualizationType.
+ * @example
+ * ```tsx
+ * const { currentSource, getData, getValue, navigateToVisualizationType } =
+ *   useSystemDataSource(isIdle, 4000, selectedSourceId, true, contextUsage);
+ * ```
+ */
 export const useSystemDataSource = (
   isIdle: boolean,
   cycleInterval: number = 4000,
@@ -271,6 +416,15 @@ export const useSystemDataSource = (
   const timeRef = useRef(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const manualNavigationRef = useRef(false);
+
+  // Opt-in: only collect frame-timing/network samples while visualizations are shown.
+  useEffect(() => {
+    if (!isIdle) return;
+    acquireCollectors();
+    return () => {
+      releaseCollectors();
+    };
+  }, [isIdle]);
 
   // When not cycling, keep current source in sync with selectedSourceId (or 0 if none selected)
   useEffect(() => {
@@ -378,12 +532,19 @@ export const useSystemDataSource = (
     if (!isIdle) return;
 
     const startTime = Date.now();
+    let rafId = 0;
+    let stopped = false;
     const updateTime = () => {
+      if (stopped) return;
+      rafId = requestAnimationFrame(updateTime);
+      if (document.hidden) return;
       timeRef.current = (Date.now() - startTime) / 1000;
-      requestAnimationFrame(updateTime);
     };
-    const frameId = requestAnimationFrame(updateTime);
-    return () => cancelAnimationFrame(frameId);
+    rafId = requestAnimationFrame(updateTime);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(rafId);
+    };
   }, [isIdle]);
 
   const currentSource = DATA_SOURCES[currentSourceIndex];

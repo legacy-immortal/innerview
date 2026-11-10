@@ -1,3 +1,13 @@
+/**
+ * @file useConversationManagement.ts — Conversation management hook for loading/saving messages and generating titles.
+ * @module hooks/useConversationManagement
+ *
+ * Conversation management hook for loading/saving messages and generating
+ * titles. Ensures a conversation exists, converts and deduplicates stored
+ * messages to UIMessage format, tracks message counts, handles chat finish
+ * callbacks (saving assistant messages and generating conversation titles),
+ * and builds submit handlers for user messages.
+ */
 import {
   useConversationStore,
   type ConversationMessage,
@@ -11,6 +21,25 @@ import type { UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
+/**
+ * Conversation management hook for loading/saving messages and generating
+ * titles. Ensures a conversation exists (skipping auto-creation in terminal
+ * mode), converts and deduplicates stored messages to UIMessage format,
+ * tracks message counts, handles chat finish callbacks (saving assistant
+ * messages and generating conversation titles from the first user message),
+ * and builds submit handlers for user messages.
+ * @param reasoningTag - Reasoning tag used when converting stored messages.
+ * @param layoutMode - Optional layout mode ('condensed' | 'corpo' | 'terminal').
+ * @returns Conversation id, list, display messages, chat finish handler,
+ * submit handler creator, and store actions.
+ * @example
+ * ```tsx
+ * const { effectiveConversationId, conversations, displayMessages,
+ *   handleChatFinish, createSubmitHandler } = useConversationManagement(
+ *   reasoningTag, layoutMode
+ * );
+ * ```
+ */
 export const useConversationManagement = (
   reasoningTag: string,
   layoutMode?: 'condensed' | 'corpo' | 'terminal'
