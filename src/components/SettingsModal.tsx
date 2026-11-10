@@ -13,6 +13,7 @@ import { AgentTab } from './settings/AgentTab';
 import { GenerationTab } from './settings/GenerationTab';
 import { KeyboardTab } from './settings/KeyboardTab';
 import { PerformanceTab } from './settings/PerformanceTab';
+import { PrivacyTab } from './settings/PrivacyTab';
 import { StylesTab } from './settings/StylesTab';
 import { TTSTab } from './settings/TTSTab';
 import { TranscriptionTab } from './settings/TranscriptionTab';
@@ -25,7 +26,8 @@ type TabValue =
   | 'keyboard'
   | 'styles'
   | 'generation'
-  | 'agent';
+  | 'agent'
+  | 'privacy';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,6 +47,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     style,
     generation,
     agent: _agent,
+    privacy,
     meta,
     actions,
   } = useSettingsModal(isOpen);
@@ -233,6 +236,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   >
                     Agent
                   </Tabs.Trigger>
+                  <Tabs.Trigger
+                    value="privacy"
+                    flexShrink={0}
+                    whiteSpace="nowrap"
+                    css={{
+                      textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
+                    }}
+                  >
+                    Privacy
+                  </Tabs.Trigger>
                 </Tabs.List>
 
                 {activeTab === 'performance' && (
@@ -297,6 +310,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <AgentTab
                       generationSettings={generation.settings}
                       setGenerationSettings={generation.updateSetting}
+                    />
+                  </Tabs.Content>
+                )}
+                {activeTab === 'privacy' && (
+                  <Tabs.Content value="privacy">
+                    <PrivacyTab
+                      privacySettings={privacy.settings}
+                      setPrivacySettings={privacy.updateSetting}
                     />
                   </Tabs.Content>
                 )}

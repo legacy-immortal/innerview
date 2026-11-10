@@ -8,6 +8,7 @@ import type {
   GenerationSettings,
   KeyboardSettings,
   PerformanceSettings,
+  PrivacySettings,
   StyleSettings,
   TTSSettings,
   TranscriptionSettings,
@@ -23,6 +24,7 @@ import {
   type GenerationState,
   type KeyboardState,
   type PerformanceState,
+  type PrivacyState,
   type StyleState,
   type TranscriptionState,
   type TTSState,
@@ -34,6 +36,7 @@ export type {
   GenerationState,
   KeyboardState,
   PerformanceState,
+  PrivacyState,
   StyleState,
   TranscriptionState,
   TTSState,
@@ -75,6 +78,9 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
   const [agentSettings, setAgentSettings] = useState<Record<string, unknown>>(
     {}
   );
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(
+    DEFAULTS.privacy as PrivacySettings
+  );
 
   const [detectedTier, setDetectedTier] =
     useState<UseSettingsModalReturn['meta']['detectedTier']>(null);
@@ -113,6 +119,16 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
           DEFAULTS.generation.embeddingComputeMode ??
           'server',
       } as GenerationSettings);
+    }
+    if (storeSettings?.privacy) {
+      setPrivacySettings({
+        ...DEFAULTS.privacy,
+        ...storeSettings.privacy,
+      } as PrivacySettings);
+    } else {
+      // Ensure installation id is available for display/scoping even before save.
+      const ensured = useSettingsStore.getState().getPrivacySettings();
+      if (ensured) setPrivacySettings(ensured);
     }
 
     // Load browser voices
@@ -163,6 +179,13 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
         } as GenerationSettings;
         setGenerationSettings((prev) => (shallow(next, prev) ? prev : next));
       }
+      if (current.privacy) {
+        const next = {
+          ...DEFAULTS.privacy,
+          ...current.privacy,
+        } as PrivacySettings;
+        setPrivacySettings((prev) => (shallow(next, prev) ? prev : next));
+      }
     });
 
     return unsubscribe;
@@ -193,6 +216,7 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
     store.saveKeyboardSettings(keyboardSettings);
     store.saveStyleSettings(styleSettings);
     store.saveGenerationSettings(generationSettings);
+    store.savePrivacySettings(privacySettings);
   }, [
     performanceSettings,
     ttsSettings,
@@ -200,6 +224,7 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
     keyboardSettings,
     styleSettings,
     generationSettings,
+    privacySettings,
   ]);
 
   // Memoized state objects - split by domain to prevent cross-contamination
@@ -286,6 +311,14 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
     [agentSettings]
   );
 
+  const privacyState = useMemo<PrivacyState>(
+    () => ({
+      settings: privacySettings,
+      updateSetting: setPrivacySettings,
+    }),
+    [privacySettings]
+  );
+
   return {
     performance: performanceState,
     tts: ttsState,
@@ -294,6 +327,7 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
     style: styleState,
     generation: generationState,
     agent: agentState,
+    privacy: privacyState,
     meta: { detectedTier },
     actions: { save: saveAll, reset: resetPerformance },
   };

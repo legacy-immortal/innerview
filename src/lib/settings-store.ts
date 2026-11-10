@@ -15,11 +15,13 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getOrCreateInstallationId } from './installation-id';
 import type {
   BackgroundSettings,
   GenerationSettings,
   KeyboardSettings,
   PerformanceSettings,
+  PrivacySettings,
   StyleSettings,
   TTSSettings,
   TranscriptionSettings,
@@ -69,6 +71,9 @@ interface SettingsStore {
   updateGenerationSettings: (
     updates: Partial<GenerationSettings>
   ) => GenerationSettings;
+  getPrivacySettings: () => PrivacySettings | null;
+  savePrivacySettings: (settings: PrivacySettings) => void;
+  updatePrivacySettings: (updates: Partial<PrivacySettings>) => PrivacySettings;
   resetSettings: () => void;
 }
 
@@ -106,6 +111,11 @@ const DEFAULT_KEYBOARD_SETTINGS: KeyboardSettings = {
   exitTerminalKey: 'ctrl+shift+e',
 };
 
+const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
+  conversationPersistence: 'local',
+  associativeMemoryRemote: false,
+};
+
 const DEFAULT_SETTINGS: UserSettings = {
   sessionId: 'default',
   tts: DEFAULT_TTS_SETTINGS,
@@ -113,6 +123,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   preferences: {
     theme: 'auto',
   },
+  privacy: DEFAULT_PRIVACY_SETTINGS,
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -461,6 +472,59 @@ export const useSettingsStore = create<SettingsStore>()(
           settings: {
             ...current,
             generation: merged,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+
+        return merged;
+      },
+
+      getPrivacySettings: () => {
+        const state = get();
+        const existing = state.settings?.privacy || DEFAULT_PRIVACY_SETTINGS;
+        if (existing.installationId) return existing;
+        // Ensure a stable anonymous installation id exists (no sign-in).
+        return {
+          ...DEFAULT_PRIVACY_SETTINGS,
+          ...existing,
+          installationId: getOrCreateInstallationId(),
+        };
+      },
+
+      savePrivacySettings: (settings) => {
+        const current = get().settings;
+        const installationId =
+          settings.installationId || getOrCreateInstallationId();
+        set({
+          settings: {
+            ...current,
+            privacy: {
+              ...DEFAULT_PRIVACY_SETTINGS,
+              ...settings,
+              installationId,
+            },
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      },
+
+      updatePrivacySettings: (updates) => {
+        const current = get().settings;
+        const existing = current?.privacy || DEFAULT_PRIVACY_SETTINGS;
+        const merged: PrivacySettings = {
+          ...DEFAULT_PRIVACY_SETTINGS,
+          ...existing,
+          ...updates,
+          installationId:
+            updates.installationId ||
+            existing.installationId ||
+            getOrCreateInstallationId(),
+        };
+
+        set({
+          settings: {
+            ...current,
+            privacy: merged,
             updatedAt: new Date().toISOString(),
           },
         });

@@ -9,6 +9,7 @@ import type {
   GenerationSettings,
   KeyboardSettings,
   PerformanceSettings,
+  PrivacySettings,
   StyleSettings,
   TTSSettings,
   TranscriptionSettings,
@@ -124,6 +125,10 @@ export const DEFAULTS = {
     enableConstitutionMiddleware: true,
     enableAppealProcess: true,
   },
+  privacy: {
+    conversationPersistence: 'local' as const,
+    associativeMemoryRemote: false,
+  },
 };
 
 /**
@@ -206,6 +211,12 @@ export interface AgentState {
   updateSetting: Dispatch<SetStateAction<Record<string, unknown>>>;
 }
 
+/** Privacy domain state returned by {@link useSettingsModal}. */
+export interface PrivacyState {
+  settings: PrivacySettings;
+  updateSetting: Dispatch<SetStateAction<PrivacySettings>>;
+}
+
 /** Aggregate return type of {@link useSettingsModal}. */
 export interface UseSettingsModalReturn {
   performance: PerformanceState;
@@ -215,6 +226,7 @@ export interface UseSettingsModalReturn {
   style: StyleState;
   generation: GenerationState;
   agent: AgentState;
+  privacy: PrivacyState;
   meta: {
     detectedTier: PerformanceTier | null;
   };
