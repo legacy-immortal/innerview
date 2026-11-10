@@ -20,6 +20,9 @@ export default defineConfig({
       target: 'es2020',
     },
   },
+  worker: {
+    format: 'es',
+  },
   build: {
     commonjsOptions: {
       include: [/three/, /node_modules/],
