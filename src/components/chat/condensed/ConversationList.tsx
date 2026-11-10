@@ -192,6 +192,7 @@ export const ConversationList = React.forwardRef<
           }
           onCreateConversation={createConversation}
           onFileImport={handleFileImport}
+          onImportClick={handleImportClick}
         />
 
         <Box

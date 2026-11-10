@@ -194,6 +194,8 @@ const ChatHeaderComponent = ({
                     clearAllConversations={clearAllConversations}
                     createConversation={createConversation}
                     conversationListRef={conversationListRef}
+                    showConversationList={showConversationList}
+                    onToggleConversationList={onToggleConversationList}
                   />
                 </Menu.Content>
               </Menu.Positioner>

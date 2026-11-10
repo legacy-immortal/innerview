@@ -15,7 +15,13 @@ import {
   Input,
   VStack,
 } from '@chakra-ui/react';
-import { HiArrowDown, HiArrowUp, HiPlus, HiSearch } from 'react-icons/hi';
+import {
+  HiArrowDown,
+  HiArrowUp,
+  HiPlus,
+  HiSearch,
+  HiUpload,
+} from 'react-icons/hi';
 import type { JSX, RefObject } from 'react';
 
 interface ConversationListToolbarProps {
@@ -27,6 +33,7 @@ interface ConversationListToolbarProps {
   readonly onSortOrderToggle: () => void;
   readonly onCreateConversation: () => void;
   readonly onFileImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  readonly onImportClick: () => void;
 }
 
 /**
@@ -44,6 +51,7 @@ export const ConversationListToolbar = ({
   onSortOrderToggle,
   onCreateConversation,
   onFileImport,
+  onImportClick,
 }: ConversationListToolbarProps): JSX.Element => (
   <Box
     p={2}
@@ -63,6 +71,16 @@ export const ConversationListToolbar = ({
           <HiPlus />
           New
         </Button>
+        <IconButton
+          aria-label="Import conversations"
+          title="Import conversations"
+          size="xs"
+          variant="outline"
+          colorPalette="gray"
+          onClick={onImportClick}
+        >
+          <HiUpload />
+        </IconButton>
         <Input
           ref={fileInputRef}
           type="file"

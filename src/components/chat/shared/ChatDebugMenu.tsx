@@ -58,6 +58,10 @@ interface ChatDebugMenuProps {
     typeof useConversationStore.getState
   >['createConversation'];
   readonly conversationListRef: React.RefObject<ConversationListRef | null>;
+  /** Whether the conversation list view is currently shown. */
+  readonly showConversationList?: boolean;
+  /** Toggle conversation list view visibility. */
+  readonly onToggleConversationList?: () => void;
 }
 
 /**
@@ -79,6 +83,8 @@ export const ChatDebugMenu = ({
   clearAllConversations,
   createConversation,
   conversationListRef,
+  showConversationList = true,
+  onToggleConversationList,
 }: ChatDebugMenuProps): React.JSX.Element => {
   return (
     <>
@@ -336,7 +342,19 @@ export const ChatDebugMenu = ({
       <Menu.Item
         value="import-conversations"
         onClick={() => {
-          conversationListRef.current?.triggerImport();
+          if (conversationListRef.current) {
+            conversationListRef.current.triggerImport();
+            return;
+          }
+          // Conversation list (which owns the file input) is not mounted
+          // when viewing messages; switch to it so import can proceed.
+          if (!showConversationList && onToggleConversationList) {
+            onToggleConversationList();
+            // Retry after the list mounts and ref attaches.
+            window.setTimeout(() => {
+              conversationListRef.current?.triggerImport();
+            }, 150);
+          }
         }}
         bg="transparent"
         color="cyan.400"
