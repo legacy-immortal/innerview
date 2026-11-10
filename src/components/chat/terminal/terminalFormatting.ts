@@ -1,5 +1,5 @@
 /**
- * terminalFormatting.ts — text formatting helpers for the terminal layout.
+ * @file terminalFormatting.ts — text formatting helpers for the terminal layout.
  *
  * Renders conversations as plain-text lists/trees and formats dates for the
  * CLI-style picker. All formatters are pure with explicit return types.

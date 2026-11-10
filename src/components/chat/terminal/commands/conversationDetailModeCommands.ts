@@ -1,7 +1,10 @@
 /**
- * conversationDetailModeCommands.ts — Terminal conversation-detail mode command handlers.
+ * @file conversationDetailModeCommands.ts — Terminal conversation-detail mode command handlers.
+ * @module components/chat/terminal/commands/conversationDetailModeCommands
  *
- * @module components/chat/terminal/commands/conversationDetailModeCommand
+ * Terminal conversation-detail mode command handlers. Defines `ConversationDetailModeContext`
+ * and builds the detail command table (`start`, `enter`, `begin`, `back`, `ls`, `cat`, `help`,
+ * `?`, etc.). Consumed by `useTerminalCommands`.
  */
 
 import type {

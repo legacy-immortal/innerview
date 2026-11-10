@@ -1,7 +1,11 @@
 /**
- * ChatInput.tsx — Prompt input area for the condensed layout, with context meter and transcription.
- *
+ * @file ChatInput.tsx — Prompt input area for the condensed layout, with context meter and transcription.
  * @module components/chat/condensed/ChatInput
+ *
+ * Prompt input area for the condensed layout, with context meter and transcription. Renders a
+ * form with a cursor-caret polyfill (measured via a hidden span), a send button, the
+ * `Context` usage meter, and a `TranscriptionButton`. Supports a `corpo` variant for the
+ * drawer layout. Consumed by `StandardModeView` and `CorpoModeView`.
  */
 
 import {
@@ -50,10 +54,10 @@ interface ChatInputProps {
   readonly sidebarBackgroundColor: string;
   readonly usedTokens: number;
   readonly maxContextTokens: number;
-  tokenUsage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
+  readonly tokenUsage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+    readonly totalTokens: number;
   };
   readonly onTranscriptionComplete: (text: string) => void;
   /** Start recording (same as keyboard push-to-talk start). */
@@ -386,5 +390,9 @@ const ChatInputComponent = ({
   );
 };
 
-// Memoize component to prevent unnecessary re-renders when parent updates
+/**
+ * Memoized chat input with transcription and token-usage controls.
+ *
+ * @returns The memoized chat input element.
+ */
 export const ChatInput = React.memo(ChatInputComponent);

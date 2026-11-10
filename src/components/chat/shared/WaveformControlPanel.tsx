@@ -1,7 +1,11 @@
 /**
- * WaveformControlPanel.tsx — Panel to configure waveform layers and visualization settings.
- *
+ * @file WaveformControlPanel.tsx — Panel to configure waveform layers and visualization settings.
  * @module components/chat/shared/WaveformControlPanel
+ *
+ * Panel to configure waveform layers and visualization settings. Builds Leva controls for each
+ * layer and the settings folders, syncing changes back through `onLayersChange` and
+ * `onSettingsChange`/`onLocalSettingsChange`. Returns `null` because Leva renders its own UI.
+ * Consumed by `StandardModeView`, `CorpoModeView`, and `TerminalModeView`.
  */
 
 import { button, folder, useControls } from 'leva';
@@ -66,13 +70,19 @@ const DEFAULT_SETTINGS: WaveformSettings = {
   glowOpacityRange: 0.08,
 };
 
+/**
+ * Renders Leva controls for waveform layers/settings and synchronizes changes.
+ *
+ * @param props - Component props.
+ * @returns `null` (Leva renders its own UI).
+ */
 export const WaveformControlPanel = ({
   layers,
   onLayersChange,
   settings = DEFAULT_SETTINGS,
   onSettingsChange,
   onLocalSettingsChange,
-}: WaveformControlPanelProps) => {
+}: WaveformControlPanelProps): null => {
   const prevSettingsRef = useRef<WaveformSettings>(settings);
 
   // Build layer controls dynamically

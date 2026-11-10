@@ -1,7 +1,11 @@
 /**
- * StandardModeView.tsx — Standard two-pane chat layout (sidebar + message stream + input).
- *
+ * @file StandardModeView.tsx — Standard two-pane chat layout (sidebar + message stream + input).
  * @module components/chat/StandardModeView
+ *
+ * Renders the standard two-pane chat layout consumed by `InterlocutorChat`. It hosts the
+ * background switcher/visualization, the optional control panel, the resizable sidebar with
+ * the conversation list, and the message stream plus input. Consumers are the layout modes
+ * routed by `InterlocutorChat`; this is the default (condensed) view.
  */
 
 import { SettingsModal } from '@/components/SettingsModal';
@@ -9,7 +13,7 @@ import { CircularVisualization } from '@/components/animations/CircularVisualiza
 import { BackgroundControlPanel } from '@/components/background/BackgroundControlPanel';
 import { BackgroundSwitcher } from '@/components/background/BackgroundSwitcher';
 import { Box } from '@chakra-ui/react';
-import { memo } from 'react';
+import { memo, type JSX } from 'react';
 import { ChatHeader } from './condensed/ChatHeader';
 import { ChatInput } from './condensed/ChatInput';
 import { ConversationList } from './condensed/ConversationList';
@@ -19,6 +23,13 @@ import { ErrorAlert } from './shared/ErrorAlert';
 import { BackgroundControlsToggle } from './BackgroundControlsToggle';
 import type { StandardModeViewProps } from './InterlocutorChatTypes';
 
+/**
+ * Renders the standard two-pane chat layout.
+ *
+ * @param props - Standard mode view props.
+ * @returns The standard mode view element.
+ * @see {@link InterlocutorChatTypes.StandardModeViewProps} for the prop contract.
+ */
 const StandardModeViewComponent = ({
   backgroundSettings,
   waveformEnabled,
@@ -84,7 +95,7 @@ const StandardModeViewComponent = ({
   transcription,
   showPerformanceSettings,
   onClosePerformanceSettings,
-}: StandardModeViewProps) => (
+}: StandardModeViewProps): JSX.Element => (
   <Box position="relative" h="100dvh" w="100vw" bg="black" overflow="hidden">
     <BackgroundSwitcher settings={backgroundSettings} />
 
@@ -235,4 +246,9 @@ const StandardModeViewComponent = ({
   </Box>
 );
 
+/**
+ * Memoized standard two-pane chat layout.
+ *
+ * @returns The memoized standard mode view element.
+ */
 export const StandardModeView = memo(StandardModeViewComponent);

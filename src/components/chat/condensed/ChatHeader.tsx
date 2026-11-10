@@ -1,7 +1,10 @@
 /**
- * ChatHeader.tsx — Header bar for the condensed chat layout (title, actions).
- *
+ * @file ChatHeader.tsx — Header bar for the condensed chat layout (title, actions).
  * @module components/chat/condensed/ChatHeader
+ *
+ * Header bar for the condensed chat layout (title, actions). Renders the provider-status
+ * dot, backend load indicator, debug menu, and the stop/regenerate/new-conversation action
+ * buttons. Consumed by `StandardModeView` and `CorpoModeView` via `ChatDebugMenu`.
  */
 
 import { Tooltip } from '@/components/ui/tooltip';
@@ -23,6 +26,7 @@ import {
 import { LuSettings } from 'react-icons/lu';
 import { ChatDebugMenu } from '../shared/ChatDebugMenu';
 import { headerTextShadowStyles } from '../shared/ChatStyles';
+import { BackendStatusIndicator } from './BackendStatusIndicator';
 import type { ConversationListRef } from './ConversationList';
 
 interface ChatHeaderProps {
@@ -144,6 +148,8 @@ const ChatHeaderComponent = ({
               onClick={() => checkProvider()}
             />
           </Tooltip>
+          {/* Backend load indicator (GET /api/status) */}
+          <BackendStatusIndicator />
           <Menu.Root
             positioning={{
               placement: 'bottom-start',
@@ -259,4 +265,9 @@ const ChatHeaderComponent = ({
   );
 };
 
+/**
+ * Memoized chat header with navigation and controls.
+ *
+ * @returns The memoized chat header element.
+ */
 export const ChatHeader = memo(ChatHeaderComponent);

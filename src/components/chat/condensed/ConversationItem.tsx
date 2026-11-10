@@ -1,7 +1,10 @@
 /**
- * ConversationItem.tsx — Single row in the conversation list (title, preview, date, badge).
- *
+ * @file ConversationItem.tsx — Single row in the conversation list (title, preview, date, badge).
  * @module components/chat/condensed/ConversationItem
+ *
+ * Single row in the conversation list (title, preview, date, badge). Memoized with a custom
+ * comparison function so only data/color changes trigger re-renders. Consumed by
+ * `ConversationList` for each stored conversation.
  */
 
 import { Box, HStack, Text } from '@chakra-ui/react';
@@ -9,11 +12,11 @@ import React, { useCallback, useMemo } from 'react';
 
 export interface ConversationItemProps {
   conversation: {
-    id: string;
-    title: string;
-    preview?: string;
-    updatedAt: string;
-    messageCount: number;
+    readonly id: string;
+    readonly title: string;
+    readonly preview?: string;
+    readonly updatedAt: string;
+    readonly messageCount: number;
   };
   readonly isActive: boolean;
   readonly onSelect: (id: string) => void;
@@ -23,7 +26,12 @@ export interface ConversationItemProps {
   readonly itemActiveBackgroundColor: string;
 }
 
-// Memoized conversation item component to prevent unnecessary re-renders
+/**
+ * Memoized conversation item component to prevent unnecessary re-renders.
+ *
+ * @param props - Conversation item props.
+ * @returns The conversation row element.
+ */
 export const ConversationItem = React.memo<ConversationItemProps>(
   ({
     conversation,
@@ -33,7 +41,7 @@ export const ConversationItem = React.memo<ConversationItemProps>(
     itemBackgroundColor,
     itemHoverBackgroundColor,
     itemActiveBackgroundColor,
-  }) => {
+  }): React.JSX.Element => {
     const handleClick = useCallback(() => {
       onSelect(conversation.id);
     }, [conversation.id, onSelect]);

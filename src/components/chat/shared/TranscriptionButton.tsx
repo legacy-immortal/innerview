@@ -1,7 +1,11 @@
 /**
- * TranscriptionButton.tsx — Voice-recording button with live waveform feedback.
- *
+ * @file TranscriptionButton.tsx — Voice-recording button with live waveform feedback.
  * @module components/chat/shared/TranscriptionButton
+ *
+ * Voice-recording button with live waveform feedback. Supports controlled mode (external state
+ * from keyboard shortcuts) and standalone mode, with microphone availability checks, error
+ * formatting, push-to-talk key display, and a circular waveform visualization while recording.
+ * Consumed by `ChatInput`.
  */
 
 // Transcription Button Component with recording indicator and visualization
@@ -130,7 +134,10 @@ function isTranscriptionAvailable(): boolean {
 function formatTranscriptionError(error: Error): string {
   const name = (error as { name?: string }).name ?? '';
   const msg = error.message || '';
-  if (name === 'NotAllowedError' || /not allowed|permission denied|denied/i.test(msg)) {
+  if (
+    name === 'NotAllowedError' ||
+    /not allowed|permission denied|denied/i.test(msg)
+  ) {
     return 'Microphone access was denied. Allow microphone permission in your browser, then try again.';
   }
   if (
@@ -139,7 +146,10 @@ function formatTranscriptionError(error: Error): string {
   ) {
     return 'No microphone was found. Connect a microphone and try again.';
   }
-  if (name === 'NotReadableError' || /could not start|hardware|in use/i.test(msg)) {
+  if (
+    name === 'NotReadableError' ||
+    /could not start|hardware|in use/i.test(msg)
+  ) {
     return 'The microphone is unavailable or in use by another app. Close other apps using the mic and try again.';
   }
   if (
@@ -154,6 +164,12 @@ function formatTranscriptionError(error: Error): string {
   return msg || 'Transcription failed. Try again.';
 }
 
+/**
+ * Voice-recording button with live waveform feedback.
+ *
+ * @param props - Transcription button props.
+ * @returns The transcription button element.
+ */
 export function TranscriptionButton({
   onTranscriptionComplete,
   onStartRecording,
@@ -265,7 +281,9 @@ export function TranscriptionButton({
       <Box position="relative" w="100%" minW={0} touchAction="none">
         <Button
           aria-label={
-            isAvailable ? 'Voice input (hold to dictate)' : 'Voice input unavailable'
+            isAvailable
+              ? 'Voice input (hold to dictate)'
+              : 'Voice input unavailable'
           }
           title={buttonTitle}
           onMouseDown={handleMouseDown}

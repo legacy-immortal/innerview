@@ -1,7 +1,11 @@
 /**
- * TerminalChat.tsx — Terminal chat renderer interpreting mode-aware input commands.
- *
+ * @file TerminalChat.tsx — Terminal chat renderer interpreting mode-aware input commands.
  * @module components/chat/terminal/TerminalChat
+ *
+ * Terminal chat renderer interpreting mode-aware input commands. Manages filesystem,
+ * conversation-selection, conversation-preview, and conversation-active modes, routing unknown
+ * input to `onPromptSubmit` only in conversation-active mode. Re-exports `TerminalChatProps`
+ * and `TerminalMode`. Consumed by `TerminalModeView`.
  */
 
 import { Box } from '@chakra-ui/react';
@@ -19,6 +23,12 @@ import { useTerminalWelcome } from './useTerminalWelcome';
 
 export type { TerminalChatProps, TerminalMode } from './terminalTypes';
 
+/**
+ * Terminal chat renderer interpreting mode-aware input commands.
+ *
+ * @param props - Terminal chat props.
+ * @returns The terminal chat element.
+ */
 export const TerminalChat = ({
   messages,
   isLoading,
@@ -28,7 +38,7 @@ export const TerminalChat = ({
   onConversationLoad,
   onCreateConversation,
   onExitToChat,
-}: TerminalChatProps) => {
+}: TerminalChatProps): React.JSX.Element => {
   // Start in conversation-active mode if there are messages, otherwise filesystem mode
   const [mode, setMode] = useState<TerminalMode>(
     messages.length > 0 ? 'conversation-active' : 'filesystem'

@@ -1,7 +1,10 @@
 /**
- * conversationModeCommands.ts — Terminal conversation-mode command handlers.
+ * @file conversationModeCommands.ts — Terminal conversation-mode command handlers.
+ * @module components/chat/terminal/commands/conversationModeCommands
  *
- * @module components/chat/terminal/commands/conversationModeCommand
+ * Terminal conversation-mode command handlers. Defines `ConversationModeContext` and builds
+ * the conversation-active command table (`ls`, `dir`, `interlocutor`, `exit`, `pwd`, `clear`,
+ * `gui`, `chat`, `?`, etc.). Consumed by `useTerminalCommands`.
  */
 
 import type {

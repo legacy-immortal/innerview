@@ -1,7 +1,10 @@
 /**
- * MessageBubblePart.tsx — Dispatcher rendering a single message part by kind.
- *
+ * @file MessageBubblePart.tsx — Dispatcher rendering a single message part by kind.
  * @module components/chat/condensed/MessageBubblePart
+ *
+ * Dispatcher rendering a single message part by kind. Routes reasoning parts to
+ * `ReasoningPart`, file parts to `FilePart`, text parts to `TextPart`, and tool parts to
+ * `MemoryIndicator`; returns `null` for unhandled kinds. Consumed by `MessageBubble`.
  */
 
 import {
@@ -13,6 +16,7 @@ import {
   type ReasoningUIPart,
   type UIMessage,
 } from 'ai';
+import type { JSX } from 'react';
 import { MemoryIndicator } from '../shared/MemoryIndicator';
 import { FilePart } from './messageBubbleFilePart';
 import { ReasoningPart } from './messageBubbleReasoningPart';
@@ -26,13 +30,19 @@ interface MessageBubblePartProps {
   readonly onToggleSection: (sectionId: string) => void;
 }
 
+/**
+ * Dispatcher rendering a single message part by kind.
+ *
+ * @param props - Message bubble part props.
+ * @returns The part renderer element, or `null` for unhandled parts.
+ */
 export const MessageBubblePart = ({
   part,
   messageId,
   index,
   collapsedSections,
   onToggleSection,
-}: MessageBubblePartProps) => {
+}: MessageBubblePartProps): JSX.Element | null => {
   if (isReasoningUIPart(part)) {
     const sectionId = `reasoning-${messageId}-${index}`;
     return (

@@ -1,10 +1,13 @@
 /**
- * MessageBubbleHeader.tsx — Role label, timestamp, and actions for a message bubble.
- *
+ * @file MessageBubbleHeader.tsx — Role label, timestamp, and actions for a message bubble.
  * @module components/chat/condensed/MessageBubbleHeader
+ *
+ * Role label, timestamp, and actions for a message bubble. Shows an animated pulsing dot while
+ * streaming and a delete button when `onDeleteMessage` is provided. Consumed by `MessageBubble`.
  */
 
 import { Box, HStack, IconButton, Text } from '@chakra-ui/react';
+import type { JSX } from 'react';
 import { LuX } from 'react-icons/lu';
 import { separatorTextStyles, timeTextStyles } from './messageBubbleUtils';
 
@@ -18,6 +21,12 @@ interface MessageBubbleHeaderProps {
   readonly messageId: string;
 }
 
+/**
+ * Renders the role label, timestamp, and actions for a message bubble.
+ *
+ * @param props - Message bubble header props.
+ * @returns The header element.
+ */
 export const MessageBubbleHeader = ({
   roleLabel,
   roleColor,
@@ -26,7 +35,7 @@ export const MessageBubbleHeader = ({
   isStreaming,
   onDeleteMessage,
   messageId,
-}: MessageBubbleHeaderProps) => (
+}: MessageBubbleHeaderProps): JSX.Element => (
   <HStack
     gap={2}
     mb={1}

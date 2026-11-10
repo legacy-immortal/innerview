@@ -1,10 +1,10 @@
 /**
- * terminalTypes.ts — contracts for the terminal (CLI-style) chat layout.
- *
- * Defines the terminal mode union and the prop/summary shapes passed between
- * the terminal view, its command handlers, and the conversation store.
- *
+ * @file terminalTypes.ts — Contracts for the terminal (CLI-style) chat layout.
  * @module components/chat/terminal/terminalTypes
+ *
+ * Defines the terminal mode union (`TerminalMode`) and the prop/summary shapes
+ * (`TerminalConversationSummary`, `TerminalChatProps`) passed between the terminal view, its
+ * command handlers, and the conversation store. Consumed across the `terminal/` subtree.
  */
 
 /** Distinct interaction modes of the terminal layout. */

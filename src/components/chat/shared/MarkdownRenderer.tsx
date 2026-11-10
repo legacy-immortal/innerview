@@ -1,7 +1,10 @@
 /**
- * MarkdownRenderer.tsx — Markdown rendering with Chakra-styled typographic components.
- *
+ * @file MarkdownRenderer.tsx — Markdown rendering with Chakra-styled typographic components.
  * @module components/chat/shared/MarkdownRenderer
+ *
+ * Markdown rendering with Chakra-styled typographic components. Wraps `react-markdown` with
+ * GFM plugins and Chakra-mapped components (headings, code blocks, lists, links, tables).
+ * Memoized by content/fontSize/color. Consumed by message part renderers.
  */
 
 import { Box, Code, Heading, Text } from '@chakra-ui/react';
@@ -341,8 +344,12 @@ const MarkdownRendererComponent: React.FC<MarkdownRendererProps> = ({
   );
 };
 
-// Memoize the entire component with custom comparison to prevent unnecessary re-renders
-// Only re-render if content, fontSize, or color actually change
+/**
+ * Memoized markdown renderer; re-renders only when content, font size, or color change.
+ *
+ * @param props - Markdown renderer props.
+ * @returns The memoized markdown renderer element.
+ */
 export const MarkdownRenderer = React.memo(
   MarkdownRendererComponent,
   (prevProps, nextProps) => {

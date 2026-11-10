@@ -1,7 +1,10 @@
 /**
- * ConversationList.tsx — Scrollable, virtualised list of stored conversations.
- *
+ * @file ConversationList.tsx — Scrollable, virtualised list of stored conversations.
  * @module components/chat/condensed/ConversationList
+ *
+ * Scrollable, virtualised list of stored conversations. Provides search filtering, sort
+ * ordering, file import, and duplicate-import dialog wiring. Exposes an imperative
+ * `triggerImport` ref. Consumed by `StandardModeView` and `CorpoModeView`.
  */
 
 import { TerminalImportProgress } from '@/components/animations/TerminalImportProgress';
@@ -29,14 +32,23 @@ interface ConversationListProps {
   readonly onConversationSelect?: () => void;
 }
 
+/** Imperative handle for {@link ConversationList}. */
 export interface ConversationListRef {
+  /** Opens the conversation import flow. */
   readonly triggerImport: () => void;
 }
 
+/**
+ * Conversation list with create/select/import controls.
+ *
+ * @param props - Conversation list props.
+ * @param ref - Imperative ref exposing {@link ConversationListRef}.
+ * @returns The conversation list element.
+ */
 export const ConversationList = React.forwardRef<
   ConversationListRef,
   ConversationListProps
->(({ onConversationSelect }, ref) => {
+>(({ onConversationSelect }, ref): React.JSX.Element => {
   const conversations = useConversationStore((state) => state.conversations);
   const currentConversationId = useConversationStore(
     (state) => state.currentConversationId

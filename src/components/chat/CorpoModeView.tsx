@@ -1,7 +1,11 @@
 /**
- * CorpoModeView.tsx — Corpo (drawer-based) chat layout with background + transcription props.
- *
+ * @file CorpoModeView.tsx — Corpo (drawer-based) chat layout with background + transcription props.
  * @module components/chat/CorpoModeView
+ *
+ * Renders the corpo (drawer-based) chat layout consumed by `InterlocutorChat`. It hosts the
+ * background switcher/visualization, the optional control panel, and delegates the drawer
+ * chrome plus message stream/input to `CorpoLayout`. Consumed by `InterlocutorChat` when the
+ * layout mode is `corpo`.
  */
 
 import { SettingsModal } from '@/components/SettingsModal';
@@ -9,10 +13,17 @@ import { CircularVisualization } from '@/components/animations/CircularVisualiza
 import { BackgroundControlPanel } from '@/components/background/BackgroundControlPanel';
 import { BackgroundSwitcher } from '@/components/background/BackgroundSwitcher';
 import { Box } from '@chakra-ui/react';
-import { memo } from 'react';
+import { memo, type JSX } from 'react';
 import { CorpoLayout } from './corpo/CorpoLayout';
 import type { CorpoModeViewProps } from './InterlocutorChatTypes';
 
+/**
+ * Renders the corpo (drawer-based) chat layout.
+ *
+ * @param props - Corpo mode view props.
+ * @returns The corpo mode view element.
+ * @see {@link InterlocutorChatTypes.CorpoModeViewProps} for the prop contract.
+ */
 const CorpoModeViewComponent = ({
   background,
   drawerOpen,
@@ -54,7 +65,7 @@ const CorpoModeViewComponent = ({
   clearAllConversations,
   showPerformanceSettings,
   onClosePerformanceSettings,
-}: CorpoModeViewProps) => {
+}: CorpoModeViewProps): JSX.Element => {
   const {
     backgroundSettings,
     waveformEnabled,
@@ -166,4 +177,9 @@ const CorpoModeViewComponent = ({
   );
 };
 
+/**
+ * Memoized corpo (drawer-based) chat layout.
+ *
+ * @returns The memoized corpo mode view element.
+ */
 export const CorpoModeView = memo(CorpoModeViewComponent);

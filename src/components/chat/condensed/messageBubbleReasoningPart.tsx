@@ -1,10 +1,13 @@
 /**
- * messageBubbleReasoningPart.tsx — Collapsible reasoning/thinking part inside a message bubble.
- *
+ * @file messageBubbleReasoningPart.tsx — Collapsible reasoning/thinking part inside a message bubble.
  * @module components/chat/condensed/messageBubbleReasoningPart
+ *
+ * Collapsible reasoning/thinking part inside a message bubble. Shows an estimated token count
+ * and renders the reasoning markdown when expanded. Consumed by `MessageBubblePart`.
  */
 
 import { Box, HStack, IconButton, Text } from '@chakra-ui/react';
+import type { JSX } from 'react';
 import type { ReasoningUIPart } from 'ai';
 import { HiChevronDown, HiChevronUp } from 'react-icons/hi';
 import { MarkdownRenderer } from '../shared/MarkdownRenderer';
@@ -18,13 +21,19 @@ interface ReasoningPartProps {
   readonly index: number;
 }
 
+/**
+ * Renders a collapsible reasoning/thinking part inside a message bubble.
+ *
+ * @param props - Reasoning part props.
+ * @returns The reasoning part element.
+ */
 export const ReasoningPart = ({
   part,
   sectionId,
   isCollapsed,
   onToggle,
   index,
-}: ReasoningPartProps) => (
+}: ReasoningPartProps): JSX.Element => (
   <Box
     key={index}
     mb={2}

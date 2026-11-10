@@ -1,30 +1,34 @@
 /**
- * messageBubbleTextPart.tsx — Text part renderer with citation and tool-call affordances.
- *
+ * @file messageBubbleTextPart.tsx — Text part renderer with citation and tool-call affordances.
  * @module components/chat/condensed/messageBubbleTextPart
+ *
+ * Text part renderer with citation and tool-call affordances. Renders markdown content,
+ * collapsible citations with links/snippets, collapsible tool input/output, and collapsible
+ * web search results. Consumed by `MessageBubblePart`.
  */
 
 import { Box, HStack, IconButton, Link, Text, VStack } from '@chakra-ui/react';
+import type { JSX } from 'react';
 import { HiChevronDown, HiChevronUp } from 'react-icons/hi';
 import { MarkdownRenderer } from '../shared/MarkdownRenderer';
 import { monoFontFamily } from './messageBubbleUtils';
 
 export interface ExtendedTextPart {
   readonly text?: string;
-  citations?: Array<{
-    id?: string;
-    title?: string;
-    url?: string;
-    snippet?: string;
+  readonly citations?: Array<{
+    readonly id?: string;
+    readonly title?: string;
+    readonly url?: string;
+    readonly snippet?: string;
   }>;
   readonly toolCallId?: string;
   readonly toolName?: string;
   readonly toolInput?: unknown;
   readonly toolOutput?: unknown;
-  searchResults?: Array<{
-    title?: string;
-    url?: string;
-    snippet?: string;
+  readonly searchResults?: Array<{
+    readonly title?: string;
+    readonly url?: string;
+    readonly snippet?: string;
   }>;
 }
 
@@ -36,13 +40,19 @@ interface TextPartProps {
   readonly onToggleSection: (sectionId: string) => void;
 }
 
+/**
+ * Renders a text message part with citations, tool calls, and search results.
+ *
+ * @param props - Text part props.
+ * @returns The text part element.
+ */
 export const TextPart = ({
   part,
   messageId,
   index,
   collapsedSections,
   onToggleSection,
-}: TextPartProps) => (
+}: TextPartProps): JSX.Element => (
   <Box key={index}>
     <MarkdownRenderer
       content={part.text ?? ''}

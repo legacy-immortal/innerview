@@ -1,5 +1,5 @@
 /**
- * messageBubbleUtils.ts — helpers for the condensed message bubbles.
+ * @file messageBubbleUtils.ts — helpers for the condensed message bubbles.
  *
  * Provides token estimation, message-part equality, and the shared style
  * objects used by every message bubble part renderer.
@@ -23,12 +23,13 @@ export function estimateTokenCount(text: string): number {
   return Math.max(1, Math.ceil(text.trim().length / CHARS_PER_TOKEN));
 }
 
-// Format time - memoized per render to avoid recalculation
-// Using static placeholder to avoid unnecessary re-renders
-// Time display is not critical for performance
+// Static placeholder time used to avoid recalculating the clock on every render
+// (time display is not critical for performance).
 export const TIME_PLACEHOLDER = '--:--:--';
 
-// Move CSS objects outside component to ensure stable references
+// CSS objects moved outside components to ensure stable references and prevent
+// unnecessary recreation on every render.
+/** Bubble-level CSS: constrains children, enables wrapping, border-box sizing. */
 export const messageBubbleStyles = {
   '& *': {
     maxWidth: '100%',
@@ -39,19 +40,23 @@ export const messageBubbleStyles = {
   },
 };
 
+/** Subtle white text shadow for the bubble timestamp. */
 export const timeTextStyles = {
   textShadow: '0 0 4px rgba(255, 255, 255, 0.1)',
 };
 
+/** Subtle white text shadow for the › segment separator. */
 export const separatorTextStyles = {
   textShadow: '0 0 4px rgba(255, 255, 255, 0.05)',
 };
 
+/** Faint double text shadow for the message content box. */
 export const contentBoxStyles = {
   textShadow:
     '0 0 4px rgba(255, 255, 255, 0.08), 0 0 8px rgba(255, 255, 255, 0.04)',
 };
 
+/** Monospace font stack used across chat text elements. */
 export const monoFontFamily =
   "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace";
 

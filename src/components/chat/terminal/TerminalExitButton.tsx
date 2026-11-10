@@ -1,18 +1,27 @@
 /**
- * TerminalExitButton.tsx — Button to exit the terminal layout back to chat.
- *
+ * @file TerminalExitButton.tsx — Button to exit the terminal layout back to chat.
  * @module components/chat/terminal/TerminalExitButton
+ *
+ * Button to exit the terminal layout back to chat. A fixed-position ghost button that stops
+ * click/mouse-down propagation so parent handlers do not fire. Consumed by `TerminalChat`.
  */
 
 import { Button } from '@chakra-ui/react';
+import type { JSX } from 'react';
 
 interface TerminalExitButtonProps {
   readonly onExitToChat: () => void;
 }
 
+/**
+ * Button to exit the terminal layout back to chat.
+ *
+ * @param props - Terminal exit button props.
+ * @returns The exit button element.
+ */
 export const TerminalExitButton = ({
   onExitToChat,
-}: TerminalExitButtonProps) => (
+}: TerminalExitButtonProps): JSX.Element => (
   <Button
     position="fixed"
     top={3}

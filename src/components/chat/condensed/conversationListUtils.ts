@@ -1,5 +1,5 @@
 /**
- * conversationListUtils.ts — pure helpers for the conversation list.
+ * @file conversationListUtils.ts — pure helpers for the conversation list.
  *
  * Extracts message text, formats relative dates, yields to the browser to
  * keep the UI responsive, and detects duplicate messages across

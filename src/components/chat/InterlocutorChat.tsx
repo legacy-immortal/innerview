@@ -1,5 +1,5 @@
 /**
- * InterlocutorChat.tsx — root component for the Innerview chat surface.
+ * @file InterlocutorChat.tsx — root component for the Innerview chat surface.
  *
  * Composes state, keyboard, and scrolling hooks, then renders the active
  * layout (`TerminalModeView`, `CorpoModeView`, or `StandardModeView`)
@@ -23,6 +23,9 @@ import { useInterlocutorChatState } from './useInterlocutorChatState';
  * Root chat component; delegates to the active layout mode view.
  *
  * @returns The active layout view.
+ * @see {@link useInterlocutorChatState} for composed state.
+ * @see {@link useInterlocutorChatKeyboard} for keyboard shortcuts.
+ * @see {@link useInterlocutorChatScrolling} for refs and virtualisation.
  */
 export const InterlocutorChat = (): JSX.Element => {
   const {

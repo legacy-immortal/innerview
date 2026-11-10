@@ -1,25 +1,48 @@
 /**
- * useInterlocutorChatScrolling.ts — Scrolling/virtualisation refs for the message stream.
+ * @file useInterlocutorChatScrolling.ts — Scrolling/virtualisation refs for the message stream.
  *
- * @module components/chat/useInterlocutorChatScrollin
+ * @module components/chat/useInterlocutorChatScrolling
  */
 
 import type { ParsedStreamingMessage } from '@/hooks/useStreamingMessages';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { ConversationListRef } from './condensed/ConversationList';
 
-interface UseInterlocutorChatScrollingOptions {
+/** Options for {@link useInterlocutorChatScrolling}. */
+export interface UseInterlocutorChatScrollingOptions {
+  /** Messages currently rendered in the stream. */
   readonly processedMessages: ParsedStreamingMessage[];
+  /** Whether the conversation list overlay is visible. */
   readonly showConversationList: boolean;
+  /** Whether the chat transport is currently loading. */
   readonly isLoading: boolean;
 }
 
+/** Return value of {@link useInterlocutorChatScrolling}. */
+export interface UseInterlocutorChatScrollingResult {
+  readonly conversationListRef: RefObject<ConversationListRef | null>;
+  readonly messagesContainerRef: RefObject<HTMLDivElement | null>;
+  readonly messagesParentRef: RefObject<HTMLDivElement | null>;
+  readonly virtualizer: ReturnType<
+    typeof useVirtualizer<HTMLDivElement, Element>
+  >;
+  readonly isLoadingMessages: boolean;
+  readonly setIsLoadingMessages: Dispatch<SetStateAction<boolean>>;
+}
+
+/**
+ * Provides refs, virtualisation, and auto-scroll behavior for the message stream.
+ *
+ * @param options - Scrolling hook options.
+ * @returns Refs and state for the message list UI.
+ */
 export const useInterlocutorChatScrolling = ({
   processedMessages,
   showConversationList,
   isLoading,
-}: UseInterlocutorChatScrollingOptions) => {
+}: UseInterlocutorChatScrollingOptions): UseInterlocutorChatScrollingResult => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const conversationListRef = useRef<ConversationListRef | null>(null);
@@ -33,7 +56,11 @@ export const useInterlocutorChatScrolling = ({
   const virtualizer = useVirtualizer({
     count: processedMessages.length,
     getScrollElement: () => messagesContainerRef.current,
+    // 150px is the estimated average message height; tanstack-virtual uses this
+    // to lay out off-screen items before they are measured.
     estimateSize: () => 150,
+    // Overscan 5 rows above/below the viewport so scrolling never reveals
+    // unmeasured empty space.
     overscan: 5,
     horizontal: false,
     getItemKey: (index) =>
@@ -79,6 +106,8 @@ export const useInterlocutorChatScrolling = ({
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      // Consider the user "at the bottom" within 100px so minor scrollbar
+      // thumb position doesn't suppress auto-scroll.
       shouldAutoScrollRef.current =
         scrollHeight - scrollTop - clientHeight < 100;
     };
@@ -100,7 +129,7 @@ export const useInterlocutorChatScrolling = ({
           scrollElement.scrollTop = scrollElement.scrollHeight;
           shouldAutoScrollRef.current = true;
         }
-      }, 150);
+      }, 150); // 150ms lets the DOM settle after the view switch before scrolling
 
       return () => clearTimeout(timeoutId);
     }
@@ -132,7 +161,7 @@ export const useInterlocutorChatScrolling = ({
       setIsLoadingMessages(true);
       const timeoutId = setTimeout(() => {
         setIsLoadingMessages(false);
-      }, 800);
+      }, 800); // 800ms loader flash so the transition is visible but brief
       return () => clearTimeout(timeoutId);
     }
     prevShowConversationListRef.current = showConversationList;

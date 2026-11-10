@@ -1,7 +1,10 @@
 /**
- * ErrorAlert.tsx — Dismissible error banner with copy-to-clipboard diagnostics.
- *
+ * @file ErrorAlert.tsx — Dismissible error banner with copy-to-clipboard diagnostics.
  * @module components/chat/shared/ErrorAlert
+ *
+ * Dismissible error banner with copy-to-clipboard diagnostics. Shows the error code, message,
+ * suggestion, and stack with a copy button and dismiss button. Consumed by
+ * `StandardModeView`, `CorpoModeView`, and `ChatDebugMenu`.
  */
 
 import { Box, IconButton } from '@chakra-ui/react';
@@ -20,6 +23,12 @@ function buildErrorCopyText(error: InterlocutorChatError): string {
   return lines.join('\n');
 }
 
+/**
+ * Dismissible error banner with copy-to-clipboard diagnostics.
+ *
+ * @param props - Error alert props.
+ * @returns The error banner element.
+ */
 export function ErrorAlert({
   error,
   onClose,

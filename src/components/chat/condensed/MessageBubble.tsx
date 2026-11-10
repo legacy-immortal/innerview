@@ -1,7 +1,11 @@
 /**
- * MessageBubble.tsx — Full message bubble composing header, parts, and footer.
- *
+ * @file MessageBubble.tsx — Full message bubble composing header, parts, and footer.
  * @module components/chat/condensed/MessageBubble
+ *
+ * Full message bubble composing header, parts, and footer. Renders the role label/timestamp,
+ * a collapsible reasoning section by default, and dispatches each message part to its
+ * renderer (`MessageBubblePart`). Memoized by message identity and deep part equality.
+ * Consumed by `MessagesContainer`.
  */
 
 import type { ParsedStreamingMessage } from '@/hooks/useStreamingMessages';
@@ -132,8 +136,12 @@ const MessageBubbleComponent = ({
   );
 };
 
-// Memoize the component with custom comparison to prevent unnecessary re-renders
-// Only re-render if message id, role, or parts content actually change
+/**
+ * Memoized message bubble; re-renders only when identity or parts content change.
+ *
+ * @param props - Message bubble props.
+ * @returns The memoized message bubble element.
+ */
 export const MessageBubble = React.memo(
   MessageBubbleComponent,
   (prevProps, nextProps) => {

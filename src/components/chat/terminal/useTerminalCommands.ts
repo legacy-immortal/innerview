@@ -1,14 +1,20 @@
 /**
- * useTerminalCommands.ts — Hook dispatching terminal input to mode-specific command handlers.
+ * @file useTerminalCommands.ts — Hook dispatching terminal input to mode-specific command handlers.
+ * @module components/chat/terminal/useTerminalCommands
  *
- * @module components/chat/terminal/useTerminalCommand
+ * Hook dispatching terminal input to mode-specific command handlers. Builds the command map,
+ * prompt label, and sorted conversations for the active mode (filesystem, conversation-preview,
+ * or conversation-active). Consumed by `TerminalChat`.
  */
 
 import { useConversationStore } from '@/lib/conversation-store';
 import { useCallback, useMemo } from 'react';
 import type Terminal from 'react-console-emulator';
 import type { RefObject } from 'react';
-import { createCommandModeCommands } from './commands/commandModeCommands';
+import {
+  createCommandModeCommands,
+  type CommandDefinition,
+} from './commands/commandModeCommands';
 import { createConversationDetailModeCommands } from './commands/conversationDetailModeCommands';
 import { createConversationModeCommands } from './commands/conversationModeCommands';
 import { useTerminalFormatting } from './terminalFormatting';
@@ -30,6 +36,12 @@ interface UseTerminalCommandsOptions {
   readonly terminalRef: RefObject<InstanceType<typeof Terminal> | null>;
 }
 
+/**
+ * Hook dispatching terminal input to mode-specific command handlers.
+ *
+ * @param options - Terminal commands hook options.
+ * @returns Commands map, prompt label, and sorted conversations.
+ */
 export const useTerminalCommands = ({
   mode,
   conversations,
@@ -41,7 +53,11 @@ export const useTerminalCommands = ({
   onCreateConversation,
   onExitToChat,
   terminalRef,
-}: UseTerminalCommandsOptions) => {
+}: UseTerminalCommandsOptions): {
+  commands: Record<string, CommandDefinition>;
+  promptLabel: string;
+  sortedConversations: TerminalConversationSummary[];
+} => {
   const deleteConversation = useConversationStore(
     (state) => state.deleteConversation
   );

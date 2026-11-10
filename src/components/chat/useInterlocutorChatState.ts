@@ -1,5 +1,5 @@
 /**
- * useInterlocutorChatState.ts — composed state hook for the chat surface.
+ * @file useInterlocutorChatState.ts — composed state hook for the chat surface.
  *
  * Aggregates settings, conversation management, chat transport, streaming,
  * text-to-speech, and visualization state into one stable object consumed by
@@ -31,13 +31,7 @@ export const MAX_CONTEXT_TOKENS = 128_000;
 /** Approximate characters per token used when estimating usage. */
 const CHARS_PER_TOKEN = 4;
 
-/**
- * Composes all chat-surface state (settings, conversation, transport,
- * streaming, TTS, visualization) into a single object for `InterlocutorChat`.
- *
- * @returns Flat chat state consumed by the layout views.
- */
-export const useInterlocutorChatState = () => {
+const useInterlocutorChatStateImpl = () => {
   // ============================================================================
   // SETTINGS & CONFIGURATION
   // ============================================================================
@@ -319,3 +313,17 @@ export const useInterlocutorChatState = () => {
     visualizationTypeRef,
   };
 };
+
+/** Composed chat state returned by {@link useInterlocutorChatState}. */
+export type InterlocutorChatState = ReturnType<
+  typeof useInterlocutorChatStateImpl
+>;
+
+/**
+ * Composes all chat-surface state (settings, conversation, transport,
+ * streaming, TTS, visualization) into a single object for `InterlocutorChat`.
+ *
+ * @returns Flat chat state consumed by the layout views.
+ */
+export const useInterlocutorChatState = (): InterlocutorChatState =>
+  useInterlocutorChatStateImpl();

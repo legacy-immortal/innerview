@@ -1,11 +1,22 @@
 /**
- * ResizableSidebar.tsx — Drag-resizable sidebar with fullscreen toggle for the condensed layout.
- *
+ * @file ResizableSidebar.tsx — Drag-resizable sidebar with fullscreen toggle for the condensed layout.
  * @module components/chat/condensed/ResizableSidebar
+ *
+ * Drag-resizable sidebar with fullscreen toggle for the condensed layout. Manages internal
+ * visibility unless controlled via `visible`, clamps resize to `minWidth`/`maxWidth`, and
+ * exposes an optional `toolbar` rendered at the start of the control strip. Consumed by
+ * `StandardModeView` and `TerminalModeView`.
  */
 
 import { Box, HStack, IconButton } from '@chakra-ui/react';
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ReactNode,
+  type JSX,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { HiArrowsExpand, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 
 interface ResizableSidebarProps {
@@ -23,6 +34,12 @@ interface ResizableSidebarProps {
   readonly toolbar?: ReactNode;
 }
 
+/**
+ * Drag-resizable sidebar with fullscreen toggle for the condensed layout.
+ *
+ * @param props - Resizable sidebar props.
+ * @returns The sidebar element.
+ */
 export const ResizableSidebar = ({
   children,
   defaultWidth = 400,
@@ -35,7 +52,7 @@ export const ResizableSidebar = ({
   hideToggle = false,
   fullWidth = false,
   toolbar,
-}: ResizableSidebarProps) => {
+}: ResizableSidebarProps): JSX.Element => {
   const [internalVisible, setInternalVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(defaultWidth);
   const [isResizing, setIsResizing] = useState(false);

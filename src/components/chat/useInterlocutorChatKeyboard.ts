@@ -1,34 +1,61 @@
 /**
- * useInterlocutorChatKeyboard.ts — Keyboard shortcuts (submit, exit terminal, transcription) for chat.
+ * @file useInterlocutorChatKeyboard.ts — Keyboard shortcuts (submit, exit terminal, transcription) for chat.
  *
- * @module components/chat/useInterlocutorChatKeyboar
+ * @module components/chat/useInterlocutorChatKeyboard
  */
 
 import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
 import { useTranscription } from '@/hooks/useTranscription';
-import { useHotkeys } from 'react-hotkeys-hook';
 import type { MutableRefObject } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import type {
+  KeyboardSettings,
+  TranscriptionSettings,
+} from '@/lib/settings-types';
 
-interface UseInterlocutorChatKeyboardOptions {
+/** Options for {@link useInterlocutorChatKeyboard}. */
+export interface UseInterlocutorChatKeyboardOptions {
+  /** Current input text. */
   readonly input: string;
+  /** Updates the input text. */
   readonly setInput: (value: string) => void;
+  /** Submits a message to the chat transport. */
   readonly handleSubmitMessage: (text: string) => void;
+  /** Whether the chat transport is currently loading. */
   readonly isLoading: boolean;
+  /** Whether the performance/settings modal is open. */
   readonly showPerformanceSettings: boolean;
+  /** Whether waveform/visualization shortcuts are active. */
   readonly waveformEnabled: boolean;
+  /** Navigates the active visualization type. */
   readonly navigateToVisualizationType: (
     direction: 'next' | 'prev',
     current: 'waveform' | 'gauge' | 'pie' | 'clock'
   ) => void;
+  /** Ref tracking the current visualization type. */
   readonly visualizationTypeRef: MutableRefObject<
     'waveform' | 'gauge' | 'pie' | 'clock'
   >;
-  readonly getKeyboardSettings: () =>
-    import('@/lib/settings-types').KeyboardSettings | null;
-  readonly getTranscriptionSettings: () =>
-    import('@/lib/settings-types').TranscriptionSettings | null;
+  /** Returns keyboard settings from the store. */
+  readonly getKeyboardSettings: () => KeyboardSettings | null;
+  /** Returns transcription settings from the store. */
+  readonly getTranscriptionSettings: () => TranscriptionSettings | null;
 }
 
+/** Return value of {@link useInterlocutorChatKeyboard}. */
+export interface UseInterlocutorChatKeyboardResult {
+  readonly keyboardEnabled: boolean;
+  readonly exitTerminalKey: string;
+  readonly transcription: ReturnType<typeof useTranscription>;
+  readonly isInputFocusedRef: MutableRefObject<boolean>;
+}
+
+/**
+ * Registers chat keyboard shortcuts and returns transcription/shortcut state.
+ *
+ * @param options - Keyboard hook options.
+ * @returns Keyboard and transcription state.
+ */
 export const useInterlocutorChatKeyboard = ({
   input,
   setInput,
@@ -40,7 +67,7 @@ export const useInterlocutorChatKeyboard = ({
   visualizationTypeRef,
   getKeyboardSettings,
   getTranscriptionSettings,
-}: UseInterlocutorChatKeyboardOptions) => {
+}: UseInterlocutorChatKeyboardOptions): UseInterlocutorChatKeyboardResult => {
   // ============================================================================
   // KEYBOARD SHORTCUTS
   // ============================================================================

@@ -1,11 +1,10 @@
 /**
- * contextCounterUtils.ts — context counter contracts and number formatting.
- *
- * Owns the React context carrying token-usage state plus typed formatters
- * (percent, compact, currency) shared by the ContextCounter components.
- * All exported helpers carry explicit return types per Microsoft style.
- *
+ * @file contextCounterUtils.ts — Context counter contracts and number formatting.
  * @module components/chat/shared/contextCounterUtils
+ *
+ * Owns the React context carrying token-usage state plus typed formatters (percent, compact,
+ * currency) shared by the ContextCounter components. All exported helpers carry explicit return
+ * types per Microsoft style. Consumed across the context-counter component family.
  */
 
 import type { LanguageModelUsage } from 'ai';

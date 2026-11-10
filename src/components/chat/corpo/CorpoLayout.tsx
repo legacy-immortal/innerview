@@ -1,5 +1,5 @@
 /**
- * CorpoLayout.tsx — Frame for the corpo layout (drawer, header, content slot).
+ * @file CorpoLayout.tsx — Frame for the corpo layout (drawer, header, content slot).
  *
  * @module components/chat/corpo/CorpoLayout
  */
@@ -47,10 +47,10 @@ export interface CorpoLayoutProps {
   readonly sidebarBackgroundColor: string;
   readonly usedTokens: number;
   readonly maxContextTokens: number;
-  tokenUsage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
+  readonly tokenUsage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+    readonly totalTokens: number;
   };
   readonly onTranscriptionComplete: (text: string) => void;
   readonly onTranscriptionStart?: () => void;
@@ -365,4 +365,5 @@ function CorpoLayoutComponent({
   );
 }
 
+/** Memoized corpo layout chrome (drawer, header, message area, input). */
 export const CorpoLayout = memo(CorpoLayoutComponent);

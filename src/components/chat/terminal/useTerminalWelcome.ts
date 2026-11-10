@@ -1,7 +1,10 @@
 /**
- * useTerminalWelcome.ts — Hook showing the welcome banner once per terminal session.
+ * @file useTerminalWelcome.ts — Hook showing the welcome banner once per terminal session.
+ * @module components/chat/terminal/useTerminalWelcome
  *
- * @module components/chat/terminal/useTerminalWelcom
+ * Hook showing the welcome banner once per terminal session. Pushes the Ubuntu-style banner
+ * via the terminal ref exactly once (avoiding the library's double-fire under Strict Mode) and
+ * resets the flag when leaving filesystem mode. Consumed by `TerminalChat`.
  */
 
 import { useEffect } from 'react';
@@ -15,15 +18,17 @@ import {
 import type { TerminalMode } from './terminalTypes';
 
 /**
- * Push system info ourselves so it shows exactly once (library's welcomeMessage runs in
- * componentDidMount and fires twice under Strict Mode; we avoid it and push via ref)
- * Also tracks mode changes to reset welcome message flag when switching modes.
+ * Hook showing the welcome banner once per terminal session.
+ *
+ * @param mode - Current terminal mode.
+ * @param systemInfo - Banner text to push once.
+ * @param terminalRef - Terminal emulator ref.
  */
 export const useTerminalWelcome = (
   mode: TerminalMode,
   systemInfo: string,
   terminalRef: RefObject<InstanceType<typeof Terminal> | null>
-) => {
+): void => {
   useEffect(() => {
     resetWelcomeIfLeavingFilesystem(mode);
   }, [mode]);

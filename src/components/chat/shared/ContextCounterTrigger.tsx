@@ -1,7 +1,9 @@
 /**
- * ContextCounterTrigger.tsx — Trigger button + icon for the context meter hover card.
- *
+ * @file ContextCounterTrigger.tsx — Trigger button + icon for the context meter hover card.
  * @module components/chat/shared/ContextCounterTrigger
+ *
+ * Trigger button + icon for the context meter hover card. Exports `ContextIcon` (circular
+ * usage gauge), `TokensWithCost`, and `ContextTrigger`. Consumed by `ContextCounterContent`.
  */
 
 import { Button, HoverCard, Text } from '@chakra-ui/react';
@@ -14,7 +16,11 @@ import {
   useContextValue,
 } from './contextCounterUtils';
 
-/** Circular usage icon for the context meter. */
+/**
+ * Circular usage icon for the context meter.
+ *
+ * @returns The context usage icon element (SVG ring).
+ */
 export const ContextIcon = (): JSX.Element => {
   const { usedTokens, maxTokens } = useContextValue();
   const circumference = 2 * Math.PI * ICON_RADIUS;
@@ -63,15 +69,21 @@ export const ContextIcon = (): JSX.Element => {
   );
 };
 
+/**
+ * Token count with optional cost text for the context meter.
+ *
+ * @param props - TokensWithCost props.
+ * @returns The tokens/cost text element.
+ */
 export const TokensWithCost = ({
   tokens,
   costText,
   displayCost,
 }: {
-  tokens?: number;
-  costText?: string;
-  displayCost?: boolean;
-}) => (
+  readonly tokens?: number;
+  readonly costText?: string;
+  readonly displayCost?: boolean;
+}): JSX.Element => (
   <Text
     fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
     css={{
@@ -101,6 +113,12 @@ export const TokensWithCost = ({
 
 export type ContextTriggerProps = ComponentProps<typeof Button>;
 
+/**
+ * Trigger button + icon for the context meter hover card.
+ *
+ * @param props - Button props passed through to the trigger.
+ * @returns The trigger element.
+ */
 export const ContextTrigger = ({
   children,
   ...props

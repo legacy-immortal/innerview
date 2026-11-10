@@ -1,7 +1,9 @@
 /**
- * TerminalLayout.tsx — Frame (banner + viewport) for the terminal layout.
- *
+ * @file TerminalLayout.tsx — Frame (banner + viewport) for the terminal layout.
  * @module components/chat/terminal/TerminalLayout
+ *
+ * Frame (banner + viewport) for the terminal layout. A fixed fullscreen `VStack` with a single
+ * scrollable child box. Consumed by `TerminalModeView`.
  */
 
 import { Box, VStack } from '@chakra-ui/react';

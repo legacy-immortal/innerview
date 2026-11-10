@@ -1,5 +1,5 @@
 /**
- * terminalSystemInfo.ts — terminal session state and banner generation.
+ * @file terminalSystemInfo.ts — terminal session state and banner generation.
  *
  * Holds the module-level terminal session flags (`globalWelcomeShown`,
  * `currentMode`) and generates the fake Ubuntu login banner shown when the

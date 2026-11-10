@@ -1,5 +1,5 @@
 /**
- * InterlocutorChatTypes.ts — shared contracts for the Innerview chat surface.
+ * @file InterlocutorChatTypes.ts — shared contracts for the Innerview chat surface.
  *
  * Centralises the prop and state shapes that flow between `InterlocutorChat`
  * and its three layout modes (standard, corpo, terminal) so every view can
@@ -70,7 +70,7 @@ export interface TranscriptionState {
 }
 
 /** Props for the terminal (CLI-style) layout. */
-export type TerminalModeViewProps = ChatBackgroundProps & {
+export interface TerminalModeViewProps extends ChatBackgroundProps {
   readonly processedMessages: ParsedStreamingMessage[];
   readonly isLoading: boolean;
   readonly isLoadingMessages: boolean;
@@ -79,97 +79,96 @@ export type TerminalModeViewProps = ChatBackgroundProps & {
   readonly onCreateConversation: () => void;
   readonly onExitToChat: () => void;
   readonly onConversationLoad: (conversationId: string) => void;
-};
+}
 
 /** Props for the standard (two-pane) layout. */
-export type StandardModeViewProps = ChatBackgroundProps &
-  StoreFunctions & {
-    readonly sidebarVisible: boolean;
-    readonly onSidebarVisibleChange: (visible: boolean) => void;
-    readonly sidebarBackgroundColor: string;
-    readonly sidebarHeaderBackgroundColor: string;
-    readonly promptInputBackgroundColor: string;
-    readonly showConversationList: boolean;
-    readonly onToggleConversationList: () => void;
-    readonly onCreateConversation: () => string;
-    readonly canStop: boolean;
-    readonly onStop: () => void;
-    readonly canRegenerate: boolean;
-    readonly onRegenerate: () => void;
-    readonly ttsEnabled: boolean;
-    readonly onTtsToggle: () => void;
-    readonly onStopAudio: () => void;
-    readonly onShowPerformanceSettings: () => void;
-    readonly effectiveConversationId: string;
-    readonly conversations: Conversation[];
-    readonly conversationListRef: { current: ConversationListRef | null };
-    readonly onConversationSelect: () => void;
-    readonly chatError: InterlocutorChatError | null;
-    readonly onCloseError: () => void;
-    readonly messagesContainerRef: { current: HTMLDivElement | null };
-    readonly messagesParentRef: { current: HTMLDivElement | null };
-    readonly virtualizer: ReturnType<
-      typeof useVirtualizer<HTMLDivElement, Element>
-    >;
-    readonly processedMessages: ParsedStreamingMessage[];
-    readonly isLoading: boolean;
-    readonly isLoadingMessages: boolean;
-    readonly onDeleteMessage: (messageId: string) => void;
-    readonly input: string;
-    readonly onInputChange: (value: string) => void;
-    readonly onSubmit: (text: string) => void;
-    readonly usedTokens: number;
-    readonly maxContextTokens: number;
-    readonly tokenUsage: TokenUsage;
-    readonly onTranscriptionComplete: (text: string) => void;
-    readonly onTranscriptionStart: () => void;
-    readonly onTranscriptionStop: () => void;
-    readonly disableTranscription: boolean;
-    readonly transcription: TranscriptionState;
-    readonly showPerformanceSettings: boolean;
-    readonly onClosePerformanceSettings: () => void;
-  };
+export interface StandardModeViewProps
+  extends ChatBackgroundProps, StoreFunctions {
+  readonly sidebarVisible: boolean;
+  readonly onSidebarVisibleChange: (visible: boolean) => void;
+  readonly sidebarBackgroundColor: string;
+  readonly sidebarHeaderBackgroundColor: string;
+  readonly promptInputBackgroundColor: string;
+  readonly showConversationList: boolean;
+  readonly onToggleConversationList: () => void;
+  readonly onCreateConversation: () => string;
+  readonly canStop: boolean;
+  readonly onStop: () => void;
+  readonly canRegenerate: boolean;
+  readonly onRegenerate: () => void;
+  readonly ttsEnabled: boolean;
+  readonly onTtsToggle: () => void;
+  readonly onStopAudio: () => void;
+  readonly onShowPerformanceSettings: () => void;
+  readonly effectiveConversationId: string;
+  readonly conversations: Conversation[];
+  readonly conversationListRef: { current: ConversationListRef | null };
+  readonly onConversationSelect: () => void;
+  readonly chatError: InterlocutorChatError | null;
+  readonly onCloseError: () => void;
+  readonly messagesContainerRef: { current: HTMLDivElement | null };
+  readonly messagesParentRef: { current: HTMLDivElement | null };
+  readonly virtualizer: ReturnType<
+    typeof useVirtualizer<HTMLDivElement, Element>
+  >;
+  readonly processedMessages: ParsedStreamingMessage[];
+  readonly isLoading: boolean;
+  readonly isLoadingMessages: boolean;
+  readonly onDeleteMessage: (messageId: string) => void;
+  readonly input: string;
+  readonly onInputChange: (value: string) => void;
+  readonly onSubmit: (text: string) => void;
+  readonly usedTokens: number;
+  readonly maxContextTokens: number;
+  readonly tokenUsage: TokenUsage;
+  readonly onTranscriptionComplete: (text: string) => void;
+  readonly onTranscriptionStart: () => void;
+  readonly onTranscriptionStop: () => void;
+  readonly disableTranscription: boolean;
+  readonly transcription: TranscriptionState;
+  readonly showPerformanceSettings: boolean;
+  readonly onClosePerformanceSettings: () => void;
+}
 
 /** Props for the corpo (drawer-based) layout. */
-export type CorpoModeViewProps = {
+export interface CorpoModeViewProps extends StoreFunctions {
   readonly background: ChatBackgroundProps;
-} & StoreFunctions & {
-    readonly drawerOpen: boolean;
-    readonly onDrawerOpenChange: (open: boolean) => void;
-    readonly processedMessages: ParsedStreamingMessage[];
-    readonly isLoading: boolean;
-    readonly isLoadingMessages: boolean;
-    readonly messagesContainerRef: { current: HTMLDivElement | null };
-    readonly messagesParentRef: { current: HTMLDivElement | null };
-    readonly virtualizer: ReturnType<
-      typeof useVirtualizer<HTMLDivElement, Element>
-    >;
-    readonly input: string;
-    readonly onInputChange: (value: string) => void;
-    readonly onSubmit: (text: string) => void;
-    readonly promptInputBackgroundColor: string;
-    readonly sidebarBackgroundColor: string;
-    readonly usedTokens: number;
-    readonly maxContextTokens: number;
-    readonly tokenUsage: TokenUsage;
-    readonly onTranscriptionComplete: (text: string) => void;
-    readonly onTranscriptionStart: () => void;
-    readonly onTranscriptionStop: () => void;
-    readonly disableTranscription: boolean;
-    readonly transcription: TranscriptionState;
-    readonly conversationListRef: { current: ConversationListRef | null };
-    readonly onConversationSelect: () => void;
-    readonly createConversation: () => void;
-    readonly onShowPerformanceSettings: () => void;
-    readonly onDeleteMessage: (messageId: string) => void;
-    readonly chatError: InterlocutorChatError | null;
-    readonly onCloseError: () => void;
-    readonly ttsEnabled: boolean;
-    readonly onTtsToggle: () => void;
-    readonly isTTSSpeaking: boolean;
-    readonly onStopAudio: () => void;
-    readonly effectiveConversationId: string;
-    readonly conversations: Conversation[];
-    readonly showPerformanceSettings: boolean;
-    readonly onClosePerformanceSettings: () => void;
-  };
+  readonly drawerOpen: boolean;
+  readonly onDrawerOpenChange: (open: boolean) => void;
+  readonly processedMessages: ParsedStreamingMessage[];
+  readonly isLoading: boolean;
+  readonly isLoadingMessages: boolean;
+  readonly messagesContainerRef: { current: HTMLDivElement | null };
+  readonly messagesParentRef: { current: HTMLDivElement | null };
+  readonly virtualizer: ReturnType<
+    typeof useVirtualizer<HTMLDivElement, Element>
+  >;
+  readonly input: string;
+  readonly onInputChange: (value: string) => void;
+  readonly onSubmit: (text: string) => void;
+  readonly promptInputBackgroundColor: string;
+  readonly sidebarBackgroundColor: string;
+  readonly usedTokens: number;
+  readonly maxContextTokens: number;
+  readonly tokenUsage: TokenUsage;
+  readonly onTranscriptionComplete: (text: string) => void;
+  readonly onTranscriptionStart: () => void;
+  readonly onTranscriptionStop: () => void;
+  readonly disableTranscription: boolean;
+  readonly transcription: TranscriptionState;
+  readonly conversationListRef: { current: ConversationListRef | null };
+  readonly onConversationSelect: () => void;
+  readonly createConversation: () => void;
+  readonly onShowPerformanceSettings: () => void;
+  readonly onDeleteMessage: (messageId: string) => void;
+  readonly chatError: InterlocutorChatError | null;
+  readonly onCloseError: () => void;
+  readonly ttsEnabled: boolean;
+  readonly onTtsToggle: () => void;
+  readonly isTTSSpeaking: boolean;
+  readonly onStopAudio: () => void;
+  readonly effectiveConversationId: string;
+  readonly conversations: Conversation[];
+  readonly showPerformanceSettings: boolean;
+  readonly onClosePerformanceSettings: () => void;
+}

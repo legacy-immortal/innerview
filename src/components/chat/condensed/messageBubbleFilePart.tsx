@@ -1,7 +1,10 @@
 /**
- * messageBubbleFilePart.tsx — Renders an attached-file part inside a message bubble.
- *
+ * @file messageBubbleFilePart.tsx — Renders an attached-file part inside a message bubble.
  * @module components/chat/condensed/messageBubbleFilePart
+ *
+ * Renders an attached-file part inside a message bubble. Shows filename/media type and a
+ * download link (data URLs) or open link (remote URLs), falling back to "File data not
+ * available". Consumed by `MessageBubblePart`.
  */
 
 import { Box, Link, Text } from '@chakra-ui/react';
@@ -12,7 +15,12 @@ interface FilePartProps {
   readonly index: number;
 }
 
-/** Renders a single attached-file part of a message bubble. */
+/**
+ * Renders a single attached-file part of a message bubble.
+ *
+ * @param props - File part props.
+ * @returns The file part element.
+ */
 export const FilePart = ({ part, index }: FilePartProps): JSX.Element => {
   const fileUrl = 'url' in part ? String(part.url ?? '') : '';
   const isDataUrl = fileUrl.startsWith('data:');

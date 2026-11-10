@@ -1,7 +1,9 @@
 /**
- * ContextCounterContent.tsx — Hover-card content (header, body, footer) for the context meter.
- *
+ * @file ContextCounterContent.tsx — Hover-card content (header, body, footer) for the context meter.
  * @module components/chat/shared/ContextCounterContent
+ *
+ * Hover-card content (header, body, footer) for the context meter. Renders the percent bar,
+ * input/output/reasoning/cache usage rows, and total cost. Consumed by `ContextCounterTrigger`.
  */
 
 import {
@@ -12,7 +14,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, JSX } from 'react';
 import {
   PERCENT_MAX,
   formatCompact,
@@ -24,10 +26,16 @@ import {
 
 export type ContextContentProps = ComponentProps<typeof HoverCard.Content>;
 
+/**
+ * Hover-card content panel for the context meter.
+ *
+ * @param props - Context content props.
+ * @returns The content element.
+ */
 export const ContextContent = ({
   className,
   ...props
-}: ContextContentProps) => (
+}: ContextContentProps): JSX.Element => (
   <HoverCard.Content
     minW={{ base: 'min(240px, calc(100vw - 2rem))', md: '240px' }}
     maxW="calc(100vw - 2rem)"
@@ -54,11 +62,17 @@ export const ContextContent = ({
 
 export type ContextContentHeaderProps = ComponentProps<typeof Box>;
 
+/**
+ * Header section of the context meter hover card.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The header element.
+ */
 export const ContextContentHeader = ({
   children,
   className,
   ...props
-}: ContextContentHeaderProps) => {
+}: ContextContentHeaderProps): JSX.Element => {
   const { usedTokens, maxTokens } = useContextValue();
   const usedPercent = usedTokens / maxTokens;
   const displayPct = formatPercent(usedPercent);
@@ -122,11 +136,17 @@ export const ContextContentHeader = ({
 
 export type ContextContentBodyProps = ComponentProps<typeof Box>;
 
+/**
+ * Body section of the context meter hover card.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The body element.
+ */
 export const ContextContentBody = ({
   children,
   className,
   ...props
-}: ContextContentBodyProps) => (
+}: ContextContentBodyProps): JSX.Element => (
   <Box
     w="100%"
     p={3}
@@ -140,11 +160,17 @@ export const ContextContentBody = ({
 
 export type ContextContentFooterProps = ComponentProps<typeof Box>;
 
+/**
+ * Footer section of the context meter hover card (total cost).
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The footer element.
+ */
 export const ContextContentFooter = ({
   children,
   className,
   ...props
-}: ContextContentFooterProps) => {
+}: ContextContentFooterProps): JSX.Element => {
   const { modelId, usage } = useContextValue();
   const costUSD = getCostUSD(modelId, {
     input: usage?.inputTokens ?? 0,

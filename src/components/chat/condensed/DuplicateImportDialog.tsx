@@ -1,10 +1,13 @@
 /**
- * DuplicateImportDialog.tsx — Confirmation dialog shown when an import would duplicate messages.
- *
+ * @file DuplicateImportDialog.tsx — Confirmation dialog shown when an import would duplicate messages.
  * @module components/chat/condensed/DuplicateImportDialog
+ *
+ * Confirmation dialog shown when an import would duplicate messages. Lets the user overwrite
+ * existing message IDs or cancel. Consumed by `ConversationList` via `useConversationImport`.
  */
 
 import { Button, Dialog, Portal, Text, VStack } from '@chakra-ui/react';
+import type { JSX } from 'react';
 
 interface DuplicateImportDialogProps {
   readonly open: boolean;
@@ -13,12 +16,18 @@ interface DuplicateImportDialogProps {
   readonly onConfirm: () => void;
 }
 
+/**
+ * Confirmation dialog shown when an import would duplicate messages.
+ *
+ * @param props - Duplicate import dialog props.
+ * @returns The dialog element.
+ */
 export const DuplicateImportDialog = ({
   open,
   duplicateCount,
   onCancel,
   onConfirm,
-}: DuplicateImportDialogProps) => (
+}: DuplicateImportDialogProps): JSX.Element => (
   <Dialog.Root
     open={open}
     onOpenChange={(e) => {

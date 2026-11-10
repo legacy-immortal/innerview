@@ -1,7 +1,11 @@
 /**
- * useConversationImport.ts — Conversation import flow with duplicate detection and progress state.
+ * @file useConversationImport.ts — Conversation import flow with duplicate detection and progress state.
+ * @module components/chat/condensed/useConversationImport
  *
- * @module components/chat/condensed/useConversationImpor
+ * Conversation import flow with duplicate detection and progress state. Parses single or
+ * multiple conversation files, checks for duplicate message IDs via `checkForDuplicates`, and
+ * either imports directly or presents a pending overwrite dialog. Yields to the browser between
+ * steps to keep the UI responsive. Consumed by `ConversationList`.
  */
 
 import { toaster } from '@/components/ui/toaster';
@@ -33,11 +37,14 @@ export interface ImportProgressState {
 
 export interface UseConversationImportResult {
   readonly importProgress: ImportProgressState;
-  pendingImport: {
-    type: 'single' | 'multiple';
-    single?: ImportData;
-    multiple?: ImportData[];
-    duplicateMap?: Map<string, { conversationId: string; message: UIMessage }>;
+  readonly pendingImport: {
+    readonly type: 'single' | 'multiple';
+    readonly single?: ImportData;
+    readonly multiple?: ImportData[];
+    readonly duplicateMap?: Map<
+      string,
+      { conversationId: string; message: UIMessage }
+    >;
   } | null;
   readonly duplicateCount: number;
   readonly duplicateDialogOpen: boolean;
@@ -48,6 +55,12 @@ export interface UseConversationImportResult {
   readonly handleCancelOverwrite: () => void;
 }
 
+/**
+ * Conversation import flow with duplicate detection and progress state.
+ *
+ * @param fileInputRef - Ref to the hidden file input used to select import files.
+ * @returns Import result state and handlers.
+ */
 export const useConversationImport = (
   fileInputRef: RefObject<HTMLInputElement | null>
 ): UseConversationImportResult => {
@@ -80,7 +93,7 @@ export const useConversationImport = (
     isImporting: false,
     currentStep: '',
     progress: 0,
-    totalSteps: 100, // More granular steps
+    totalSteps: 100, // Progress reported on a 0-100 scale for the UI bar
   });
 
   const handleFileImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -133,7 +146,8 @@ export const useConversationImport = (
           total: number
         ) => {
           if (importCancelledRef.current) return;
-          // Map progress to 10-80% range (parsing is 0-10%, processing is 10-80%)
+          // Map progress to 10-80% range: parsing occupies 0-10%, processing
+          // occupies 10-80%, duplicate-check/save occupy 80-100%.
           const progressPercent = 10 + Math.floor((current / total) * 70);
           setImportProgress((prev) => ({
             ...prev,
@@ -218,7 +232,7 @@ export const useConversationImport = (
             // Hide progress bar after a delay
             setTimeout(() => {
               setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 1500);
+            }, 1500); // 1.5s lets the user read the "Complete" toast before hiding the bar
 
             toaster.create({
               title: 'Conversation imported',
@@ -268,7 +282,7 @@ export const useConversationImport = (
             const messageProgress =
               (current / total) * (70 / totalConversations);
             const progressPercent =
-              10 + Math.floor(conversationProgress + messageProgress);
+              10 + Math.floor(conversationProgress + messageProgress); // 10% base for parsing, then 70% split across conversations
             setImportProgress((prev) => ({
               ...prev,
               currentStep: `Processing conversation ${convIndex + 1}/${totalConversations}: ${step}`,
@@ -345,7 +359,7 @@ export const useConversationImport = (
             // Hide progress bar after a delay
             setTimeout(() => {
               setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 1500);
+            }, 1500); // 1.5s lets the user read the "Complete" toast before hiding the bar
 
             toaster.create({
               title: 'Conversations imported',

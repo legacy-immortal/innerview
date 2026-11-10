@@ -1,7 +1,10 @@
 /**
- * ConversationListToolbar.tsx — Toolbar above the conversation list (search, import, clear).
- *
+ * @file ConversationListToolbar.tsx — Toolbar above the conversation list (search, import, clear).
  * @module components/chat/condensed/ConversationListToolbar
+ *
+ * Toolbar above the conversation list (search, import, clear). Renders the new-conversation
+ * button, hidden file import input, search field, and sort-order toggle. Consumed by
+ * `ConversationList`.
  */
 
 import {
@@ -13,7 +16,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { HiArrowDown, HiArrowUp, HiPlus, HiSearch } from 'react-icons/hi';
-import type { RefObject } from 'react';
+import type { JSX, RefObject } from 'react';
 
 interface ConversationListToolbarProps {
   readonly headerBackgroundColor: string;
@@ -26,6 +29,12 @@ interface ConversationListToolbarProps {
   readonly onFileImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+/**
+ * Toolbar above the conversation list (search, import, clear).
+ *
+ * @param props - Conversation list toolbar props.
+ * @returns The toolbar element.
+ */
 export const ConversationListToolbar = ({
   headerBackgroundColor,
   fileInputRef,
@@ -35,7 +44,7 @@ export const ConversationListToolbar = ({
   onSortOrderToggle,
   onCreateConversation,
   onFileImport,
-}: ConversationListToolbarProps) => (
+}: ConversationListToolbarProps): JSX.Element => (
   <Box
     p={2}
     borderBottom="1px solid"

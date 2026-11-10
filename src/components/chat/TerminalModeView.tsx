@@ -1,19 +1,30 @@
 /**
- * TerminalModeView.tsx — Wiring view that hosts the terminal layout inside the chat surface.
- *
+ * @file TerminalModeView.tsx — Wiring view that hosts the terminal layout inside the chat surface.
  * @module components/chat/TerminalModeView
+ *
+ * Renders the terminal (CLI-style) chat layout consumed by `InterlocutorChat`. It hosts the
+ * background switcher/visualization, the optional control panel, the fixed corner toggle, and
+ * the `TerminalLayout`/`TerminalChat` pair. Consumed by `InterlocutorChat` when the layout mode
+ * is `terminal`.
  */
 
 import { CircularVisualization } from '@/components/animations/CircularVisualization';
 import { BackgroundControlPanel } from '@/components/background/BackgroundControlPanel';
 import { BackgroundSwitcher } from '@/components/background/BackgroundSwitcher';
 import { Box, HStack } from '@chakra-ui/react';
-import { memo } from 'react';
+import { memo, type JSX } from 'react';
 import { BackgroundControlsToggle } from './BackgroundControlsToggle';
 import { TerminalChat } from './terminal/TerminalChat';
 import { TerminalLayout } from './terminal/TerminalLayout';
 import type { TerminalModeViewProps } from './InterlocutorChatTypes';
 
+/**
+ * Renders the terminal chat layout with its background and controls.
+ *
+ * @param props - Terminal mode view props.
+ * @returns The terminal mode view element.
+ * @see {@link InterlocutorChatTypes.TerminalModeViewProps} for the prop contract.
+ */
 const TerminalModeViewComponent = ({
   backgroundSettings,
   waveformEnabled,
@@ -42,7 +53,7 @@ const TerminalModeViewComponent = ({
   onCreateConversation,
   onExitToChat,
   onConversationLoad,
-}: TerminalModeViewProps) => (
+}: TerminalModeViewProps): JSX.Element => (
   <Box
     position="fixed"
     top={0}
@@ -109,4 +120,9 @@ const TerminalModeViewComponent = ({
   </Box>
 );
 
+/**
+ * Memoized terminal (CLI-style) chat layout.
+ *
+ * @returns The memoized terminal mode view element.
+ */
 export const TerminalModeView = memo(TerminalModeViewComponent);

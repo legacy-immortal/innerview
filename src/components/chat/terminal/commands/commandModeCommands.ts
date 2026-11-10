@@ -1,7 +1,10 @@
 /**
- * commandModeCommands.ts — Terminal command-mode command definitions and handlers.
+ * @file commandModeCommands.ts — Terminal command-mode command definitions and handlers.
+ * @module components/chat/terminal/commands/commandModeCommands
  *
- * @module components/chat/terminal/commands/commandModeCommand
+ * Terminal command-mode command definitions and handlers. Defines `CommandDefinition` and the
+ * command-mode context, then builds the filesystem command table (`ls`, `load`, `cat`, `rm`,
+ * `gui`, `?`, etc.). Consumed by `useTerminalCommands`.
  */
 
 import type {

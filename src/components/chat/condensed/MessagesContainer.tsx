@@ -1,7 +1,10 @@
 /**
- * MessagesContainer.tsx — Scroll container + virtualiser hosting the message stream.
- *
+ * @file MessagesContainer.tsx — Scroll container + virtualiser hosting the message stream.
  * @module components/chat/condensed/MessagesContainer
+ *
+ * Scroll container + virtualiser hosting the message stream. Renders virtualized rows via
+ * `VirtualRow`, shows a terminal loader while messages load, and a "listening…" indicator
+ * while streaming. Consumed by `StandardModeView` and `CorpoModeView`.
  */
 
 import { TerminalLoader } from '@/components/animations/TerminalLoader';
@@ -198,4 +201,10 @@ const MessagesContainerComponent = ({
   );
 };
 
+/**
+ * Memoized virtualized message stream container.
+ *
+ * @param props - Messages container props.
+ * @returns The memoized messages container element.
+ */
 export const MessagesContainer = memo(MessagesContainerComponent);

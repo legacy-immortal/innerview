@@ -1,11 +1,14 @@
 /**
- * ContextCounterUsage.tsx — Usage rows (input/output/reasoning/cache) for the context meter.
- *
+ * @file ContextCounterUsage.tsx — Usage rows (input/output/reasoning/cache) for the context meter.
  * @module components/chat/shared/ContextCounterUsage
+ *
+ * Usage rows (input/output/reasoning/cache) for the context meter. Each row resolves its token
+ * count and estimated USD cost via `getCostUSD`, returning `null` when there is no usage to
+ * show. Consumed by `ContextCounterContent`.
  */
 
 import { Box, HStack, Text } from '@chakra-ui/react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, JSX } from 'react';
 import { TokensWithCost } from './ContextCounterTrigger';
 import {
   formatCurrency,
@@ -15,11 +18,17 @@ import {
 
 export type ContextInputUsageProps = ComponentProps<typeof Box>;
 
+/**
+ * Input usage row for the context meter.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The usage row element, or `null` when there is no input usage.
+ */
 export const ContextInputUsage = ({
   className,
   children,
   ...props
-}: ContextInputUsageProps) => {
+}: ContextInputUsageProps): JSX.Element | null => {
   const { usage, modelId } = useContextValue();
   const inputTokens = usage?.inputTokens ?? 0;
 
@@ -59,11 +68,17 @@ export const ContextInputUsage = ({
 
 export type ContextOutputUsageProps = ComponentProps<typeof Box>;
 
+/**
+ * Output usage row for the context meter.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The usage row element, or `null` when there is no output usage.
+ */
 export const ContextOutputUsage = ({
   className,
   children,
   ...props
-}: ContextOutputUsageProps) => {
+}: ContextOutputUsageProps): JSX.Element | null => {
   const { usage, modelId } = useContextValue();
   const outputTokens = usage?.outputTokens ?? 0;
 
@@ -103,11 +118,17 @@ export const ContextOutputUsage = ({
 
 export type ContextReasoningUsageProps = ComponentProps<typeof Box>;
 
+/**
+ * Reasoning usage row for the context meter.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The usage row element, or `null` when there is no reasoning usage.
+ */
 export const ContextReasoningUsage = ({
   className,
   children,
   ...props
-}: ContextReasoningUsageProps) => {
+}: ContextReasoningUsageProps): JSX.Element | null => {
   const { usage, modelId } = useContextValue();
   const reasoningTokens = usage?.reasoningTokens ?? 0;
 
@@ -147,11 +168,17 @@ export const ContextReasoningUsage = ({
 
 export type ContextCacheUsageProps = ComponentProps<typeof Box>;
 
+/**
+ * Cache usage row for the context meter.
+ *
+ * @param props - Box props passed through to the root element.
+ * @returns The usage row element, or `null` when there is no cache usage.
+ */
 export const ContextCacheUsage = ({
   className,
   children,
   ...props
-}: ContextCacheUsageProps) => {
+}: ContextCacheUsageProps): JSX.Element | null => {
   const { usage, modelId } = useContextValue();
   const cacheTokens = usage?.cachedInputTokens ?? 0;
 

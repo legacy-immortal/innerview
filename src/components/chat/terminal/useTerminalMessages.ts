@@ -1,7 +1,10 @@
 /**
- * useTerminalMessages.ts — Hook preparing messages for terminal display (welcome + history).
+ * @file useTerminalMessages.ts — Hook preparing messages for terminal display (welcome + history).
+ * @module components/chat/terminal/useTerminalMessages
  *
- * @module components/chat/terminal/useTerminalMessage
+ * Hook preparing messages for terminal display (welcome + history). Pushes new user/assistant
+ * messages to the terminal stdout once each, shows a "thinking…" indicator while loading, and
+ * exposes `resetDisplayedMessages` for mode switches. Consumed by `TerminalChat`.
  */
 
 import { markdownToTerminal } from '@/utils/markdown-to-terminal';
@@ -9,7 +12,7 @@ import type { UIMessage } from 'ai';
 import { isTextUIPart } from 'ai';
 import { useCallback, useEffect, useState } from 'react';
 import type Terminal from 'react-console-emulator';
-import type { RefObject } from 'react';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { TerminalMode } from './terminalTypes';
 
 interface UseTerminalMessagesOptions {
@@ -22,13 +25,20 @@ interface UseTerminalMessagesOptions {
 /**
  * Display new messages in terminal and the loading indicator.
  * Returns helpers used when switching modes.
+ *
+ * @param options - Terminal messages hook options.
+ * @returns Displayed message ids and helpers used when switching modes.
  */
 export const useTerminalMessages = ({
   messages,
   mode,
   isLoading,
   terminalRef,
-}: UseTerminalMessagesOptions) => {
+}: UseTerminalMessagesOptions): {
+  displayedMessageIds: Set<string>;
+  setDisplayedMessageIds: Dispatch<SetStateAction<Set<string>>>;
+  resetDisplayedMessages: () => void;
+} => {
   const [displayedMessageIds, setDisplayedMessageIds] = useState<Set<string>>(
     new Set()
   );

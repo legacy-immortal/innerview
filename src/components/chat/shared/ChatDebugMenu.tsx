@@ -1,7 +1,10 @@
 /**
- * ChatDebugMenu.tsx — Debug overlay for exporting conversations and inspecting store state.
- *
+ * @file ChatDebugMenu.tsx — Debug overlay for exporting conversations and inspecting store state.
  * @module components/chat/shared/ChatDebugMenu
+ *
+ * Debug overlay for exporting conversations and inspecting store state. Provides TTS toggle,
+ * performance settings, JSON/markdown export, conversation import, duplicate purging, and a
+ * confirmed clear-all history action. Consumed by `ChatHeader`.
  */
 
 import { toaster } from '@/components/ui/toaster';
@@ -57,6 +60,12 @@ interface ChatDebugMenuProps {
   readonly conversationListRef: React.RefObject<ConversationListRef | null>;
 }
 
+/**
+ * Debug overlay for exporting conversations and inspecting store state.
+ *
+ * @param props - Chat debug menu props.
+ * @returns The debug menu element.
+ */
 export const ChatDebugMenu = ({
   ttsEnabled,
   onTtsToggle,
@@ -70,7 +79,7 @@ export const ChatDebugMenu = ({
   clearAllConversations,
   createConversation,
   conversationListRef,
-}: ChatDebugMenuProps) => {
+}: ChatDebugMenuProps): React.JSX.Element => {
   return (
     <>
       <Menu.Item
