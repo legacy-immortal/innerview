@@ -57,6 +57,18 @@ const delayMs = (ms: number, maxMs = ms + 2000): Promise<void> =>
     const cap = window.setTimeout(done, maxMs);
   });
 
+/**
+ * Whether Whisper should be preloaded during bootstrap given the detected
+ * metrics. Skips preload when the microphone is unavailable (permission
+ * denied or no device): there's no point downloading a transcription model
+ * the user can't use to record audio.
+ * @param metrics - Detected performance metrics.
+ * @returns True when Whisper preload should proceed.
+ */
+function shouldPreloadWhisper(metrics: PerformanceMetrics): boolean {
+  return Boolean(metrics.supportsMicrophone);
+}
+
 export interface PerformanceStartupState {
   isDetecting: boolean;
   showDisclaimer: boolean;
@@ -541,9 +553,11 @@ export function usePerformanceStartup(
           setProgress(100);
           await delayMs(500);
 
-          if (autoPreload) {
+          if (autoPreload && shouldPreloadWhisper(detectedMetrics)) {
             // Whisper is a bootstrapping step (backend, default path):
             // preload regardless of browser WASM (supportsLocalTranscription).
+            // Only preload when the microphone is usable; otherwise there's no
+            // transcription input to feed it.
             await startWhisperPreload();
             scheduleIdleCallback(() => {
               void startKokoroPreload(detectedMetrics);
@@ -553,7 +567,12 @@ export function usePerformanceStartup(
             // in this hook preload (if opted in) and finish startup.
             modelPreloadOptInPendingRef.current = true;
             setModelPreloadOptInRequired(true);
-          } else if (isCapable && overburdened && storedOptIn === true) {
+          } else if (
+            isCapable &&
+            overburdened &&
+            storedOptIn === true &&
+            shouldPreloadWhisper(detectedMetrics)
+          ) {
             // Previously opted in on overburdened hardware: blocking bootstrap.
             await startWhisperPreload();
             scheduleIdleCallback(() => {
@@ -603,7 +622,7 @@ export function usePerformanceStartup(
             // Pause completion until the user decides.
             modelPreloadOptInPendingRef.current = true;
             setModelPreloadOptInRequired(true);
-          } else if (cachedOptedIn) {
+          } else if (cachedOptedIn && shouldPreloadWhisper(cached)) {
             // Previously opted in on overburdened hardware: blocking bootstrap.
             await startWhisperPreload();
             scheduleIdleCallback(() => {
@@ -612,6 +631,7 @@ export function usePerformanceStartup(
           } else if (
             shouldTestTranscription &&
             !cachedOverburdened &&
+            shouldPreloadWhisper(cached) &&
             !transcriptionTestStartedRef.current
           ) {
             // Whisper loads as part of bootstrapping (was previously an
@@ -646,6 +666,7 @@ export function usePerformanceStartup(
           supportsMediaRecorder: false,
           supportsGetUserMedia: false,
           supportsLocalTranscription: false,
+          supportsMicrophone: false,
         };
         setMetrics(fallbackMetrics);
         const completedStages = buildStagesFromMetrics(fallbackMetrics);
@@ -736,7 +757,12 @@ export function usePerformanceStartup(
       setModelPreloadOptInStored(optedIn);
       modelPreloadOptInPendingRef.current = false;
       setModelPreloadOptInRequired(false);
-      if (optedIn && detectedMetrics && canPreloadModels(detectedMetrics)) {
+      if (
+        optedIn &&
+        detectedMetrics &&
+        canPreloadModels(detectedMetrics) &&
+        shouldPreloadWhisper(detectedMetrics)
+      ) {
         // Whisper is a bootstrapping step: await it (with detailed progress
         // on the detection screen) before finishing startup. Kokoro stays a
         // non-blocking idle background download.

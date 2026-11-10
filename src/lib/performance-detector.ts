@@ -23,6 +23,8 @@ export interface PerformanceMetrics {
   supportsMediaRecorder: boolean;
   supportsGetUserMedia: boolean;
   supportsLocalTranscription: boolean;
+  /** Whether the microphone is actually usable (permission not denied). */
+  supportsMicrophone: boolean;
 }
 
 export interface PerformanceSettings {
@@ -229,6 +231,36 @@ function detectTranscriptionCapabilities(): {
   };
 }
 
+/**
+ * Detect whether the microphone is actually usable.
+ * Checks the Permission API state first (a 'denied' state means the user has
+ * explicitly blocked mic access and no model preload is worthwhile), then
+ * falls back to getUserMedia API existence.
+ * @returns True when the microphone appears available for recording.
+ */
+async function detectMicrophoneCapability(): Promise<boolean> {
+  if (typeof navigator === 'undefined') return false;
+  // API must exist at all.
+  const hasApi =
+    navigator.mediaDevices?.getUserMedia !== undefined ||
+    (navigator as { getUserMedia?: unknown }).getUserMedia !== undefined;
+  if (!hasApi) return false;
+  // Query the permission state if the browser supports it.
+  try {
+    if (navigator.permissions) {
+      return navigator.permissions
+        .query({ name: 'microphone' as PermissionName })
+        .then((result) => result.state !== 'denied')
+        .catch(() => true); // On query failure, assume usable (API exists)
+    }
+  } catch {
+    // Permissions API not fully supported; fall through to API-existence check.
+  }
+  return true;
+}
+
+type PermissionName = 'microphone';
+
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -343,6 +375,15 @@ export async function detectPerformance(): Promise<PerformanceMetrics> {
     // keep defaults
   }
 
+  // Detect microphone usability (permission state). Awaits the Permissions API
+  // so the result reflects real user-grant/deny state, not just API presence.
+  let supportsMicrophone = false;
+  try {
+    supportsMicrophone = await detectMicrophoneCapability();
+  } catch {
+    // keep default (false)
+  }
+
   const metrics: Omit<PerformanceMetrics, 'score' | 'tier'> = {
     hardwareConcurrency,
     deviceMemory,
@@ -352,6 +393,7 @@ export async function detectPerformance(): Promise<PerformanceMetrics> {
     supportsWebGPU,
     ...ttsCapabilities,
     ...transcriptionCapabilities,
+    supportsMicrophone,
   };
 
   const score = calculateScore(metrics);
@@ -557,6 +599,7 @@ export function detectPerformanceCached(): Promise<PerformanceMetrics> {
         supportsMediaRecorder: false,
         supportsGetUserMedia: false,
         supportsLocalTranscription: false,
+        supportsMicrophone: false,
       };
       cachedMetrics = fallback;
       return fallback;
