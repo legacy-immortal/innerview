@@ -15,7 +15,7 @@ Browser/e2e tests split into two lanes so **frontend verification is automated a
 
 ## Sentinel behavior (remote VLLM required for agentic tests)
 
-`e2e/sentinel.mjs` runs before agentic tests:
+`e2e/sentinel.ts` runs before agentic tests:
 - Queries `${MIDSCENE_MODEL_BASE_URL:-https://integrate.api.nvidia.com/v1}/models` with your key.
 - Selects a suitable **vision-capable** remote VLLM (heuristic, preferring newer VL models).
 - Updates `e2e/.env` (`MIDSCENE_MODEL_NAME`, `MIDSCENE_MODEL_API_KEY`, `MIDSCENE_MODEL_BASE_URL`).

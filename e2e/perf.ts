@@ -20,7 +20,7 @@ export interface PerfBudgets {
 
 export interface PerfMetrics {
   url: string;
-  navigation: Record<string, number | string | null>;
+  navigation: Record<string, number | string | boolean | null>;
   cdp: Record<string, number>;
   budgets: PerfBudgets;
   violations: string[];
@@ -97,9 +97,13 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
       const paint = performance.getEntriesByType('paint');
       const fcp = paint.find((e) => e.name === 'first-contentful-paint');
       if (!nav) {
-        return { available: false as unknown as number };
+        return { available: false, url: location.href } as Record<
+          string,
+          number | string | boolean | null
+        >;
       }
       return {
+        available: true,
         url: location.href,
         durationMs: nav.duration,
         responseMs: nav.responseEnd - nav.requestStart,
@@ -110,7 +114,7 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
         decodedBodySize: nav.decodedBodySize,
         domInteractiveMs: nav.domInteractive - nav.startTime,
         fcpMs: fcp ? fcp.startTime : null,
-      };
+      } as Record<string, number | string | boolean | null>;
     });
 
     const cdpMetrics: Record<string, number> = {};
@@ -129,9 +133,10 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
     const pageErrorCount = pageErrors.length;
 
     const violations: string[] = [];
-    const loadMs = num((navigation as Record<string, unknown>).loadMs);
-    const dclMs = num((navigation as Record<string, unknown>).domContentLoadedMs);
-    const responseMs = num((navigation as Record<string, unknown>).responseMs);
+    const nav = navigation as Record<string, unknown>;
+    const loadMs = num(nav.loadMs);
+    const dclMs = num(nav.domContentLoadedMs);
+    const responseMs = num(nav.responseMs);
     const scriptMs = num(cdpMetrics.ScriptDuration) * 1000;
     const taskMs = num(cdpMetrics.TaskDuration) * 1000;
     const layoutCount = num(cdpMetrics.LayoutCount);
@@ -162,8 +167,8 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
     }
 
     return {
-      url: String((navigation as Record<string, unknown>).url ?? page.url()),
-      navigation: navigation as Record<string, number | string | null>,
+      url: String(nav.url ?? page.url()),
+      navigation,
       cdp: cdpMetrics,
       budgets,
       violations,

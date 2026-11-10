@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Midscene e2e sentinel: selects a suitable vision-capable remote VLLM model
  * from NVIDIA NIM (OpenAI-compatible /v1/models) and updates e2e/.env before tests.
@@ -6,12 +6,8 @@
  * Behavior (by design): FAIL FAST if no capable remote VLLM can be found/selected.
  * We do not run local VLLMs for these agentic tests (insufficient/unsafe compute
  * consistency) and we do not silently fall back to an unknown/unverified model.
- *
- * - Reads e2e/.env (if present) without overriding existing process env.
- * - Uses NVIDIA_NIM_API_KEY (or MIDSCENE_MODEL_API_KEY) for the models request.
- * - Writes/updates MIDSCENE_MODEL_NAME and ensures MIDSCENE_MODEL_API_KEY/BASE_URL.
- * - Exits non-zero with a clear reason when a capable model cannot be provisioned.
  */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +17,7 @@ const ENV_PATH = path.join(__dirname, '.env');
 const NIM_BASE = 'https://integrate.api.nvidia.com/v1';
 
 /** Heuristic preference for vision-capable models usable with Midscene UI tasks. */
-const VISION_HINTS = [
+const VISION_HINTS: readonly string[] = [
   'nemotron-3.5-super-vl',
   'nemotron-3-super-vl',
   'llama-3.2-90b-vision',
@@ -36,8 +32,20 @@ const VISION_HINTS = [
   'gemma-4',
 ];
 
-function parseEnv(content) {
-  const out = {};
+interface NIMModel {
+  id?: string;
+  object?: string;
+  created?: number;
+  owned_by?: string;
+}
+
+interface NIMModelsResponse {
+  object?: string;
+  data?: NIMModel[];
+}
+
+function parseEnv(content: string): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
@@ -56,7 +64,7 @@ function parseEnv(content) {
   return out;
 }
 
-function upsertEnv(content, updates) {
+function upsertEnv(content: string, updates: Record<string, string>): string {
   let next = content || '';
   for (const [key, value] of Object.entries(updates)) {
     const line = `${key}=${value}`;
@@ -71,10 +79,10 @@ function upsertEnv(content, updates) {
   return next;
 }
 
-function pickLatestFreeVisionModel(models) {
+function pickLatestFreeVisionModel(models: NIMModel[]): string | null {
   const ids = models
     .map((m) => (m && typeof m.id === 'string' ? m.id : null))
-    .filter(Boolean);
+    .filter((id): id is string => Boolean(id));
 
   const vision = ids.filter((id) => {
     const lower = id.toLowerCase();
@@ -88,7 +96,6 @@ function pickLatestFreeVisionModel(models) {
     );
   });
 
-  // Prefer by curated hint order (newer/better VL first), then stable fallback.
   for (const hint of VISION_HINTS) {
     const match = vision.find((id) => id.toLowerCase().includes(hint));
     if (match) return match;
@@ -97,7 +104,7 @@ function pickLatestFreeVisionModel(models) {
   return null;
 }
 
-function fail(reason) {
+function fail(reason: string): never {
   console.error(`[midscene-sentinel] FATAL: ${reason}`);
   console.error(
     '[midscene-sentinel] Agentic e2e requires a capable remote VLLM (NVIDIA NIM). Local VLLM execution is not supported for consistent/safe test runs. Provide NVIDIA_NIM_API_KEY (or MIDSCENE_MODEL_API_KEY) and ensure a vision-capable model is available, or set E2E_REQUIRE_REMOTE_VLLM=0 only for explicit non-agentic dry runs.'
@@ -105,11 +112,10 @@ function fail(reason) {
   process.exit(1);
 }
 
-async function main() {
-  const requireRemote =
-    (process.env.E2E_REQUIRE_REMOTE_VLLM ?? '1') !== '0';
+async function main(): Promise<void> {
+  const requireRemote = (process.env.E2E_REQUIRE_REMOTE_VLLM ?? '1') !== '0';
 
-  let fileEnv = {};
+  let fileEnv: Record<string, string> = {};
   let original = '';
   if (fs.existsSync(ENV_PATH)) {
     original = fs.readFileSync(ENV_PATH, 'utf8');
@@ -139,7 +145,7 @@ async function main() {
     return;
   }
 
-  let selected = null;
+  let selected: string | null = null;
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -147,7 +153,7 @@ async function main() {
     if (!res.ok) {
       throw new Error(`models request failed: ${res.status} ${res.statusText}`);
     }
-    const data = await res.json();
+    const data = (await res.json()) as NIMModelsResponse;
     const list = Array.isArray(data?.data) ? data.data : [];
     selected = pickLatestFreeVisionModel(list);
   } catch (err) {
@@ -174,13 +180,12 @@ async function main() {
     return;
   }
 
-  const updates = {
+  const updates: Record<string, string> = {
     MIDSCENE_MODEL_BASE_URL: baseUrl,
     MIDSCENE_MODEL_NAME: selected,
     MIDSCENE_MODEL_API_KEY: apiKey,
   };
 
-  // Ensure e2e/.env exists/updated for dotenv-loaded test runs.
   const next = upsertEnv(original, updates);
   fs.writeFileSync(ENV_PATH, next, 'utf8');
   console.log(`[midscene-sentinel] Selected model: ${selected}`);
