@@ -12,7 +12,7 @@ import type {
 import type { useSystemDataSource } from '@/hooks/useSystemDataSource';
 import { useSettingsStore } from '@/lib/settings-store';
 import { Box, Text } from '@chakra-ui/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { CircularClock } from './CircularClock';
 import { CircularGauge } from './CircularGauge';
@@ -210,9 +210,21 @@ export const CircularVisualization = ({
       </Box>
     ) : null;
 
-  if (!isActive && !isIdle) return null;
-
   const visualizationType = systemDataSource.visualizationType || 'waveform';
+  const transformBoxRef = useRef<HTMLDivElement>(null);
+  const vizTransform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+  // Imperatively apply transform so it stays atomic with transform-origin
+  // even if a styling system re-renders classes out of sync during rapid
+  // adjustments (which can cause a bottom-right jump when origin is lost).
+  useEffect(() => {
+    const el = transformBoxRef.current;
+    if (!el) return;
+    el.style.transform = vizTransform;
+    el.style.transformOrigin = 'center center';
+  }, [vizTransform]);
+
+  if (!isActive && !isIdle) return null;
 
   return (
     <Box
@@ -244,6 +256,7 @@ export const CircularVisualization = ({
         height={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
       >
         <Box
+          ref={transformBoxRef}
           position="absolute"
           inset="0"
           display="flex"
@@ -251,7 +264,7 @@ export const CircularVisualization = ({
           justifyContent="center"
           pointerEvents="none"
           style={{
-            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+            transform: vizTransform,
             transformOrigin: 'center center',
           }}
         >
