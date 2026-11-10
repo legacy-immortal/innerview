@@ -1,0 +1,17 @@
+# Netlify (static SPA) - recommended pairing: Render (API) + Turso/libSQL
+# Set VITE_API_BASE_URL in Netlify env to your Render API origin and configure
+# server CORS_ORIGIN to this site's origin. Client persistence is local-only by
+# default; remote/vector memory features are opt-in and cloud-backed.
+
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  # Example: VITE_API_BASE_URL = "https://innerview-api.onrender.com"
+
+# SPA fallback for client-side routing/deep links
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
