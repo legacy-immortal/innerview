@@ -18,8 +18,6 @@ import { CircularClock } from './CircularClock';
 import { CircularGauge } from './CircularGauge';
 import { CircularStorage } from './CircularStorage';
 import { CircularWaveform } from './CircularWaveform';
-import { DataSparkline } from './DataSparkline';
-import { FpsSparkline } from './FpsSparkline';
 import {
   DEFAULT_SYSTEM_TEXT,
   systemTextAnimationCss,
@@ -252,40 +250,32 @@ export const CircularVisualization = ({
         height={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
         css={vizWrapperStyle}
       >
-        {visualizationType === 'waveform' &&
-          systemDataSource.currentSource.id === 'frametiming' &&
-          systemDataSource.currentSource.getSparkData != null && (
-            <FpsSparkline
-              getSparkData={systemDataSource.currentSource.getSparkData}
-              color={color}
-            />
-          )}
-        {visualizationType === 'waveform' &&
-          systemDataSource.currentSource.id === 'network' &&
-          systemDataSource.currentSource.getSparkData != null && (
-            <DataSparkline
-              getSparkData={systemDataSource.currentSource.getSparkData}
-              label="Request activity"
-              formatValue={(v) => `${Math.round(v)} req`}
-              valueMin={0}
-              valueMax={20}
-              color={color}
-            />
-          )}
-        {visualizationType === 'waveform' &&
-          systemDataSource.currentSource.id !== 'frametiming' &&
-          systemDataSource.currentSource.id !== 'network' && (
-            <CircularWaveform
-              isActive={isActive}
-              audioElement={audioElement}
-              analyserNode={analyserNode}
-              useSpeechSynthesis={useSpeechSynthesis}
-              isIdle={isIdle}
-              layers={layers}
-              settings={settings}
-              systemDataSource={systemDataSource}
-            />
-          )}
+        {/* Audio playback takes priority: render the live audio waveform. */}
+        {isActive && (
+          <CircularWaveform
+            isActive={isActive}
+            audioElement={audioElement}
+            analyserNode={analyserNode}
+            useSpeechSynthesis={useSpeechSynthesis}
+            isIdle={isIdle}
+            layers={layers}
+            settings={settings}
+            systemDataSource={systemDataSource}
+          />
+        )}
+        {/* Idle system sources with waveform type render the circular waveform. */}
+        {!isActive && visualizationType === 'waveform' && (
+          <CircularWaveform
+            isActive={false}
+            audioElement={null}
+            analyserNode={null}
+            useSpeechSynthesis={false}
+            isIdle={isIdle}
+            layers={layers}
+            settings={settings}
+            systemDataSource={systemDataSource}
+          />
+        )}
         {visualizationType === 'gauge' && gaugeValue && (
           <CircularGauge
             value={gaugeValue.value}
