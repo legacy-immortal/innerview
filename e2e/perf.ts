@@ -61,7 +61,9 @@ export interface InstrumentationHandle {
   collectMetrics: () => Promise<PerfMetrics>;
 }
 
-export async function instrumentPage(page: Page): Promise<InstrumentationHandle> {
+export async function instrumentPage(
+  page: Page
+): Promise<InstrumentationHandle> {
   const consoleLogs: ConsoleEntry[] = [];
   const pageErrors: string[] = [];
   let cdp: CDPSession | null = null;
@@ -71,7 +73,9 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
     consoleLogs.push({
       type: msg.type(),
       text: msg.text(),
-      location: loc?.url ? `${loc.url}:${loc.lineNumber}:${loc.columnNumber}` : undefined,
+      location: loc?.url
+        ? `${loc.url}:${loc.lineNumber}:${loc.columnNumber}`
+        : undefined,
       timestamp: Date.now(),
     });
   });
@@ -92,8 +96,7 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
 
     const navigation = await page.evaluate(() => {
       const nav = performance.getEntriesByType('navigation')[0] as
-        | PerformanceNavigationTiming
-        | undefined;
+        PerformanceNavigationTiming | undefined;
       const paint = performance.getEntriesByType('paint');
       const fcp = paint.find((e) => e.name === 'first-contentful-paint');
       if (!nav) {
@@ -129,7 +132,9 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
       }
     }
 
-    const consoleErrorCount = consoleLogs.filter((l) => l.type === 'error').length;
+    const consoleErrorCount = consoleLogs.filter(
+      (l) => l.type === 'error'
+    ).length;
     const pageErrorCount = pageErrors.length;
 
     const violations: string[] = [];
@@ -145,25 +150,37 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
       violations.push(`loadMs ${loadMs.toFixed(1)} > ${budgets.maxLoadMs}`);
     }
     if (dclMs > 0 && dclMs > budgets.maxDclMs) {
-      violations.push(`domContentLoadedMs ${dclMs.toFixed(1)} > ${budgets.maxDclMs}`);
+      violations.push(
+        `domContentLoadedMs ${dclMs.toFixed(1)} > ${budgets.maxDclMs}`
+      );
     }
     if (responseMs > 0 && responseMs > budgets.maxResponseMs) {
-      violations.push(`responseMs ${responseMs.toFixed(1)} > ${budgets.maxResponseMs}`);
+      violations.push(
+        `responseMs ${responseMs.toFixed(1)} > ${budgets.maxResponseMs}`
+      );
     }
     if (scriptMs > budgets.maxScriptDurationMs) {
-      violations.push(`scriptDurationMs ${scriptMs.toFixed(1)} > ${budgets.maxScriptDurationMs}`);
+      violations.push(
+        `scriptDurationMs ${scriptMs.toFixed(1)} > ${budgets.maxScriptDurationMs}`
+      );
     }
     if (taskMs > budgets.maxTaskDurationMs) {
-      violations.push(`taskDurationMs ${taskMs.toFixed(1)} > ${budgets.maxTaskDurationMs}`);
+      violations.push(
+        `taskDurationMs ${taskMs.toFixed(1)} > ${budgets.maxTaskDurationMs}`
+      );
     }
     if (layoutCount > budgets.maxLayoutCount) {
       violations.push(`layoutCount ${layoutCount} > ${budgets.maxLayoutCount}`);
     }
     if (consoleErrorCount > budgets.maxConsoleErrors) {
-      violations.push(`consoleErrors ${consoleErrorCount} > ${budgets.maxConsoleErrors}`);
+      violations.push(
+        `consoleErrors ${consoleErrorCount} > ${budgets.maxConsoleErrors}`
+      );
     }
     if (pageErrorCount > budgets.maxPageErrors) {
-      violations.push(`pageErrors ${pageErrorCount} > ${budgets.maxPageErrors}`);
+      violations.push(
+        `pageErrors ${pageErrorCount} > ${budgets.maxPageErrors}`
+      );
     }
 
     return {
@@ -192,10 +209,15 @@ export async function instrumentPage(page: Page): Promise<InstrumentationHandle>
       body: JSON.stringify(metrics, null, 2),
       contentType: 'application/json',
     });
-    if (metrics.violations.length > 0 || testInfo.status !== testInfo.expectedStatus) {
+    if (
+      metrics.violations.length > 0 ||
+      testInfo.status !== testInfo.expectedStatus
+    ) {
       console.log('[e2e-perf] metrics:', JSON.stringify(metrics, null, 2));
-      if (consoleLogs.length) console.log('[e2e-console]', JSON.stringify(consoleLogs, null, 2));
-      if (pageErrors.length) console.log('[e2e-page-errors]', JSON.stringify(pageErrors, null, 2));
+      if (consoleLogs.length)
+        console.log('[e2e-console]', JSON.stringify(consoleLogs, null, 2));
+      if (pageErrors.length)
+        console.log('[e2e-page-errors]', JSON.stringify(pageErrors, null, 2));
     }
   }
 
