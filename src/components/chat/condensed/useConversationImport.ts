@@ -4,7 +4,8 @@
  *
  * Conversation import flow with duplicate detection and progress state. Parses and
  * converts import files in a Web Worker (non-blocking) with real progress updates,
- * checks for duplicate message IDs, and either imports directly or presents a pending
+ * streaming each converted conversation back incrementally to reduce memory pressure.
+ * Checks for duplicate message IDs and either imports directly or presents a pending
  * overwrite dialog. Saving and duplicate checks run on the main thread with yielding
  * to keep the UI responsive. Consumed by `ConversationList`.
  */
@@ -69,10 +70,17 @@ interface WorkerProgressMessage {
   step: string;
   progress: number;
 }
-interface WorkerSuccessMessage {
-  type: 'success';
+interface WorkerItemMessage {
+  type: 'item';
   id: number;
-  result: WorkerConverted;
+  index: number;
+  data: ImportData;
+}
+interface WorkerDoneMessage {
+  type: 'done';
+  id: number;
+  kind: 'single' | 'multiple';
+  count: number;
 }
 interface WorkerErrorMessage {
   type: 'error';
@@ -80,11 +88,15 @@ interface WorkerErrorMessage {
   error: string;
 }
 type WorkerMessage =
-  WorkerProgressMessage | WorkerSuccessMessage | WorkerErrorMessage;
+  | WorkerProgressMessage
+  | WorkerItemMessage
+  | WorkerDoneMessage
+  | WorkerErrorMessage;
 
 /**
  * Parse and convert an import file in a Web Worker, reporting progress to `onProgress`.
- * Falls back to a clear error if workers are unavailable.
+ * Receives converted conversations incrementally (one item per conversation) to
+ * reduce peak memory pressure in the worker at finalization.
  */
 function processImportInWorker(
   text: string,
@@ -105,33 +117,60 @@ function processImportInWorker(
     }
 
     const id = Date.now() + Math.floor(Math.random() * 1000);
+    const items: ImportData[] = [];
+    let kind: 'single' | 'multiple' | null = null;
+    let settled = false;
+
     const cleanup = () => {
       worker.onmessage = null;
       worker.onerror = null;
       worker.terminate();
     };
 
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
     worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const msg = event.data;
-      if (!msg || msg.id !== id) return;
+      if (!msg || msg.id !== id || settled) return;
+
       if (msg.type === 'progress') {
         onProgress(msg.step, msg.progress);
         return;
       }
-      if (msg.type === 'success') {
+      if (msg.type === 'item') {
+        // Collect each converted conversation as it streams in.
+        items[msg.index] = msg.data;
+        return;
+      }
+      if (msg.type === 'done') {
+        kind = msg.kind;
+        const compact = items.filter((x): x is ImportData => x != null);
+        settled = true;
         cleanup();
-        resolve(msg.result);
+        if (kind === 'single') {
+          const data = compact[0];
+          if (!data) {
+            reject(new Error('Import produced no conversation data'));
+            return;
+          }
+          resolve({ type: 'single', data });
+        } else {
+          resolve({ type: 'multiple', data: compact });
+        }
         return;
       }
       if (msg.type === 'error') {
-        cleanup();
-        reject(new Error(msg.error));
+        fail(new Error(msg.error));
       }
     };
 
     worker.onerror = (event) => {
-      cleanup();
-      reject(new Error(event.message || 'Import worker failed'));
+      fail(new Error(event.message || 'Import worker failed'));
     };
 
     worker.postMessage({ id, text });
@@ -221,10 +260,11 @@ export const useConversationImport = (
         return;
       }
 
-      setProgress('Parsing and converting in background...', 3);
+      setProgress('Parsing and converting...', 3);
       await yieldToBrowser();
 
-      // Parse and convert off the main thread in a worker for real progress.
+      // Parse and convert off the main thread in a worker, streaming results
+      // per conversation to avoid a single large handoff at the end.
       const parsed = await processImportInWorker(text, (step, progress) => {
         if (importCancelledRef.current) return;
         setImportProgress((prev) => ({
@@ -279,7 +319,7 @@ export const useConversationImport = (
           // Keep progress visible at decision point until user acts.
           setProgress('Duplicates found — awaiting confirmation...', 96);
         } else {
-          setProgress('Saving to storage...', 97);
+          setProgress('Saving...', 97);
           await yieldToBrowser();
 
           if (importCancelledRef.current) {
@@ -294,7 +334,7 @@ export const useConversationImport = (
               conversationMessages
             );
 
-            finishProgress('Complete!', 100, 1500);
+            finishProgress('Complete', 100, 1500);
             toaster.create({
               title: 'Conversation imported',
               description: `"${conversation.title}" has been imported successfully.`,
@@ -348,7 +388,7 @@ export const useConversationImport = (
           setDuplicateDialogOpen(true);
           setProgress('Duplicates found — awaiting confirmation...', 96);
         } else {
-          setProgress('Saving to storage...', 97);
+          setProgress('Saving...', 97);
           await yieldToBrowser();
 
           if (importCancelledRef.current) {
@@ -359,7 +399,7 @@ export const useConversationImport = (
           try {
             importConversationsToStore(imported);
 
-            finishProgress('Complete!', 100, 1500);
+            finishProgress('Complete', 100, 1500);
             toaster.create({
               title: 'Conversations imported',
               description: `${imported.length} conversations have been imported successfully.`,
@@ -471,7 +511,7 @@ export const useConversationImport = (
       return;
     }
 
-    setProgress('Saving to storage...', 99);
+    setProgress('Saving...', 99);
     await yieldToBrowser();
 
     // Then proceed with normal import
@@ -501,7 +541,7 @@ export const useConversationImport = (
       });
     }
 
-    finishProgress('Complete!', 100, 1500);
+    finishProgress('Complete', 100, 1500);
     setDuplicateDialogOpen(false);
     setPendingImport(null);
     setDuplicateCount(0);

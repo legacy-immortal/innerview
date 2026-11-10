@@ -38,19 +38,19 @@ interface TerminalImportProgressProps {
 
   /**
    * Title text displayed at the top
-   * @default '[DEEPSEEK IMPORT]'
+   * @default 'IMPORT'
    */
   readonly title?: string;
 
   /**
    * Main message displayed below the title
-   * @default 'Processing DeepSeek conversation data...'
+   * @default ''
    */
   readonly message?: string;
 
   /**
    * Subtitle message displayed below main message
-   * @default 'This may take a few moments for large files'
+   * @default ''
    */
   readonly subtitle?: string;
 }
@@ -67,9 +67,9 @@ export function TerminalImportProgress({
   progress,
   totalSteps,
   isVisible,
-  title = '[DEEPSEEK IMPORT]',
-  message = 'Processing DeepSeek conversation data...',
-  subtitle = 'This may take a few moments for large files',
+  title = 'IMPORT',
+  message = '',
+  subtitle = '',
 }: TerminalImportProgressProps): ReactElement | null {
   if (!isVisible) return null;
 
@@ -95,21 +95,29 @@ export function TerminalImportProgress({
       fontSize="sm"
       color="white"
     >
-      <VStack gap={4} align="center" w="min(520px, calc(100vw - 2rem))">
-        <Box textAlign="center" w="100%">
+      <VStack
+        gap={4}
+        align="center"
+        w="min(420px, calc(100vw - 2rem))"
+        maxW="100%"
+        px={2}
+      >
+        <Box textAlign="center" w="100%" maxW="100%" overflow="hidden">
           <Text fontSize="lg" mb={2} color="cyan.400">
             {title}
           </Text>
           <Text
             color="gray.300"
             mb={4}
-            h="3.2em"
+            h="1.6em"
             lineHeight="1.6em"
             overflow="hidden"
             textOverflow="ellipsis"
             whiteSpace="nowrap"
+            display="block"
             w="100%"
-            px={2}
+            maxW="100%"
+            px={1}
             title={currentStep}
           >
             {currentStep || '\u00A0'}
@@ -126,7 +134,7 @@ export function TerminalImportProgress({
           </Text>
         </Box>
 
-        <Box w="100%" maxW="400px" textAlign="center">
+        <Box w="100%" maxW="360px" textAlign="center" overflow="hidden">
           <Text
             mb={2}
             fontSize="xs"
@@ -151,14 +159,20 @@ export function TerminalImportProgress({
           </Text>
         </Box>
 
-        <Box textAlign="center" w="100%">
-          <Text fontSize="xs" color="gray.500">
-            {message}
-          </Text>
-          <Text fontSize="xs" color="gray.600" mt={1}>
-            {subtitle}
-          </Text>
-        </Box>
+        {(message || subtitle) && (
+          <Box textAlign="center" w="100%">
+            {message ? (
+              <Text fontSize="xs" color="gray.500">
+                {message}
+              </Text>
+            ) : null}
+            {subtitle ? (
+              <Text fontSize="xs" color="gray.600" mt={1}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </Box>
+        )}
       </VStack>
     </Box>
   );

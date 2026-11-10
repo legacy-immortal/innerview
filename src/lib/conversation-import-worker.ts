@@ -1,6 +1,10 @@
 /**
  * @file Web Worker for parsing and converting conversation import files off the main thread.
  * @module lib/conversation-import-worker.ts
+ *
+ * Streams converted conversations back to the main thread one-by-one to avoid
+ * holding and cloning the entire import result at once (which can crash the
+ * worker on large imports near finalization).
  */
 
 import {
@@ -29,12 +33,18 @@ export interface ImportWorkerResultSingle {
   readonly conversationMessages?: ConversationMessage[];
 }
 
-export interface ImportWorkerSuccess {
-  readonly type: 'success';
+export interface ImportWorkerItem {
+  readonly type: 'item';
   readonly id: number;
-  readonly result:
-    | { type: 'single'; data: ImportWorkerResultSingle }
-    | { type: 'multiple'; data: ImportWorkerResultSingle[] };
+  readonly index: number;
+  readonly data: ImportWorkerResultSingle;
+}
+
+export interface ImportWorkerDone {
+  readonly type: 'done';
+  readonly id: number;
+  readonly kind: 'single' | 'multiple';
+  readonly count: number;
 }
 
 export interface ImportWorkerError {
@@ -44,16 +54,19 @@ export interface ImportWorkerError {
 }
 
 export type ImportWorkerResponse =
-  ImportWorkerProgress | ImportWorkerSuccess | ImportWorkerError;
+  | ImportWorkerProgress
+  | ImportWorkerItem
+  | ImportWorkerDone
+  | ImportWorkerError;
 
 function post(msg: ImportWorkerResponse): void {
   self.postMessage(msg);
 }
 
 /**
- * Ensure the result is structured-cloneable/plain data before posting it back
+ * Ensure a value is structured-cloneable/plain data before posting it back
  * to the main thread. Some converted payloads can include non-cloneable values
- * (or odd prototypes) which would crash the worker at handoff.
+ * (or odd prototypes) which would fail at handoff.
  */
 function toCloneable<T>(value: T): T {
   try {
@@ -78,7 +91,6 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
 
     if (Array.isArray(json)) {
       const total = json.length || 1;
-      const data: ImportWorkerResultSingle[] = [];
       for (let i = 0; i < json.length; i++) {
         const conv = json[i];
         const progressCallback = (
@@ -86,7 +98,7 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
           current: number,
           stepTotal: number
         ) => {
-          // Reserve 0-5% for parse/setup, 5-90% for conversion, 90-100% for finalize.
+          // Reserve 0-5% for parse/setup, 5-90% for conversion, 90-100% for handoff.
           const convBase = 5 + (i / total) * 85;
           const convSpan = 85 / total;
           const inner =
@@ -95,20 +107,25 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
             90,
             Math.floor(convBase + inner * convSpan)
           );
+          // Drop verbose "Conversation:" prefix from step text if present.
+          const cleanStep = step.replace(/^Conversation:\s*/i, '');
           post({
             type: 'progress',
             id,
-            step: `Converting conversation ${i + 1}/${total}: ${step}`,
+            step: `${i + 1}/${total}: ${cleanStep}`,
             progress,
           });
         };
 
         progressCallback('Starting...', 0, 1);
-        data.push(importConversation(conv, progressCallback));
+        const converted = importConversation(conv, progressCallback);
+        // Send each converted conversation immediately to avoid accumulating and
+        // cloning the entire result at the end (memory pressure).
+        const data = toCloneable(converted);
+        post({ type: 'item', id, index: i, data });
       }
       post({ type: 'progress', id, step: 'Finalizing...', progress: 92 });
-      const result = toCloneable({ type: 'multiple' as const, data });
-      post({ type: 'success', id, result });
+      post({ type: 'done', id, kind: 'multiple', count: json.length });
     } else {
       const progressCallback = (
         step: string,
@@ -118,14 +135,16 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
         const inner =
           stepTotal > 0 ? Math.min(1, Math.max(0, current / stepTotal)) : 0;
         const progress = Math.min(90, Math.floor(5 + inner * 85));
-        post({ type: 'progress', id, step, progress });
+        const cleanStep = step.replace(/^Conversation:\s*/i, '');
+        post({ type: 'progress', id, step: cleanStep, progress });
       };
 
       progressCallback('Starting conversion...', 0, 1);
-      const data = importConversation(json, progressCallback);
+      const converted = importConversation(json, progressCallback);
+      const data = toCloneable(converted);
+      post({ type: 'item', id, index: 0, data });
       post({ type: 'progress', id, step: 'Finalizing...', progress: 92 });
-      const result = toCloneable({ type: 'single' as const, data });
-      post({ type: 'success', id, result });
+      post({ type: 'done', id, kind: 'single', count: 1 });
     }
   } catch (err) {
     try {
