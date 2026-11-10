@@ -222,6 +222,7 @@ export const CircularVisualization = ({
     if (!el) return;
     el.style.transform = vizTransform;
     el.style.transformOrigin = 'center center';
+    el.style.willChange = 'transform';
   }, [vizTransform]);
 
   if (!isActive && !isIdle) return null;
@@ -266,6 +267,7 @@ export const CircularVisualization = ({
           style={{
             transform: vizTransform,
             transformOrigin: 'center center',
+            willChange: 'transform',
           }}
         >
           {/* Audio playback takes priority: render the live audio waveform. */}
