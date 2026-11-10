@@ -12,7 +12,7 @@ import type {
 import type { useSystemDataSource } from '@/hooks/useSystemDataSource';
 import { useSettingsStore } from '@/lib/settings-store';
 import { Box, Text } from '@chakra-ui/react';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { CircularClock } from './CircularClock';
 import { CircularGauge } from './CircularGauge';
@@ -214,17 +214,6 @@ export const CircularVisualization = ({
 
   const visualizationType = systemDataSource.visualizationType || 'waveform';
 
-  const vizWrapperStyle: CSSProperties = {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-    transformOrigin: 'center',
-    pointerEvents: 'none',
-  };
-
   return (
     <Box
       position="absolute"
@@ -246,9 +235,18 @@ export const CircularVisualization = ({
     >
       <SystemLabel />
       <Box
+        position="relative"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        flexShrink={0}
+        pointerEvents="none"
         width={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
         height={{ base: '80vmin', md: '70vmin', lg: '60vmin' }}
-        css={vizWrapperStyle}
+        style={{
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
       >
         {/* Audio playback takes priority: render the live audio waveform. */}
         {isActive && (
