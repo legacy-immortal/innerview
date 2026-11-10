@@ -13,6 +13,7 @@ import { MessagesContainer } from '@/components/chat/condensed/MessagesContainer
 import { ChatDebugMenu } from '@/components/chat/shared/ChatDebugMenu';
 import { ErrorAlert } from '@/components/chat/shared/ErrorAlert';
 import type { useConversationStore } from '@/lib/conversation-store';
+import pkg from '../../../../package.json';
 import {
   Box,
   Drawer,
@@ -235,8 +236,6 @@ function CorpoLayoutComponent({
               bg="rgba(18, 18, 18, 0.96)"
               w={{ base: 'min(85vw, 300px)', md: '280px' }}
               maxW={{ base: 'min(85vw, 300px)', md: '280px' }}
-              borderRight="1px solid"
-              borderColor="rgba(255, 255, 255, 0.08)"
               fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
             >
               <Drawer.Header
@@ -244,7 +243,7 @@ function CorpoLayoutComponent({
                 borderColor="rgba(255, 255, 255, 0.08)"
               >
                 <Drawer.Title color="gray.200" fontSize="sm">
-                  Menu
+                  Interlocutor v{pkg.version}
                 </Drawer.Title>
                 <Drawer.CloseTrigger asChild>
                   <IconButton
