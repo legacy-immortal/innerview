@@ -140,4 +140,74 @@ app.post('/api/memory/search', async (c) => {
   }
 });
 
+/**
+ * Count associative-memory documents for an installation (opt-in, scoped).
+ */
+app.post('/api/memory/count', async (c) => {
+  try {
+    const body = (await c.req.json()) as {
+      installationId?: string;
+      optIn?: boolean;
+    };
+    const installationId = getInstallationId(body.installationId);
+    if (!installationId) {
+      return c.json({ error: 'installationId is required' }, 400);
+    }
+    if (body.optIn !== true) {
+      return c.json(
+        {
+          error:
+            'opt-in required: remote/vector memory must be explicitly enabled',
+        },
+        403
+      );
+    }
+    const count = await vectorStore.getDocumentCount({ installationId });
+    return c.json({ ok: true, count });
+  } catch (error) {
+    return c.json(
+      {
+        error: 'Failed to count memory documents',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+/**
+ * Delete associative-memory documents for an installation (opt-in, scoped).
+ */
+app.post('/api/memory/delete', async (c) => {
+  try {
+    const body = (await c.req.json()) as {
+      installationId?: string;
+      optIn?: boolean;
+    };
+    const installationId = getInstallationId(body.installationId);
+    if (!installationId) {
+      return c.json({ error: 'installationId is required' }, 400);
+    }
+    if (body.optIn !== true) {
+      return c.json(
+        {
+          error:
+            'opt-in required: remote/vector memory must be explicitly enabled',
+        },
+        403
+      );
+    }
+    await vectorStore.clearAll({ installationId });
+    return c.json({ ok: true, deleted: true });
+  } catch (error) {
+    return c.json(
+      {
+        error: 'Failed to delete memory documents',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
 export default app;
