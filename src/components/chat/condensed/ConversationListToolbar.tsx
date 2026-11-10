@@ -67,9 +67,10 @@ export const ConversationListToolbar = ({
           colorPalette="gray"
           onClick={() => onCreateConversation()}
           flex={1}
+          textTransform="uppercase"
         >
           <HiPlus />
-          New
+          NEW
         </Button>
         <IconButton
           aria-label="Import conversations"
@@ -92,34 +93,43 @@ export const ConversationListToolbar = ({
       <HStack
         gap={2}
         align="center"
-        flexWrap="wrap"
+        flexWrap="nowrap"
         minW={0}
         px={2}
-        py={1}
+        h="8"
         border="1px solid"
-        borderColor="rgba(255, 255, 255, 0.1)"
-        borderRadius="md"
-        bg="rgba(255, 255, 255, 0.03)"
+        borderColor="whiteAlpha.300"
+        borderRadius="sm"
+        bg="transparent"
+        color="gray.300"
+        _hover={{ bg: 'whiteAlpha.100' }}
         _focusWithin={{
-          borderColor: 'rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.1)',
+          borderColor: 'whiteAlpha.400',
+          bg: 'whiteAlpha.50',
         }}
       >
-        <Box color="gray.400" fontSize="sm">
+        <Box color="gray.400" fontSize="xs" flexShrink={0}>
           <HiSearch />
         </Box>
         <Input
-          placeholder="Search conversations..."
-          size="md"
+          placeholder="SEARCH"
+          size="xs"
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
           border="none"
           bg="transparent"
+          color="inherit"
+          fontSize="xs"
+          textTransform="uppercase"
+          letterSpacing="0.05em"
+          _placeholder={{ color: 'gray.500', textTransform: 'uppercase' }}
           _focus={{
             boxShadow: 'none',
             outline: 'none',
           }}
           flex={1}
+          minW={0}
+          px={0}
         />
         <IconButton
           aria-label={
@@ -127,10 +137,11 @@ export const ConversationListToolbar = ({
               ? 'Sort ascending (oldest first)'
               : 'Sort descending (newest first)'
           }
-          size="sm"
+          size="xs"
           variant="ghost"
           colorPalette="gray"
           onClick={onSortOrderToggle}
+          flexShrink={0}
           title={
             sortOrder === 'desc'
               ? 'Sort ascending (oldest first)'

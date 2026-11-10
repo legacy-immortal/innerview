@@ -233,7 +233,7 @@ function CorpoLayoutComponent({
         <Portal>
           <Drawer.Positioner>
             <Drawer.Content
-              bg="rgba(18, 18, 18, 0.96)"
+              bg="rgba(18, 18, 18, 0.75)"
               w={{ base: 'min(85vw, 300px)', md: '280px' }}
               maxW={{ base: 'min(85vw, 300px)', md: '280px' }}
               fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
@@ -242,8 +242,12 @@ function CorpoLayoutComponent({
                 borderBottom="1px solid"
                 borderColor="rgba(255, 255, 255, 0.08)"
               >
-                <Drawer.Title color="gray.200" fontSize="sm">
-                  Interlocutor v{pkg.version}
+                <Drawer.Title
+                  color="gray.200"
+                  fontSize="sm"
+                  textTransform="uppercase"
+                >
+                  INTERLOCUTOR v{pkg.version}
                 </Drawer.Title>
                 <Drawer.CloseTrigger asChild>
                   <IconButton
