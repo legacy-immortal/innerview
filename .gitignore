@@ -63,3 +63,4 @@ pnpm-debug.log*
 
 # Misc
 docs/
+scripts/conversations.json
