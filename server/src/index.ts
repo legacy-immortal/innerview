@@ -3,9 +3,14 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { ZEN_BASE_URL } from './agents/index.js';
 import { config } from './config/index.js';
+import { requestLogger } from './middleware/request-logger.js';
 import chatRoutes from './routes/chat.js';
 import completionRoutes from './routes/openai.js';
+import statusRoutes from './routes/status.js';
 import transcriptionRoutes from './routes/transcription.js';
+import { statusTracker } from './services/status-tracker.js';
+import { trackStreamedResponse } from './services/status-tracker.js';
+import { TtlCache } from './utils/cache.js';
 
 // Initialize config (validates environment variables on startup)
 try {
@@ -17,6 +22,10 @@ try {
 
 const app = new Hono();
 
+// Request logging with timing (method, path, status, duration).
+// Registered first so durations cover CORS, routes, and streaming setup.
+app.use('*', requestLogger());
+
 // CORS middleware
 app.use(
   '*',
@@ -27,10 +36,28 @@ app.use(
   })
 );
 
+// Track active backend requests for /api/status (skip the poll itself).
+app.use('*', async (c, next) => {
+  if (c.req.path === '/api/status') {
+    await next();
+    return;
+  }
+  const end = statusTracker.beginRequest();
+  await next();
+  // Keep the request counted until a streamed body is fully consumed.
+  const response = c.res;
+  if (response?.body) {
+    c.res = trackStreamedResponse(response, end);
+  } else {
+    end();
+  }
+});
+
 // Mount routes
 app.route('/', chatRoutes);
 app.route('/', transcriptionRoutes);
 app.route('/', completionRoutes);
+app.route('/', statusRoutes);
 
 // Health check
 app.get('/health', (c) => {
@@ -49,6 +76,14 @@ const TEST_AUDIO_URLS: Record<string, string> = {
     'https://ia800204.us.archive.org/11/items/short_poetry_collection_001_librivox/spCollection001_01_various_64kb.mp3',
 };
 
+// In-memory cache for proxied test audio (few fixed samples, fetched
+// repeatedly during transcription testing). 24h TTL matches the
+// Cache-Control header sent to clients; LRU caps memory at 8 samples.
+const testAudioCache = new TtlCache<
+  string,
+  { buffer: ArrayBuffer; contentType: string }
+>({ ttlMs: 24 * 60 * 60 * 1000, maxEntries: 8 });
+
 app.get('/api/test-audio/:sampleId', async (c) => {
   const sampleId = c.req.param('sampleId');
   const url = TEST_AUDIO_URLS[sampleId];
@@ -63,6 +98,18 @@ app.get('/api/test-audio/:sampleId', async (c) => {
     );
   }
 
+  const cached = testAudioCache.get(sampleId);
+  if (cached) {
+    return new Response(cached.buffer, {
+      headers: {
+        'Content-Type': cached.contentType,
+        'Content-Length': cached.buffer.byteLength.toString(),
+        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+        'X-Cache': 'HIT',
+      },
+    });
+  }
+
   try {
     const response = await fetch(url);
 
@@ -75,12 +122,14 @@ app.get('/api/test-audio/:sampleId', async (c) => {
 
     const audioBuffer = await response.arrayBuffer();
     const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    testAudioCache.set(sampleId, { buffer: audioBuffer, contentType });
 
     return new Response(audioBuffer, {
       headers: {
         'Content-Type': contentType,
         'Content-Length': audioBuffer.byteLength.toString(),
         'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+        'X-Cache': 'MISS',
       },
     });
   } catch (error) {
@@ -115,20 +164,51 @@ async function probeProvider(baseURL: string): Promise<boolean> {
   }
 }
 
-// Scan for available local providers
+// Scan for available local providers. Probes run in parallel (previously
+// sequential: 5 x 3s worst case) and results are cached for 10s since
+// the settings UI polls this endpoint.
+const providerScanCache = new TtlCache<
+  string,
+  Array<{ name: string; baseURL: string }>
+>({ ttlMs: 10_000, maxEntries: 1 });
+
 app.get('/api/provider/scan', async (c) => {
-  const results: Array<{ name: string; baseURL: string }> = [];
-  for (const preset of LOCAL_PROVIDER_PRESETS) {
-    const ok = await probeProvider(preset.baseURL);
-    if (ok) results.push({ name: preset.name, baseURL: preset.baseURL });
+  const cached = providerScanCache.get('scan');
+  if (cached) {
+    return c.json({
+      providers: cached,
+      timestamp: new Date().toISOString(),
+      cached: true,
+    });
   }
+  const probed = await Promise.all(
+    LOCAL_PROVIDER_PRESETS.map(async (preset) => ({
+      preset,
+      ok: await probeProvider(preset.baseURL),
+    }))
+  );
+  const results = probed
+    .filter(({ ok }) => ok)
+    .map(({ preset }) => ({ name: preset.name, baseURL: preset.baseURL }));
+  providerScanCache.set('scan', results);
   return c.json({ providers: results, timestamp: new Date().toISOString() });
+});
+
+type ProviderStatusBody = Record<string, unknown>;
+const providerStatusCache = new TtlCache<string, ProviderStatusBody>({
+  ttlMs: 5_000,
+  maxEntries: 4,
 });
 
 // Provider status endpoint - checks if AI provider is available
 app.get('/api/provider/status', async (c) => {
   const baseURL = config.ai.openaiBaseURL || 'http://localhost:5001/v1';
   const providerType = config.ai.openaiBaseURL ? 'remote' : 'local';
+
+  const cachedStatus = providerStatusCache.get(baseURL);
+  if (cachedStatus) {
+    return c.json({ ...cachedStatus, timestamp: new Date().toISOString() });
+  }
 
   try {
     // Try to reach the provider's models endpoint
@@ -148,23 +228,25 @@ app.get('/api/provider/status', async (c) => {
     if (response.ok) {
       const data = (await response.json()) as { data?: Array<{ id: string }> };
       const models = data.data || [];
-      return c.json({
+      const body: ProviderStatusBody = {
         status: 'available',
         provider: providerType,
         baseURL,
         modelsAvailable: models.length,
         models: models.slice(0, 10).map((m: { id: string }) => m.id),
-        timestamp: new Date().toISOString(),
-      });
+      };
+      providerStatusCache.set(baseURL, body);
+      return c.json({ ...body, timestamp: new Date().toISOString() });
     }
 
-    return c.json({
+    const body: ProviderStatusBody = {
       status: 'error',
       provider: providerType,
       baseURL,
       error: `Provider returned status ${response.status}`,
-      timestamp: new Date().toISOString(),
-    });
+    };
+    providerStatusCache.set(baseURL, body);
+    return c.json({ ...body, timestamp: new Date().toISOString() });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -174,7 +256,7 @@ app.get('/api/provider/status', async (c) => {
       errorMessage.includes('ECONNREFUSED') ||
       errorMessage.includes('fetch failed');
 
-    return c.json({
+    const body: ProviderStatusBody = {
       status: 'unavailable',
       provider: providerType,
       baseURL,
@@ -187,8 +269,9 @@ app.get('/api/provider/status', async (c) => {
         providerType === 'local'
           ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL in server/.env'
           : 'Check your API key and network connection',
-      timestamp: new Date().toISOString(),
-    });
+    };
+    providerStatusCache.set(baseURL, body);
+    return c.json({ ...body, timestamp: new Date().toISOString() });
   }
 });
 

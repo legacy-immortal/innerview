@@ -54,6 +54,9 @@ app.get('/api/transcription/status', (c) => {
 });
 
 // Endpoint to trigger model preload without transcribing
+// Preserved API: blocks until loaded/failed, same response shapes as before
+// (progress added additively). Detailed per-file progress is pollable via
+// GET /api/transcription/status or streamed via the preload SSE endpoint.
 app.post('/api/transcription/preload', async (c) => {
   try {
     const status = transcriptionService.getStatus();
@@ -62,6 +65,7 @@ app.post('/api/transcription/preload', async (c) => {
       return c.json({
         status: 'already_loaded',
         modelId: transcriptionService.getModelId(),
+        progress: status.progress,
       });
     }
 
@@ -75,6 +79,7 @@ app.post('/api/transcription/preload', async (c) => {
     return c.json({
       status: 'loaded',
       modelId: transcriptionService.getModelId(),
+      progress: transcriptionService.getProgress(),
     });
   } catch (error) {
     return c.json(
@@ -82,10 +87,65 @@ app.post('/api/transcription/preload', async (c) => {
         status: 'failed',
         modelId: transcriptionService.getModelId(),
         error: error instanceof Error ? error.message : 'Unknown error',
+        progress: transcriptionService.getProgress(),
       },
       500
     );
   }
+});
+
+// Detailed preload progress as Server-Sent Events. Starts the preload in the
+// background (idempotent — shares the same in-flight promise as the POST
+// endpoint) and streams status snapshots until ready/failed, then closes.
+// Existing clients that poll /api/transcription/status are unaffected.
+app.get('/api/transcription/preload/stream', (c) => {
+  const encoder = new TextEncoder();
+  const send = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    payload: unknown
+  ): void => {
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+  };
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const initial = transcriptionService.getStatus();
+        if (initial.failed) transcriptionService.resetError();
+        if (!initial.ready) {
+          // Fire-and-forget: the stream polls status below; errors surface
+          // as a `failed` snapshot rather than an unhandled rejection.
+          transcriptionService.preload().catch(() => undefined);
+        }
+        for (;;) {
+          const status = transcriptionService.getStatus();
+          send(controller, status);
+          if (status.ready || status.failed) {
+            send(controller, { done: true, status });
+            controller.close();
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      } catch (error) {
+        try {
+          send(controller, {
+            done: true,
+            status: transcriptionService.getStatus(),
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        } finally {
+          controller.close();
+        }
+      }
+    },
+  });
+
+  return c.body(stream, 200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
 });
 
 export default app;

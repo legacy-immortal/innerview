@@ -32,13 +32,25 @@ class ConfigService {
   private readonly _server: ServerConfig;
   private readonly _ai: AIConfig;
   private readonly _tts: TTSFeatureConfig;
+  private readonly _openai: { apiKey?: string; baseURL?: string };
+  private readonly _all: AppConfig;
 
   constructor() {
     this.env = getEnv();
-    // Cache computed configs for performance
+    // Cache computed configs for performance; getters return the same
+    // objects instead of allocating on every access.
     this._server = this.createServerConfig();
     this._ai = this.createAIConfig();
     this._tts = this.createTTSConfig();
+    this._openai = {
+      apiKey: this.env.OPENAI_API_KEY,
+      baseURL: this.env.OPENAI_BASE_URL,
+    };
+    this._all = {
+      server: this._server,
+      ai: this._ai,
+      tts: this._tts,
+    };
   }
 
   private createServerConfig(): ServerConfig {
@@ -74,10 +86,7 @@ class ConfigService {
   }
 
   get openai(): { apiKey?: string; baseURL?: string } {
-    return {
-      apiKey: this.env.OPENAI_API_KEY,
-      baseURL: this.env.OPENAI_BASE_URL,
-    };
+    return this._openai;
   }
 
   get tts(): TTSFeatureConfig {
@@ -85,11 +94,7 @@ class ConfigService {
   }
 
   get all(): AppConfig {
-    return {
-      server: this._server,
-      ai: this._ai,
-      tts: this._tts,
-    };
+    return this._all;
   }
 
   // Public config (safe to expose to frontend)

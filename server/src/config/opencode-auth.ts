@@ -48,10 +48,14 @@ export function resetOpenCodeAuthCache(): void {
   cached = undefined;
 }
 
-function credentialFromEntry(entry: OpenCodeAuthEntry | undefined): string | undefined {
+function credentialFromEntry(
+  entry: OpenCodeAuthEntry | undefined
+): string | undefined {
   if (!entry || typeof entry !== 'object') return undefined;
-  if (typeof entry.key === 'string' && entry.key.trim()) return entry.key.trim();
-  if (typeof entry.access === 'string' && entry.access.trim()) return entry.access.trim();
+  if (typeof entry.key === 'string' && entry.key.trim())
+    return entry.key.trim();
+  if (typeof entry.access === 'string' && entry.access.trim())
+    return entry.access.trim();
   return undefined;
 }
 
@@ -66,7 +70,9 @@ export function getOpenCodeProviderKey(providerId: string): string | undefined {
  * Resolve an API key using opencode auth as a fallback source.
  * Tries provider ids in order and returns the first credential found.
  */
-export function resolveOpenCodeApiKey(providerIds: string[]): string | undefined {
+export function resolveOpenCodeApiKey(
+  providerIds: string[]
+): string | undefined {
   for (const id of providerIds) {
     const key = getOpenCodeProviderKey(id);
     if (key) return key;

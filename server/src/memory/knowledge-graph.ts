@@ -16,23 +16,37 @@ interface Relationship {
 
 class InMemoryKnowledgeGraph {
   private entities: Map<string, Entity> = new Map();
+  // Secondary index: lowercase name -> entity id, so query() is O(1)
+  // instead of scanning every entity on each recall.
+  private nameIndex: Map<string, string> = new Map();
   private relationships: Relationship[] = [];
+  private queryCache: Map<string, string[]> = new Map();
 
   async addEntity(entity: Entity): Promise<void> {
+    const previous = this.entities.get(entity.id);
+    if (previous && previous.name.toLowerCase() !== entity.name.toLowerCase()) {
+      this.nameIndex.delete(previous.name.toLowerCase());
+    }
     this.entities.set(entity.id, entity);
+    this.nameIndex.set(entity.name.toLowerCase(), entity.id);
+    this.queryCache.clear();
   }
 
   async addRelationship(relationship: Relationship): Promise<void> {
     this.relationships.push(relationship);
+    this.queryCache.clear();
   }
 
   async query(
     entityName: string,
     relationshipType?: string
   ): Promise<string[]> {
-    const entity = Array.from(this.entities.values()).find(
-      (e) => e.name.toLowerCase() === entityName.toLowerCase()
-    );
+    const cacheKey = `${entityName.toLowerCase()}\n${relationshipType ?? ''}`;
+    const cachedQuery = this.queryCache.get(cacheKey);
+    if (cachedQuery) return [...cachedQuery];
+
+    const entityId = this.nameIndex.get(entityName.toLowerCase());
+    const entity = entityId ? this.entities.get(entityId) : undefined;
 
     if (!entity) return [];
 
@@ -52,6 +66,8 @@ class InMemoryKnowledgeGraph {
         return rel.context || `${rel.type}: ${otherEntity?.name || otherId}`;
       });
 
+    if (this.queryCache.size >= 512) this.queryCache.clear();
+    this.queryCache.set(cacheKey, related);
     return related;
   }
 

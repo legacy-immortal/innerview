@@ -5,6 +5,7 @@ import type { PerformanceMetrics } from '@/lib/performance-detector';
 import type { ProviderStatus } from '@/lib/provider-status';
 import { DetectionStagesList } from './DetectionStagesList';
 import { ModelDownloadProgressView } from './ModelDownloadProgress';
+import { ModelPreloadOptInDialog } from './ModelPreloadOptInDialog';
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import type { DetectionStage } from '@/lib/performanceStartupUtils';
 
@@ -16,6 +17,15 @@ export interface PerformanceDetectionViewProps {
   providerStatus: ProviderStatus | null;
   kokoroProgress: ModelDownloadProgress | null;
   whisperProgress: ModelDownloadProgress | null;
+  /** True while the device is overburdened and waiting for the opt-in choice. */
+  modelPreloadOptInRequired?: boolean;
+  /** Checkbox state for the opt-in dialog. */
+  modelPreloadOptIn?: boolean;
+  /** True while an opt-in-confirmed preload is running. */
+  isModelPreloading?: boolean;
+  onModelPreloadOptInChange?: (checked: boolean) => void;
+  onConfirmModelPreload?: () => void;
+  onSkipModelPreload?: () => void;
 }
 
 export function PerformanceDetectionView({
@@ -26,6 +36,12 @@ export function PerformanceDetectionView({
   providerStatus,
   kokoroProgress,
   whisperProgress,
+  modelPreloadOptInRequired = false,
+  modelPreloadOptIn = false,
+  isModelPreloading = false,
+  onModelPreloadOptInChange,
+  onConfirmModelPreload,
+  onSkipModelPreload,
 }: PerformanceDetectionViewProps) {
   const showBackground =
     metrics && metrics.tier !== 'low' && metrics.supportsWebGL2;
@@ -35,6 +51,19 @@ export function PerformanceDetectionView({
       : metrics?.tier === 'medium'
         ? 'cyan'
         : 'gray';
+  // Dedicated loading phase: while the Whisper (transcription) preload runs —
+  // blocking, on this screen — the bar tracks its real progress instead of
+  // sitting frozen at 100%, so low-hardware devices don't look hung.
+  const isTranscriptionLoading = isModelPreloading && whisperProgress != null;
+  const effectiveProgress = isTranscriptionLoading
+    ? (whisperProgress?.progress ?? progress)
+    : progress;
+  const loadingStatusText = isTranscriptionLoading
+    ? (whisperProgress?.message ??
+      (whisperProgress?.phase === 'loading'
+        ? 'Loading transcription model...'
+        : 'Downloading transcription model...'))
+    : 'Initializing detection routines...';
   return (
     <Box
       position="fixed"
@@ -153,7 +182,9 @@ export function PerformanceDetectionView({
             textShadow: '0 0 8px rgba(255, 255, 255, 0.1)',
           }}
         >
-          PERFORMANCE DETECTION
+          {isTranscriptionLoading
+            ? 'LOADING TRANSCRIPTION MODEL'
+            : 'PERFORMANCE DETECTION'}
         </Text>
 
         <DetectionStagesList
@@ -178,7 +209,7 @@ export function PerformanceDetectionView({
             <Box
               h="100%"
               bg={`${tierColor}.400`}
-              width={`${progress}%`}
+              width={`${effectiveProgress}%`}
               transition="width 0.2s step-end"
               css={{
                 boxShadow: `0 0 8px rgba(${
@@ -237,9 +268,30 @@ export function PerformanceDetectionView({
               textShadow: '0 0 2px rgba(255, 255, 255, 0.1)',
             }}
           >
-            {progress}%
+            {effectiveProgress}%
           </Text>
         </Box>
+
+        {/* Dedicated transcription loading phase */}
+        {isTranscriptionLoading && (
+          <Text
+            fontSize="xs"
+            color={`${tierColor}.300`}
+            fontWeight={600}
+            letterSpacing="0.1em"
+            css={{
+              textShadow: `0 0 8px rgba(${
+                tierColor === 'emerald'
+                  ? '16, 185, 129'
+                  : tierColor === 'cyan'
+                    ? '6, 182, 212'
+                    : '156, 163, 175'
+              }, 0.4)`,
+            }}
+          >
+            › LOADING TRANSCRIPTION MODEL…
+          </Text>
+        )}
 
         {/* Status message */}
         <Text
@@ -251,9 +303,11 @@ export function PerformanceDetectionView({
             textShadow: '0 0 4px rgba(255, 255, 255, 0.05)',
           }}
         >
-          {metrics
-            ? `Detected ${metrics.tier.toUpperCase()} performance tier`
-            : 'Initializing detection routines...'}
+          {isTranscriptionLoading
+            ? loadingStatusText
+            : metrics
+              ? `Detected ${metrics.tier.toUpperCase()} performance tier`
+              : loadingStatusText}
         </Text>
 
         {/* Provider warning */}
@@ -292,6 +346,17 @@ export function PerformanceDetectionView({
               )}
             </Box>
           )}
+
+        {modelPreloadOptInRequired && (
+          <ModelPreloadOptInDialog
+            metrics={metrics}
+            optIn={modelPreloadOptIn}
+            isPreloading={isModelPreloading}
+            onOptInChange={onModelPreloadOptInChange ?? (() => undefined)}
+            onContinue={onConfirmModelPreload ?? (() => undefined)}
+            onSkip={onSkipModelPreload ?? (() => undefined)}
+          />
+        )}
 
         <ModelDownloadProgressView
           kokoroProgress={kokoroProgress}

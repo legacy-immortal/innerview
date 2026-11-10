@@ -55,5 +55,7 @@ function createLogger(tag: string) {
 
 const logAgent = createLogger('agent');
 const logChat = createLogger('chat');
+const logServer = createLogger('server');
+const logTranscription = createLogger('transcription');
 
-export { createLogger, logAgent, logChat };
+export { createLogger, logAgent, logChat, logServer, logTranscription };

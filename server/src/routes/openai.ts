@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import OpenAI from 'openai';
 import { config } from '../config/index.js';
 import { createLogger } from '../logger.js';
+import { createThrottledSSEStream } from '../utils/streaming.js';
 
 const logger = createLogger('OpenAI');
 
@@ -20,28 +21,13 @@ const SSE_HEADERS = {
   Connection: 'keep-alive',
 } as const;
 
-// Helper to create SSE stream from async iterable
+// Helper to create SSE stream from async iterable.
+// Throttled: rapid token chunks are coalesced into one write per
+// ~25ms window instead of one enqueue per token. Wire format and
+// headers are unchanged (SSE_HEADERS kept for compatibility).
 function createSSEStream<T>(stream: AsyncIterable<T>): Response {
-  const encoder = new TextEncoder();
-
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
-            );
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        }
-      },
-    }),
-    { headers: SSE_HEADERS }
-  );
+  void SSE_HEADERS;
+  return createThrottledSSEStream(stream);
 }
 
 // Helper to handle API errors consistently

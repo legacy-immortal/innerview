@@ -92,17 +92,30 @@ type GuardrailsMetadata = {
   guardrails_regeneration_error?: boolean;
 };
 
-// Initialize a smaller, faster model for guardrails evaluation
+// Initialize a smaller, faster model for guardrails evaluation.
+// Cached per baseURL: evaluators run on every guarded turn and the
+// client holds no per-request state.
+const guardrailsModelCache = new Map<string, ChatOpenAI>();
 export const getGuardrailsModel = (baseURL?: string) => {
-  return new ChatOpenAI({
+  const resolvedBaseURL = baseURL || 'http://localhost:5001/v1';
+  const cached = guardrailsModelCache.get(resolvedBaseURL);
+  if (cached) return cached;
+  const model = new ChatOpenAI({
     openAIApiKey: 'sk-proj-dummy',
     configuration: {
-      baseURL: baseURL || 'http://localhost:5001/v1',
+      baseURL: resolvedBaseURL,
     },
     modelName: 'gpt-4o-mini',
     temperature: 0.3,
     maxTokens: 1024,
   });
+  if (guardrailsModelCache.size >= 16) {
+    const oldest = guardrailsModelCache.keys().next().value as
+      string | undefined;
+    if (oldest) guardrailsModelCache.delete(oldest);
+  }
+  guardrailsModelCache.set(resolvedBaseURL, model);
+  return model;
 };
 
 // Helper functions

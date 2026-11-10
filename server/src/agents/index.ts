@@ -14,6 +14,7 @@ import {
   getGuardrailsModel,
   messageTimestampMiddleware,
 } from './middlewares.js';
+import { TtlCache, hashText } from '../utils/cache.js';
 import { recallEntityTool, recallSpecificTool } from './tools.js';
 
 const logger = createLogger('Agents');
@@ -27,14 +28,13 @@ export const ZEN_BASE_URL = 'https://opencode.ai/zen/v1';
 const DEFAULT_TEMPERATURE = 0.8;
 const DEFAULT_MAX_TOKENS = 512;
 
-// Provider availability cache (avoid repeated checks)
-let providerAvailabilityCache: {
-  available: boolean;
-  checkedAt: number;
-  error?: string;
-  suggestion?: string;
-} | null = null;
-const PROVIDER_CACHE_TTL = 30000; // 30 seconds
+// Provider availability cache (avoid repeated checks). Keyed by
+// baseURL + whether a custom API key was supplied: the previous
+// single-slot cache could return one provider's status for another.
+const providerAvailabilityCache = new TtlCache<string, ProviderStatus>({
+  ttlMs: 30_000,
+  maxEntries: 32,
+});
 
 export type ProviderStatus = {
   available: boolean;
@@ -48,20 +48,10 @@ export const checkProviderAvailability = async (
   customApiKey?: string
 ): Promise<ProviderStatus> => {
   const baseURL = customBaseURL || DEFAULT_BASE_URL;
-  const now = Date.now();
+  const cacheKey = `${baseURL}\n${customApiKey ? 'key' : 'anon'}`;
 
-  // Return cached result if still valid (only when not using custom apiKey)
-  if (
-    !customApiKey &&
-    providerAvailabilityCache &&
-    now - providerAvailabilityCache.checkedAt < PROVIDER_CACHE_TTL
-  ) {
-    return {
-      available: providerAvailabilityCache.available,
-      error: providerAvailabilityCache.error,
-      suggestion: providerAvailabilityCache.suggestion,
-    };
-  }
+  const cached = providerAvailabilityCache.get(cacheKey);
+  if (cached) return cached;
 
   try {
     const controller = new AbortController();
@@ -79,20 +69,15 @@ export const checkProviderAvailability = async (
     clearTimeout(timeout);
 
     if (response.ok) {
-      providerAvailabilityCache = {
-        available: true,
-        checkedAt: now,
-      };
-      return { available: true };
+      const status: ProviderStatus = { available: true };
+      providerAvailabilityCache.set(cacheKey, status);
+      return status;
     }
 
     const error = `Provider returned status ${response.status}`;
-    providerAvailabilityCache = {
-      available: false,
-      checkedAt: now,
-      error,
-    };
-    return { available: false, error };
+    const status: ProviderStatus = { available: false, error };
+    providerAvailabilityCache.set(cacheKey, status);
+    return status;
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -113,18 +98,13 @@ export const checkProviderAvailability = async (
         ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL in server/.env'
         : 'Check your API key and network connection';
 
-    providerAvailabilityCache = {
-      available: false,
-      checkedAt: now,
-      error: formattedError,
-      suggestion,
-    };
-
-    return {
+    const status: ProviderStatus = {
       available: false,
       error: formattedError,
       suggestion,
     };
+    providerAvailabilityCache.set(cacheKey, status);
+    return status;
   }
 };
 
@@ -152,8 +132,19 @@ export type AgentSettings = {
 
 export type GenerationSettings = ModelConfig & AgentSettings;
 
+// Cache ChatOpenAI clients by effective config; constructing a client
+// per request was pure overhead (no per-request state inside).
+const modelCache = new TtlCache<string, ChatOpenAI>({
+  ttlMs: 10 * 60_000,
+  maxEntries: 32,
+});
+
 // Initialize the reasoning model with configurable parameters
 export const getModel = (config?: ModelConfig): ChatOpenAI => {
+  const cacheKey = hashText(JSON.stringify(config ?? {}));
+  const cached = modelCache.get(cacheKey);
+  if (cached) return cached;
+
   const baseURL = config?.baseURL || DEFAULT_BASE_URL;
   const apiKey = config?.apiKey || 'sk-proj-dummy';
   const modelConfig: ConstructorParameters<typeof ChatOpenAI>[0] = {
@@ -173,7 +164,9 @@ export const getModel = (config?: ModelConfig): ChatOpenAI => {
       config.stopSequences.length > 0 && { stop: config.stopSequences }),
   };
 
-  return new ChatOpenAI(modelConfig);
+  const model = new ChatOpenAI(modelConfig);
+  modelCache.set(cacheKey, model);
+  return model;
 };
 
 // Shared checkpointer for conversation persistence
@@ -213,21 +206,41 @@ const buildMiddleware = (baseURL: string, settings?: AgentSettings) => {
   return middleware;
 };
 
+// Cache built agents per (model, settings) pair; createAgent wiring
+// (middleware construction, graph compilation) is the heavy part and
+// the result is stateless across threads (state lives in checkpointer).
+type InterlocutorAgent = ReturnType<typeof createAgent>;
+const agentCache = new TtlCache<string, InterlocutorAgent>({
+  ttlMs: 10 * 60_000,
+  maxEntries: 8,
+});
+
 // Create the interlocutor agent
 export const initializeInterlocutor = (
   modelConfig?: ModelConfig,
   agentSettings?: AgentSettings
 ) => {
+  const cacheKey = hashText(
+    JSON.stringify({
+      modelConfig: modelConfig ?? {},
+      agentSettings: agentSettings ?? {},
+    })
+  );
+  const cached = agentCache.get(cacheKey);
+  if (cached) return cached;
+
   const baseURL = modelConfig?.baseURL || DEFAULT_BASE_URL;
   const middleware = buildMiddleware(baseURL, agentSettings);
 
-  return createAgent({
+  const agent = createAgent({
     model: getModel(modelConfig),
     tools: [recallSpecificTool, recallEntityTool],
     contextSchema,
     checkpointer,
     middleware,
   });
+  agentCache.set(cacheKey, agent);
+  return agent;
 };
 
 // Add conversation memories to vector store

@@ -1,6 +1,5 @@
 import os from 'os';
 import { statfs } from 'fs/promises';
-import { join } from 'path';
 
 export interface ResourceRequirements {
   minFreeMemoryMB: number;
@@ -18,6 +17,12 @@ export interface ResourceCheckResult {
   errors: string[];
   warnings: string[];
 }
+
+// Disk free space changes slowly; cache statfs per path for 30s so
+// repeated startup/health checks do not syscall on every call.
+// Memory/CPU values are always read fresh (cheap and volatile).
+const diskFreeCache = new Map<string, { freeMB: number; at: number }>();
+const DISK_CACHE_TTL_MS = 30_000;
 
 export async function checkSystemResources(
   requirements: ResourceRequirements,
@@ -47,11 +52,17 @@ export async function checkSystemResources(
 
   if (diskPath) {
     try {
-      const stats = await statfs(diskPath);
-      const blockSize = stats.bsize;
-      const availableBlocks = stats.bavail;
-      const availableBytes = blockSize * availableBlocks;
-      diskFreeMB = Math.round(availableBytes / 1024 / 1024);
+      const cachedDisk = diskFreeCache.get(diskPath);
+      if (cachedDisk && Date.now() - cachedDisk.at < DISK_CACHE_TTL_MS) {
+        diskFreeMB = cachedDisk.freeMB;
+      } else {
+        const stats = await statfs(diskPath);
+        const blockSize = stats.bsize;
+        const availableBlocks = stats.bavail;
+        const availableBytes = blockSize * availableBlocks;
+        diskFreeMB = Math.round(availableBytes / 1024 / 1024);
+        diskFreeCache.set(diskPath, { freeMB: diskFreeMB, at: Date.now() });
+      }
       diskPathChecked = diskPath;
 
       if (diskFreeMB < requirements.minDiskSpaceMB) {
@@ -80,7 +91,9 @@ export async function checkSystemResources(
 
 export function logResourceCheck(result: ResourceCheckResult): void {
   console.log('=== System Resource Check ===');
-  console.log(`Memory: ${result.freeMemoryMB} MB free / ${result.totalMemoryMB} MB total`);
+  console.log(
+    `Memory: ${result.freeMemoryMB} MB free / ${result.totalMemoryMB} MB total`
+  );
   console.log(`CPU cores: ${result.cpuCores}`);
   if (result.diskFreeMB !== undefined && result.diskPath) {
     console.log(`Disk ${result.diskPath}: ${result.diskFreeMB} MB free`);
