@@ -17,6 +17,7 @@ import { HuggingFaceTransformersEmbeddings } from '@langchain/community/embeddin
 import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { FakeEmbeddings } from '@langchain/core/utils/testing';
+import { cosineSimilarity as matrixCosineSimilarity } from '@langchain/core/utils/math';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -34,32 +35,6 @@ function isValidVector(v: unknown): v is number[] {
   return v.every((x) => typeof x === 'number' && !Number.isNaN(x));
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (!isValidVector(a) || !isValidVector(b) || a.length !== b.length) {
-    return 0;
-  }
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    const ai = a[i];
-    const bi = b[i];
-    if (
-      typeof ai !== 'number' ||
-      typeof bi !== 'number' ||
-      Number.isNaN(ai) ||
-      Number.isNaN(bi)
-    ) {
-      return 0;
-    }
-    dotProduct += ai * bi;
-    normA += ai * ai;
-    normB += bi * bi;
-  }
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-  return denominator === 0 ? 0 : dotProduct / denominator;
-}
-
 function topKSimilar(
   queryEmbedding: number[],
   documents: readonly StoredDocument[],
@@ -69,10 +44,28 @@ function topKSimilar(
     return [];
   }
 
-  // Top-k selection without fully sorting every document: O(n log k).
   const topK = Math.max(1, Math.min(k, documents.length));
-  const heap: Array<{ doc: StoredDocument; similarity: number }> = [];
-  const heapPush = (item: { doc: StoredDocument; similarity: number }) => {
+  const candidates: StoredDocument[] = [];
+  const embeddings: number[][] = [];
+  for (const doc of documents) {
+    if (!isValidVector(doc.embedding)) continue;
+    if (doc.embedding.length !== queryEmbedding.length) continue;
+    candidates.push(doc);
+    embeddings.push(doc.embedding);
+  }
+  if (candidates.length === 0) return [];
+
+  let scores: number[];
+  try {
+    scores = matrixCosineSimilarity([queryEmbedding], embeddings)[0] ?? [];
+  } catch {
+    // Fallback: if matrix math fails for any reason, return no matches.
+    return [];
+  }
+
+  // Top-k selection without fully sorting every document: O(n log k).
+  const heap: Array<{ index: number; similarity: number }> = [];
+  const heapPush = (item: { index: number; similarity: number }) => {
     heap.push(item);
     let i = heap.length - 1;
     while (i > 0) {
@@ -110,24 +103,24 @@ function topKSimilar(
     return root;
   };
 
-  for (const doc of documents) {
-    if (!isValidVector(doc.embedding)) continue;
-    const similarity = cosineSimilarity(queryEmbedding, doc.embedding);
+  for (let i = 0; i < candidates.length; i++) {
+    const similarity = scores[i];
+    if (typeof similarity !== 'number' || Number.isNaN(similarity)) continue;
     if (heap.length < topK) {
-      heapPush({ doc, similarity });
+      heapPush({ index: i, similarity });
     } else if (similarity > heap[0].similarity) {
       heapPopRoot();
-      heapPush({ doc, similarity });
+      heapPush({ index: i, similarity });
     }
   }
 
   return heap
     .sort((a, b) => b.similarity - a.similarity)
     .map(
-      ({ doc }) =>
+      ({ index }) =>
         new Document({
-          pageContent: doc.pageContent,
-          metadata: doc.metadata,
+          pageContent: candidates[index].pageContent,
+          metadata: candidates[index].metadata,
         })
     );
 }
@@ -528,29 +521,65 @@ class VectorStore {
     this.initialized = true;
   }
 
+  /**
+   * Add documents to the store.
+   *
+   * Cloud-smooth default: if a document does not include a precomputed embedding
+   * in `metadata.embedding` (number[]), the server generates one.
+   * To offload compute (e.g. browser/GPU), callers may provide
+   * `metadata.embedding` (and keep model/dimension consistent with stored vectors).
+   */
   async addDocuments(docs: Document[]): Promise<void> {
     await this.ensureInitialized();
     const store = this.store;
-    const embeddings = await this.getEmbeddings();
-    if (!store || !embeddings) {
-      console.warn(
-        'Vector store not available (embeddings failed to load). Documents not added.'
-      );
+    if (!store) {
+      console.warn('Vector store not available. Documents not added.');
       return;
     }
 
     try {
-      const vectors = await embedDocumentsBatch(embeddings, docs);
       const stored: StoredDocument[] = [];
+      const toEmbed: Array<{ index: number; doc: Document }> = [];
+
       for (let i = 0; i < docs.length; i++) {
-        const embedding = vectors[i] ?? [];
-        if (!isValidVector(embedding)) continue;
-        stored.push({
-          pageContent: docs[i].pageContent,
-          metadata: docs[i].metadata || {},
-          embedding,
-        });
+        const doc = docs[i];
+        const meta = (doc.metadata || {}) as Record<string, unknown>;
+        const provided = meta.embedding;
+        if (isValidVector(provided)) {
+          stored.push({
+            pageContent: doc.pageContent,
+            metadata: meta,
+            embedding: provided,
+          });
+        } else {
+          toEmbed.push({ index: i, doc });
+        }
       }
+
+      if (toEmbed.length > 0) {
+        const embeddings = await this.getEmbeddings();
+        if (!embeddings) {
+          console.warn(
+            'Embeddings unavailable; documents without precomputed embeddings were not added.'
+          );
+        } else {
+          const vectors = await embedDocumentsBatch(
+            embeddings,
+            toEmbed.map((x) => x.doc)
+          );
+          for (let j = 0; j < toEmbed.length; j++) {
+            const embedding = vectors[j] ?? [];
+            if (!isValidVector(embedding)) continue;
+            const doc = toEmbed[j].doc;
+            stored.push({
+              pageContent: doc.pageContent,
+              metadata: (doc.metadata || {}) as Record<string, unknown>,
+              embedding,
+            });
+          }
+        }
+      }
+
       if (stored.length === 0) return;
       await store.addStored(stored);
     } catch (error) {
@@ -565,13 +594,37 @@ class VectorStore {
   ): Promise<Document[]> {
     await this.ensureInitialized();
     const store = this.store;
-    const embeddings = await this.getEmbeddings();
-    if (!store || !embeddings) {
+    if (!store) {
       return [];
     }
 
     try {
+      const embeddings = await this.getEmbeddings();
+      if (!embeddings) {
+        return [];
+      }
       const queryEmbedding = await embedQueryCached(embeddings, query);
+      return await store.similaritySearch(queryEmbedding, k);
+    } catch (error) {
+      console.warn('Vector store similarity search failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search using a precomputed query embedding (e.g. computed in-browser).
+   * Dimension/model must match stored vectors.
+   */
+  async similaritySearchByEmbedding(
+    queryEmbedding: number[],
+    k: number = 3
+  ): Promise<Document[]> {
+    await this.ensureInitialized();
+    const store = this.store;
+    if (!store || !isValidVector(queryEmbedding)) {
+      return [];
+    }
+    try {
       return await store.similaritySearch(queryEmbedding, k);
     } catch (error) {
       console.warn('Vector store similarity search failed:', error);
