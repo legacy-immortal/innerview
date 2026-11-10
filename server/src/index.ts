@@ -6,6 +6,7 @@ import { config } from './config/index.js';
 import { requestLogger } from './middleware/request-logger.js';
 import chatRoutes from './routes/chat.js';
 import completionRoutes from './routes/openai.js';
+import memoryRoutes from './routes/memory.js';
 import statusRoutes from './routes/status.js';
 import transcriptionRoutes from './routes/transcription.js';
 import { statusTracker } from './services/status-tracker.js';
@@ -58,6 +59,7 @@ app.route('/', chatRoutes);
 app.route('/', transcriptionRoutes);
 app.route('/', completionRoutes);
 app.route('/', statusRoutes);
+app.route('/', memoryRoutes);
 
 // Health check
 app.get('/health', (c) => {

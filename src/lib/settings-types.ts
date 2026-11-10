@@ -365,6 +365,8 @@ export interface GenerationSettings {
   streamingEnabled?: boolean; // Enable token streaming for real-time display. Default: true
   // Agent middleware and memory settings
   enableAssociativeMemory?: boolean; // Enable associative memory injection from vector store
+  /** Where associative-memory embeddings are computed. Cloud/server is default for smooth tablet UX. */
+  embeddingComputeMode?: 'server' | 'client' | 'disabled';
   enableSummaryMemory?: boolean; // Enable conversation summarization middleware
   enableConstitutionMiddleware?: boolean; // Enable constitutional prompt middleware
   enableAppealProcess?: boolean; // Enable appeal process in guardrails middleware

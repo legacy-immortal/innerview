@@ -4,8 +4,21 @@
  */
 import type { JSX } from 'react';
 import { memo } from 'react';
-import { VStack, HStack, Text, Separator, Switch } from '@chakra-ui/react';
+import {
+  VStack,
+  HStack,
+  Text,
+  Separator,
+  Switch,
+  NativeSelect,
+} from '@chakra-ui/react';
+import { useEffect, useState } from 'react';
 import type { GenerationSettings } from '@/lib/settings-types';
+import {
+  recommendEmbeddingComputeMode,
+  type EmbeddingComputeMode,
+} from '@/lib/embedding-capability';
+import { detectPerformanceCached } from '@/lib/performance-detector';
 
 /**
  * Props for {@link AgentTab}.
@@ -29,6 +42,24 @@ export const AgentTab = memo(function AgentTab({
   generationSettings,
   setGenerationSettings,
 }: AgentTabProps): JSX.Element {
+  const [recommendedMode, setRecommendedMode] =
+    useState<EmbeddingComputeMode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void detectPerformanceCached()
+      .then((metrics) => {
+        if (cancelled) return;
+        setRecommendedMode(recommendEmbeddingComputeMode(metrics));
+      })
+      .catch(() => {
+        if (!cancelled) setRecommendedMode('server');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <VStack gap={4} align="stretch">
       <Text color="gray.300" fontSize="sm" fontWeight={600}>
@@ -65,6 +96,41 @@ export const AgentTab = memo(function AgentTab({
             <Switch.Thumb />
           </Switch.Control>
         </Switch.Root>
+      </HStack>
+
+      <HStack justify="space-between" flexWrap="wrap" gap={3} align="start">
+        <VStack align="start" gap={0} flex="1" minW="220px">
+          <Text color="gray.200" fontSize="sm">
+            Embedding Compute
+          </Text>
+          <Text color="gray.500" fontSize="xs">
+            Cloud/server is default for smooth tablet UX. Client offload is
+            opt-in and may be resource-intensive.
+            {recommendedMode
+              ? ` Recommended (device): ${recommendedMode}.`
+              : ''}
+          </Text>
+        </VStack>
+        <NativeSelect.Root size="sm" w={{ base: '100%', sm: '180px' }}>
+          <NativeSelect.Field
+            value={generationSettings.embeddingComputeMode ?? 'server'}
+            onChange={(e) =>
+              setGenerationSettings((prev) => ({
+                ...prev,
+                embeddingComputeMode: e.target
+                  .value as GenerationSettings['embeddingComputeMode'],
+              }))
+            }
+            bg="rgba(0, 0, 0, 0.3)"
+            borderColor="rgba(255, 255, 255, 0.2)"
+            color="gray.100"
+          >
+            <option value="server">Server (cloud, default)</option>
+            <option value="client">Client (offload, opt-in)</option>
+            <option value="disabled">Disabled</option>
+          </NativeSelect.Field>
+          <NativeSelect.Indicator color="gray.400" />
+        </NativeSelect.Root>
       </HStack>
 
       <HStack justify="space-between" flexWrap="wrap" gap={3}>

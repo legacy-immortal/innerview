@@ -108,7 +108,11 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
       setGenerationSettings({
         ...DEFAULTS.generation,
         ...storeSettings.generation,
-      });
+        embeddingComputeMode:
+          storeSettings.generation.embeddingComputeMode ??
+          DEFAULTS.generation.embeddingComputeMode ??
+          'server',
+      } as GenerationSettings);
     }
 
     // Load browser voices
@@ -152,6 +156,10 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
         const next = {
           ...DEFAULTS.generation,
           ...current.generation,
+          embeddingComputeMode:
+            current.generation.embeddingComputeMode ??
+            DEFAULTS.generation.embeddingComputeMode ??
+            'server',
         } as GenerationSettings;
         setGenerationSettings((prev) => (shallow(next, prev) ? prev : next));
       }

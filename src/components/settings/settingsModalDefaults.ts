@@ -119,6 +119,7 @@ export const DEFAULTS = {
     availableModels: [],
     reasoningTag: 'thinking',
     enableAssociativeMemory: true,
+    embeddingComputeMode: 'server',
     enableSummaryMemory: true,
     enableConstitutionMiddleware: true,
     enableAppealProcess: true,
