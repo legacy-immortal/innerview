@@ -24,9 +24,11 @@ const envSchema = z.object({
   ENABLE_TTS_PROXY: z.coerce.boolean().default(false),
   ENABLE_VOICE_CLONING: z.coerce.boolean().default(false),
 
-  // Storage (future)
+  // Storage
   DATABASE_URL: z.string().optional(),
   VECTOR_DB_URL: z.string().optional(),
+  TURSO_DATABASE_URL: z.string().optional(),
+  TURSO_AUTH_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

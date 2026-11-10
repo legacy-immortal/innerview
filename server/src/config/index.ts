@@ -20,10 +20,18 @@ export interface TTSFeatureConfig {
   enableVoiceCloning: boolean;
 }
 
+export interface StorageConfig {
+  databaseUrl?: string;
+  vectorDbUrl?: string;
+  tursoDatabaseUrl?: string;
+  tursoAuthToken?: string;
+}
+
 export interface AppConfig {
   server: ServerConfig;
   ai: AIConfig;
   tts: TTSFeatureConfig;
+  storage: StorageConfig;
 }
 
 // Configuration service class
@@ -32,6 +40,7 @@ class ConfigService {
   private readonly _server: ServerConfig;
   private readonly _ai: AIConfig;
   private readonly _tts: TTSFeatureConfig;
+  private readonly _storage: StorageConfig;
   private readonly _openai: { apiKey?: string; baseURL?: string };
   private readonly _all: AppConfig;
 
@@ -42,6 +51,7 @@ class ConfigService {
     this._server = this.createServerConfig();
     this._ai = this.createAIConfig();
     this._tts = this.createTTSConfig();
+    this._storage = this.createStorageConfig();
     this._openai = {
       apiKey: this.env.OPENAI_API_KEY,
       baseURL: this.env.OPENAI_BASE_URL,
@@ -50,6 +60,7 @@ class ConfigService {
       server: this._server,
       ai: this._ai,
       tts: this._tts,
+      storage: this._storage,
     };
   }
 
@@ -77,6 +88,15 @@ class ConfigService {
     };
   }
 
+  private createStorageConfig(): StorageConfig {
+    return {
+      databaseUrl: this.env.DATABASE_URL,
+      vectorDbUrl: this.env.VECTOR_DB_URL,
+      tursoDatabaseUrl: this.env.TURSO_DATABASE_URL,
+      tursoAuthToken: this.env.TURSO_AUTH_TOKEN,
+    };
+  }
+
   get server(): ServerConfig {
     return this._server;
   }
@@ -93,6 +113,10 @@ class ConfigService {
     return this._tts;
   }
 
+  get storage(): StorageConfig {
+    return this._storage;
+  }
+
   get all(): AppConfig {
     return this._all;
   }
@@ -102,6 +126,12 @@ class ConfigService {
     return {
       server: this._server,
       tts: this._tts,
+      storage: {
+        // Expose only non-secret storage hints if needed; keep tokens private.
+        databaseUrl: this._storage.databaseUrl,
+        vectorDbUrl: this._storage.vectorDbUrl,
+        tursoDatabaseUrl: this._storage.tursoDatabaseUrl,
+      },
     };
   }
 }

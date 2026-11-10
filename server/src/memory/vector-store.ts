@@ -1,28 +1,27 @@
-// Vector store for associative memory using local HuggingFace embeddings
+// Vector store for associative memory.
 //
-// This implementation uses:
-// - HuggingFace Transformers.js for local embedding generation (no API calls required)
-// - Xenova/all-MiniLM-L6-v2 model for high-quality sentence embeddings
-// - Automatic model download if not found locally
-// - Fallback to in-memory similarity search when FAISS unavailable (no native dependencies)
-// - File-based persistence when possible
+// Cloud-first implementation:
+// - Persists documents + embeddings in Turso/libSQL when configured
+//   (TURSO_DATABASE_URL / TURSO_AUTH_TOKEN), falling back to in-memory storage.
+// - Generates embeddings server-side by default (HuggingFace Transformers.js,
+//   Xenova/all-MiniLM-L6-v2) so the cloud experience works without device compute.
+// - faiss-node removed; similarity search is computed in-process over stored
+//   vectors (cosine) which is sufficient for conversational memory scale.
+//
+// Browser/GPU-computed embeddings and client-side/local Turso replicas can be
+// layered on later; this module keeps the public API stable for agent/tools.
 
+import { createClient, type Client } from '@libsql/client';
 import { pipeline } from '@huggingface/transformers';
 import { HuggingFaceTransformersEmbeddings } from '@langchain/community/embeddings/huggingface_transformers';
 import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { FakeEmbeddings } from '@langchain/core/utils/testing';
 import { existsSync } from 'node:fs';
-import {
-  copyFile,
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { TtlCache, debounce, hashText } from '../utils/cache.js';
+import { getConfig } from '../config/index.js';
+import { TtlCache, hashText } from '../utils/cache.js';
 
 interface StoredDocument {
   pageContent: string;
@@ -35,6 +34,104 @@ function isValidVector(v: unknown): v is number[] {
   return v.every((x) => typeof x === 'number' && !Number.isNaN(x));
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (!isValidVector(a) || !isValidVector(b) || a.length !== b.length) {
+    return 0;
+  }
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    const ai = a[i];
+    const bi = b[i];
+    if (
+      typeof ai !== 'number' ||
+      typeof bi !== 'number' ||
+      Number.isNaN(ai) ||
+      Number.isNaN(bi)
+    ) {
+      return 0;
+    }
+    dotProduct += ai * bi;
+    normA += ai * ai;
+    normB += bi * bi;
+  }
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  return denominator === 0 ? 0 : dotProduct / denominator;
+}
+
+function topKSimilar(
+  queryEmbedding: number[],
+  documents: readonly StoredDocument[],
+  k: number
+): Document[] {
+  if (documents.length === 0 || !isValidVector(queryEmbedding)) {
+    return [];
+  }
+
+  // Top-k selection without fully sorting every document: O(n log k).
+  const topK = Math.max(1, Math.min(k, documents.length));
+  const heap: Array<{ doc: StoredDocument; similarity: number }> = [];
+  const heapPush = (item: { doc: StoredDocument; similarity: number }) => {
+    heap.push(item);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].similarity <= heap[i].similarity) break;
+      [heap[parent], heap[i]] = [heap[i], heap[parent]];
+      i = parent;
+    }
+  };
+  const heapPopRoot = () => {
+    const root = heap[0];
+    const last = heap.pop();
+    if (last && heap.length > 0) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const left = 2 * i + 1;
+        const right = left + 1;
+        let smallest = i;
+        if (
+          left < heap.length &&
+          heap[left].similarity < heap[smallest].similarity
+        )
+          smallest = left;
+        if (
+          right < heap.length &&
+          heap[right].similarity < heap[smallest].similarity
+        )
+          smallest = right;
+        if (smallest === i) break;
+        [heap[i], heap[smallest]] = [heap[smallest], heap[i]];
+        i = smallest;
+      }
+    }
+    return root;
+  };
+
+  for (const doc of documents) {
+    if (!isValidVector(doc.embedding)) continue;
+    const similarity = cosineSimilarity(queryEmbedding, doc.embedding);
+    if (heap.length < topK) {
+      heapPush({ doc, similarity });
+    } else if (similarity > heap[0].similarity) {
+      heapPopRoot();
+      heapPush({ doc, similarity });
+    }
+  }
+
+  return heap
+    .sort((a, b) => b.similarity - a.similarity)
+    .map(
+      ({ doc }) =>
+        new Document({
+          pageContent: doc.pageContent,
+          metadata: doc.metadata,
+        })
+    );
+}
+
 // Cache for query embeddings: middleware and tools re-embed the same
 // recent user text on every turn. Keyed by content hash, 5min TTL.
 const queryEmbeddingCache = new TtlCache<string, number[]>({
@@ -42,190 +139,163 @@ const queryEmbeddingCache = new TtlCache<string, number[]>({
   maxEntries: 512,
 });
 
-// In-memory vector store that works without native dependencies (FAISS fallback)
+async function embedQueryCached(
+  embeddings: Embeddings,
+  text: string
+): Promise<number[]> {
+  const key = hashText(text);
+  const cached = queryEmbeddingCache.get(key);
+  if (cached) return cached;
+  const embedding = await embeddings.embedQuery(text);
+  if (isValidVector(embedding)) queryEmbeddingCache.set(key, embedding);
+  return embedding;
+}
+
+async function embedDocumentsBatch(
+  embeddings: Embeddings,
+  docs: Document[]
+): Promise<number[][]> {
+  if (docs.length === 0) return [];
+  if (typeof embeddings.embedDocuments === 'function') {
+    return embeddings.embedDocuments(docs.map((d) => d.pageContent));
+  }
+  return Promise.all(docs.map((d) => embeddings.embedQuery(d.pageContent)));
+}
+
+// In-memory fallback store (no persistence across restarts)
 class InMemoryVectorStore {
   private documents: StoredDocument[] = [];
-  private embeddings: Embeddings;
 
-  constructor(embeddings: Embeddings) {
-    this.embeddings = embeddings;
+  async addStored(docs: StoredDocument[]): Promise<void> {
+    this.documents.push(...docs);
   }
 
-  private async embedQueryCached(text: string): Promise<number[]> {
-    const key = hashText(text);
-    const cached = queryEmbeddingCache.get(key);
-    if (cached) return cached;
-    const embedding = await this.embeddings.embedQuery(text);
-    if (isValidVector(embedding)) queryEmbeddingCache.set(key, embedding);
-    return embedding;
+  async similaritySearch(
+    queryEmbedding: number[],
+    k: number
+  ): Promise<Document[]> {
+    return topKSimilar(queryEmbedding, this.documents, k);
   }
 
-  async addDocuments(docs: Document[]): Promise<void> {
-    if (docs.length === 0) return;
-    // Batch-embed in one call instead of one awaited round-trip per doc.
-    let embeddings: number[][];
-    if (typeof this.embeddings.embedDocuments === 'function') {
-      embeddings = await this.embeddings.embedDocuments(
-        docs.map((d) => d.pageContent)
-      );
-    } else {
-      embeddings = await Promise.all(
-        docs.map((d) => this.embeddings.embedQuery(d.pageContent))
-      );
-    }
-    for (let i = 0; i < docs.length; i++) {
-      const doc = docs[i];
-      this.documents.push({
-        pageContent: doc.pageContent,
-        metadata: doc.metadata || {},
-        embedding: embeddings[i] ?? [],
-      });
-    }
-  }
-
-  async similaritySearch(query: string, k: number = 3): Promise<Document[]> {
-    if (this.documents.length === 0) {
-      return [];
-    }
-
-    const queryEmbedding = await this.embedQueryCached(query);
-    if (!isValidVector(queryEmbedding)) {
-      return [];
-    }
-
-    // Top-k selection without fully sorting every document:
-    // O(n log k) min-heap keeps only the k best candidates.
-    const topK = Math.max(1, Math.min(k, this.documents.length));
-    const heap: Array<{ doc: StoredDocument; similarity: number }> = [];
-    const heapPush = (item: { doc: StoredDocument; similarity: number }) => {
-      heap.push(item);
-      let i = heap.length - 1;
-      while (i > 0) {
-        const parent = (i - 1) >> 1;
-        if (heap[parent].similarity <= heap[i].similarity) break;
-        [heap[parent], heap[i]] = [heap[i], heap[parent]];
-        i = parent;
-      }
-    };
-    const heapPopRoot = () => {
-      const root = heap[0];
-      const last = heap.pop();
-      if (last && heap.length > 0) {
-        heap[0] = last;
-        let i = 0;
-        for (;;) {
-          const left = 2 * i + 1;
-          const right = left + 1;
-          let smallest = i;
-          if (
-            left < heap.length &&
-            heap[left].similarity < heap[smallest].similarity
-          )
-            smallest = left;
-          if (
-            right < heap.length &&
-            heap[right].similarity < heap[smallest].similarity
-          )
-            smallest = right;
-          if (smallest === i) break;
-          [heap[i], heap[smallest]] = [heap[smallest], heap[i]];
-          i = smallest;
-        }
-      }
-      return root;
-    };
-
-    for (const doc of this.documents) {
-      if (!isValidVector(doc.embedding)) continue;
-      const similarity = this.cosineSimilarity(queryEmbedding, doc.embedding);
-      if (heap.length < topK) {
-        heapPush({ doc, similarity });
-      } else if (similarity > heap[0].similarity) {
-        heapPopRoot();
-        heapPush({ doc, similarity });
-      }
-    }
-
-    return heap
-      .sort((a, b) => b.similarity - a.similarity)
-      .map(
-        ({ doc }) =>
-          new Document({
-            pageContent: doc.pageContent,
-            metadata: doc.metadata,
-          })
-      );
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (!isValidVector(a) || !isValidVector(b) || a.length !== b.length) {
-      return 0;
-    }
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      const ai = a[i];
-      const bi = b[i];
-      if (
-        typeof ai !== 'number' ||
-        typeof bi !== 'number' ||
-        Number.isNaN(ai) ||
-        Number.isNaN(bi)
-      ) {
-        return 0;
-      }
-      dotProduct += ai * bi;
-      normA += ai * ai;
-      normB += bi * bi;
-    }
-    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-    return denominator === 0 ? 0 : dotProduct / denominator;
-  }
-
-  async save(path: string): Promise<void> {
-    await mkdir(path, { recursive: true });
-    const dataPath = join(path, 'docstore.json');
-    await writeFile(dataPath, JSON.stringify(this.documents, null, 2), 'utf-8');
-  }
-
-  async load(path: string): Promise<void> {
-    const dataPath = join(path, 'docstore.json');
-    if (existsSync(dataPath)) {
-      try {
-        const content = await readFile(dataPath, 'utf-8');
-        const raw = JSON.parse(content) as StoredDocument[];
-        this.documents = Array.isArray(raw)
-          ? raw.filter((doc) => doc && isValidVector(doc.embedding))
-          : [];
-      } catch {
-        console.warn(`Failed to load documents from ${dataPath}`);
-        this.documents = [];
-      }
-    }
-  }
-
-  getDocumentCount(): number {
+  async count(): Promise<number> {
     return this.documents.length;
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.documents = [];
   }
 }
 
-// Main vector store class with graceful fallback
+// Turso/libSQL-backed store (remote/persistent). Stores embeddings as JSON and
+// computes cosine similarity in-process for broad compatibility; this avoids
+// native FAISS while giving durable, centralized storage.
+class TursoVectorStore {
+  private client: Client;
+  private initPromise: Promise<void> | null = null;
+
+  constructor(url: string, authToken?: string) {
+    this.client = createClient({
+      url,
+      authToken,
+    });
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        await this.client.execute(`
+          CREATE TABLE IF NOT EXISTS vector_memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            metadata TEXT,
+            embedding TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          )
+        `);
+        await this.client.execute(`
+          CREATE INDEX IF NOT EXISTS idx_vector_memories_created_at
+          ON vector_memories(created_at)
+        `);
+      })();
+    }
+    await this.initPromise;
+  }
+
+  async addStored(docs: StoredDocument[]): Promise<void> {
+    if (docs.length === 0) return;
+    await this.ensureSchema();
+    const now = new Date().toISOString();
+    // Insert sequentially to keep it simple/reliable across libSQL drivers.
+    for (const doc of docs) {
+      if (!isValidVector(doc.embedding)) continue;
+      await this.client.execute({
+        sql: `INSERT INTO vector_memories (content, metadata, embedding, created_at)
+              VALUES (?, ?, ?, ?)`,
+        args: [
+          doc.pageContent,
+          JSON.stringify(doc.metadata || {}),
+          JSON.stringify(doc.embedding),
+          now,
+        ],
+      });
+    }
+  }
+
+  async similaritySearch(
+    queryEmbedding: number[],
+    k: number
+  ): Promise<Document[]> {
+    await this.ensureSchema();
+    if (!isValidVector(queryEmbedding)) return [];
+    const res = await this.client.execute(
+      'SELECT content, metadata, embedding FROM vector_memories'
+    );
+    const docs: StoredDocument[] = [];
+    for (const row of res.rows) {
+      try {
+        const content = String(row.content ?? '');
+        const metadataRaw = row.metadata;
+        const embeddingRaw = row.embedding;
+        const metadata =
+          typeof metadataRaw === 'string' && metadataRaw
+            ? (JSON.parse(metadataRaw) as Record<string, unknown>)
+            : {};
+        const embedding =
+          typeof embeddingRaw === 'string' && embeddingRaw
+            ? (JSON.parse(embeddingRaw) as number[])
+            : [];
+        if (!isValidVector(embedding)) continue;
+        docs.push({ pageContent: content, metadata, embedding });
+      } catch {
+        // Skip malformed rows.
+      }
+    }
+    return topKSimilar(queryEmbedding, docs, k);
+  }
+
+  async count(): Promise<number> {
+    await this.ensureSchema();
+    const res = await this.client.execute(
+      'SELECT COUNT(*) as count FROM vector_memories'
+    );
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    const value = row?.count ?? 0;
+    return typeof value === 'number' ? value : Number(value) || 0;
+  }
+
+  async clear(): Promise<void> {
+    await this.ensureSchema();
+    await this.client.execute('DELETE FROM vector_memories');
+  }
+}
+
+// Main vector store class with Turso persistence (when configured) and
+// server-side embedding generation for a smooth cloud baseline.
 class VectorStore {
-  private store: InMemoryVectorStore | null = null;
+  private store: InMemoryVectorStore | TursoVectorStore | null = null;
   private embeddings: Embeddings | null = null;
   private initialized = false;
   private embeddingsInitializing = false;
-  private readonly storePath = join(
-    process.cwd(),
-    'server',
-    'data',
-    'vector-store'
-  );
   private readonly modelName = 'Xenova/all-MiniLM-L6-v2';
   private readonly modelCacheDir = join(
     process.cwd(),
@@ -236,19 +306,25 @@ class VectorStore {
   private initializationError: Error | null = null;
   private modelDownloading = false;
 
-  // Debounced disk persistence: previously every addDocuments() call
-  // synchronously rewrote the whole JSON docstore. Bursts of adds now
-  // coalesce into one write 500ms after the last add.
-  private readonly scheduleSave = debounce(() => {
-    void this.persist().catch((error) => {
-      console.warn('Failed to save vector store:', error);
-    });
-  }, 500);
-
-  private async persist(): Promise<void> {
-    if (!this.store) return;
-    await this.ensureDirectoryExists();
-    await this.store.save(this.storePath);
+  private async ensureStore(): Promise<InMemoryVectorStore | TursoVectorStore> {
+    if (this.store) return this.store;
+    try {
+      const storage = getConfig().storage;
+      const url = storage.tursoDatabaseUrl || storage.vectorDbUrl;
+      if (url) {
+        this.store = new TursoVectorStore(url, storage.tursoAuthToken);
+        console.log('[VectorStore] Using Turso/libSQL vector store');
+        return this.store;
+      }
+    } catch (error) {
+      console.warn(
+        '[VectorStore] Failed to initialize Turso store, falling back to in-memory:',
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+    this.store = new InMemoryVectorStore();
+    console.log('[VectorStore] Using in-memory vector store (no Turso config)');
+    return this.store;
   }
 
   // Recursively copy directory contents
@@ -283,13 +359,11 @@ class VectorStore {
       console.log(`[VectorStore] Starting download of ${this.modelName}...`);
       console.log(`[VectorStore] Target directory: ${this.modelCacheDir}`);
 
-      // Ensure the directory exists
       if (!existsSync(this.modelCacheDir)) {
         await mkdir(this.modelCacheDir, { recursive: true });
         console.log(`[VectorStore] Created directory: ${this.modelCacheDir}`);
       }
 
-      // Download the model by initializing the pipeline
       console.log(
         `[VectorStore] Initializing pipeline to trigger model download...`
       );
@@ -323,7 +397,6 @@ class VectorStore {
         cache_dir: this.modelCacheDir,
       });
 
-      // Test the model to ensure it works
       console.log(`[VectorStore] Testing downloaded model...`);
       const testEmbedding = await extractor('test', { pooling: 'mean' });
       console.log(
@@ -331,7 +404,6 @@ class VectorStore {
       );
 
       // Transformers.js creates nested structure: {cache_dir}/{model_id}/{model_id}/
-      // Move files to flat structure: {cache_dir}/
       const nestedPath = join(
         this.modelCacheDir,
         this.modelName,
@@ -341,8 +413,6 @@ class VectorStore {
       if (existsSync(nestedPath)) {
         console.log(`[VectorStore] Flattening model structure...`);
         await this.copyRecursive(nestedPath, this.modelCacheDir);
-
-        // Remove nested directory structure
         console.log(`[VectorStore] Removing nested directory structure...`);
         await rm(join(this.modelCacheDir, this.modelName), {
           recursive: true,
@@ -376,9 +446,7 @@ class VectorStore {
       return null;
     }
 
-    // Prevent multiple simultaneous initialization attempts
     if (this.embeddingsInitializing) {
-      // Wait a bit and check again
       await new Promise((resolve) => setTimeout(resolve, 100));
       return this.embeddings || null;
     }
@@ -386,7 +454,6 @@ class VectorStore {
     this.embeddingsInitializing = true;
 
     try {
-      // Try HuggingFace embeddings first
       try {
         console.log(
           `[VectorStore] Attempting to initialize HuggingFace embeddings (model: ${this.modelName})`
@@ -395,26 +462,21 @@ class VectorStore {
           `[VectorStore] Using model cache directory: ${this.modelCacheDir}`
         );
 
-        // Check if local model exists (flat structure: model files directly in cache dir)
         const configPath = join(this.modelCacheDir, 'config.json');
         const useLocalFiles = existsSync(configPath);
 
         if (!useLocalFiles) {
-          // Model not found, download it automatically
           console.log(
             `[VectorStore] No local model found, downloading automatically...`
           );
           await this.downloadModel();
         }
 
-        // Check again after download attempt
         const configExists = existsSync(configPath);
         if (configExists) {
           console.log(
             `[VectorStore] Local model found, using local_files_only mode`
           );
-          console.log(`[VectorStore] Model path: ${this.modelCacheDir}`);
-          // When using local files, point directly to the cache directory
           this.embeddings = new HuggingFaceTransformersEmbeddings({
             model: this.modelCacheDir,
             pretrainedOptions: {
@@ -422,11 +484,9 @@ class VectorStore {
             },
           });
         } else {
-          // Fallback: try downloading via HuggingFaceTransformersEmbeddings
           console.log(
             `[VectorStore] Attempting to download via HuggingFaceTransformersEmbeddings...`
           );
-
           this.embeddings = new HuggingFaceTransformersEmbeddings({
             model: this.modelName,
             pretrainedOptions: {
@@ -436,7 +496,6 @@ class VectorStore {
           });
         }
 
-        // Test the embeddings to ensure they work
         await this.embeddings.embedQuery('test');
         console.log(
           `[VectorStore] Successfully initialized HuggingFace embeddings`
@@ -446,10 +505,7 @@ class VectorStore {
         console.warn(
           `[VectorStore] HuggingFace embeddings failed (model: ${this.modelName}), falling back to FakeEmbeddings. Error: ${hfError instanceof Error ? hfError.message : String(hfError)}`
         );
-
-        // Fall back to FakeEmbeddings for development/testing
         this.embeddings = new FakeEmbeddings();
-
         console.log(`[VectorStore] Using FakeEmbeddings as fallback`);
         return this.embeddings;
       }
@@ -466,79 +522,40 @@ class VectorStore {
     }
   }
 
-  private async ensureDirectoryExists(): Promise<void> {
-    if (!existsSync(this.storePath)) {
-      try {
-        console.log(`[VectorStore] Creating directory: ${this.storePath}`);
-        await mkdir(this.storePath, { recursive: true });
-        console.log(
-          `[VectorStore] Directory created successfully: ${this.storePath}`
-        );
-      } catch (error) {
-        console.warn(
-          `[VectorStore] Failed to create vector-store directory at ${this.storePath}:`,
-          error
-        );
-        throw error;
-      }
-    } else {
-      console.log(`[VectorStore] Directory already exists: ${this.storePath}`);
-    }
-  }
-
   private async ensureInitialized(): Promise<void> {
     if (this.initialized && this.store) return;
-
-    const embeddings = await this.getEmbeddings();
-
-    if (!embeddings) {
-      // Embeddings not available - operate in degraded mode
-      this.initialized = true;
-      return;
-    }
-
-    console.log(
-      `[VectorStore] Initializing vector store at: ${this.storePath}`
-    );
-
-    await this.ensureDirectoryExists();
-
-    try {
-      // Create in-memory store (no native dependencies)
-      this.store = new InMemoryVectorStore(embeddings);
-
-      // Try to load persisted documents
-      try {
-        await this.store.load(this.storePath);
-        console.log(`[VectorStore] Loaded persisted documents`);
-      } catch {
-        console.log(
-          `[VectorStore] No persisted documents found, starting fresh`
-        );
-      }
-
-      this.initialized = true;
-    } catch (error) {
-      console.error(`[VectorStore] Failed to initialize vector store:`, error);
-      // Don't throw - allow degraded mode
-      this.initialized = true;
-    }
+    await this.ensureStore();
+    this.initialized = true;
   }
 
   async addDocuments(docs: Document[]): Promise<void> {
     await this.ensureInitialized();
-    if (!this.store) {
+    const store = this.store;
+    const embeddings = await this.getEmbeddings();
+    if (!store || !embeddings) {
       console.warn(
         'Vector store not available (embeddings failed to load). Documents not added.'
       );
       return;
     }
 
-    await this.store.addDocuments(docs);
-
-    // Persist asynchronously/debounced so add latency is not blocked
-    // on a full docstore rewrite. Data still reaches disk shortly after.
-    this.scheduleSave();
+    try {
+      const vectors = await embedDocumentsBatch(embeddings, docs);
+      const stored: StoredDocument[] = [];
+      for (let i = 0; i < docs.length; i++) {
+        const embedding = vectors[i] ?? [];
+        if (!isValidVector(embedding)) continue;
+        stored.push({
+          pageContent: docs[i].pageContent,
+          metadata: docs[i].metadata || {},
+          embedding,
+        });
+      }
+      if (stored.length === 0) return;
+      await store.addStored(stored);
+    } catch (error) {
+      console.warn('Failed to add documents to vector store:', error);
+    }
   }
 
   async similaritySearch(
@@ -547,13 +564,15 @@ class VectorStore {
     _filter?: Record<string, unknown>
   ): Promise<Document[]> {
     await this.ensureInitialized();
-    if (!this.store) {
-      // Return empty array if store not available (graceful degradation)
+    const store = this.store;
+    const embeddings = await this.getEmbeddings();
+    if (!store || !embeddings) {
       return [];
     }
 
     try {
-      return await this.store.similaritySearch(query, k);
+      const queryEmbedding = await embedQueryCached(embeddings, query);
+      return await store.similaritySearch(queryEmbedding, k);
     } catch (error) {
       console.warn('Vector store similarity search failed:', error);
       return [];
@@ -572,37 +591,31 @@ class VectorStore {
     ]);
   }
 
-  // Additional methods for memory management
   async getDocumentCount(): Promise<number> {
     await this.ensureInitialized();
-    if (!this.store) {
+    if (!this.store) return 0;
+    try {
+      return await this.store.count();
+    } catch {
       return 0;
     }
-
-    return this.store.getDocumentCount();
   }
 
   async clearAll(): Promise<void> {
-    const embeddings = await this.getEmbeddings();
-    if (!embeddings) {
+    await this.ensureInitialized();
+    if (!this.store) {
       console.warn(
-        '[VectorStore] Cannot clear vector store - embeddings not available'
+        '[VectorStore] Cannot clear vector store - store not available'
       );
       return;
     }
-
-    // Create new empty store
-    this.store = new InMemoryVectorStore(embeddings);
-    this.initialized = true;
-    this.scheduleSave.cancel();
-
     try {
-      await this.persist();
-      console.log(`[VectorStore] Cleared vector store at: ${this.storePath}`);
+      await this.store.clear();
+      console.log('[VectorStore] Cleared vector store');
     } catch (error) {
       console.warn(
-        `[VectorStore] Failed to save cleared vector store at ${this.storePath}:`,
-        error
+        `[VectorStore] Failed to clear vector store:`,
+        error instanceof Error ? error.message : String(error)
       );
     }
   }
