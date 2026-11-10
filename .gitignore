@@ -68,3 +68,6 @@ scripts/conversations.json
 # E2E (Midscene/Playwright) local config and reports
 e2e/.env
 midscene_run/
+test-results/
+playwright-report/
+blob-report/

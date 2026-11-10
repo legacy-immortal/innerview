@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Midscene e2e sentinel: selects the latest suitable free/vision-capable model
+ * Midscene e2e sentinel: selects a suitable vision-capable remote VLLM model
  * from NVIDIA NIM (OpenAI-compatible /v1/models) and updates e2e/.env before tests.
+ *
+ * Behavior (by design): FAIL FAST if no capable remote VLLM can be found/selected.
+ * We do not run local VLLMs for these agentic tests (insufficient/unsafe compute
+ * consistency) and we do not silently fall back to an unknown/unverified model.
  *
  * - Reads e2e/.env (if present) without overriding existing process env.
  * - Uses NVIDIA_NIM_API_KEY (or MIDSCENE_MODEL_API_KEY) for the models request.
  * - Writes/updates MIDSCENE_MODEL_NAME and ensures MIDSCENE_MODEL_API_KEY/BASE_URL.
- * - Falls back to the existing configured model on any failure (non-fatal).
+ * - Exits non-zero with a clear reason when a capable model cannot be provisioned.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -90,11 +94,21 @@ function pickLatestFreeVisionModel(models) {
     if (match) return match;
   }
   if (vision.length > 0) return vision[0];
-  // Last resort: keep environment/default choice.
   return null;
 }
 
+function fail(reason) {
+  console.error(`[midscene-sentinel] FATAL: ${reason}`);
+  console.error(
+    '[midscene-sentinel] Agentic e2e requires a capable remote VLLM (NVIDIA NIM). Local VLLM execution is not supported for consistent/safe test runs. Provide NVIDIA_NIM_API_KEY (or MIDSCENE_MODEL_API_KEY) and ensure a vision-capable model is available, or set E2E_REQUIRE_REMOTE_VLLM=0 only for explicit non-agentic dry runs.'
+  );
+  process.exit(1);
+}
+
 async function main() {
+  const requireRemote =
+    (process.env.E2E_REQUIRE_REMOTE_VLLM ?? '1') !== '0';
+
   let fileEnv = {};
   let original = '';
   if (fs.existsSync(ENV_PATH)) {
@@ -114,8 +128,13 @@ async function main() {
     NIM_BASE;
 
   if (!apiKey || apiKey === 'your_nvidia_nim_api_key_here') {
+    if (requireRemote) {
+      fail(
+        'No NVIDIA_NIM_API_KEY/MIDSCENE_MODEL_API_KEY configured; cannot select a capable remote VLLM for agentic tests.'
+      );
+    }
     console.warn(
-      '[midscene-sentinel] No NVIDIA_NIM_API_KEY/MIDSCENE_MODEL_API_KEY set; keeping existing model config.'
+      '[midscene-sentinel] Remote VLLM not required (E2E_REQUIRE_REMOTE_VLLM=0); keeping existing model config.'
     );
     return;
   }
@@ -132,15 +151,25 @@ async function main() {
     const list = Array.isArray(data?.data) ? data.data : [];
     selected = pickLatestFreeVisionModel(list);
   } catch (err) {
+    if (requireRemote) {
+      fail(
+        `Failed to discover/select a capable remote VLLM from ${baseUrl}: ${String(err)}`
+      );
+    }
     console.warn(
-      `[midscene-sentinel] Failed to fetch/select model, keeping existing config: ${String(err)}`
+      `[midscene-sentinel] Remote VLLM discovery failed but not required: ${String(err)}`
     );
     return;
   }
 
   if (!selected) {
+    if (requireRemote) {
+      fail(
+        `No suitable vision-capable VLLM found at ${baseUrl} for agentic UI tests.`
+      );
+    }
     console.warn(
-      '[midscene-sentinel] No suitable vision-capable model found; keeping existing config.'
+      '[midscene-sentinel] No suitable vision-capable model found; remote VLLM not required, keeping existing config.'
     );
     return;
   }
