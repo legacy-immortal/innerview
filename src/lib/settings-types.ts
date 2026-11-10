@@ -372,6 +372,16 @@ export interface GenerationSettings {
   enableAppealProcess?: boolean; // Enable appeal process in guardrails middleware
 }
 
+/** Privacy and opt-in persistence controls (cloud features are opt-in). */
+export interface PrivacySettings {
+  /** Anonymous device/profile identifier (no sign-in), used to scope opt-in remote data. */
+  installationId?: string;
+  /** Where conversations are persisted. Default: local-only. */
+  conversationPersistence?: 'local' | 'cloud';
+  /** Whether associative/vector memory may use remote (cloud/server) storage. Default: off. */
+  associativeMemoryRemote?: boolean;
+}
+
 export interface UserSettings {
   userId?: string;
   sessionId?: string;
@@ -382,6 +392,7 @@ export interface UserSettings {
     language?: string;
     [key: string]: unknown;
   };
+  privacy?: PrivacySettings;
   waveform?: {
     enabled?: boolean;
     settings?: WaveformSettings;
