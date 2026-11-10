@@ -4,19 +4,42 @@ import { vectorStore } from '../memory/vector-store.js';
 
 const app = new Hono();
 
+function getInstallationId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /**
- * Add associative-memory documents.
+ * Add associative-memory documents (opt-in, installation-scoped).
+ * Requires `installationId` and explicit `optIn: true`.
  * Cloud-smooth default: server computes embeddings when not provided.
  * Client offload path: include `metadata.embedding` (number[]) per document.
  */
 app.post('/api/memory/add', async (c) => {
   try {
     const body = (await c.req.json()) as {
+      installationId?: string;
+      optIn?: boolean;
       documents?: Array<{
         content?: string;
         metadata?: Record<string, unknown>;
       }>;
     };
+    const installationId = getInstallationId(body.installationId);
+    if (!installationId) {
+      return c.json({ error: 'installationId is required' }, 400);
+    }
+    if (body.optIn !== true) {
+      return c.json(
+        {
+          error:
+            'opt-in required: remote/vector memory must be explicitly enabled',
+        },
+        403
+      );
+    }
+
     const docsInput = Array.isArray(body.documents) ? body.documents : [];
     if (docsInput.length === 0) {
       return c.json({ error: 'documents array is required' }, 400);
@@ -37,8 +60,8 @@ app.post('/api/memory/add', async (c) => {
       return c.json({ error: 'no valid documents with content' }, 400);
     }
 
-    await vectorStore.addDocuments(docs);
-    const count = await vectorStore.getDocumentCount();
+    await vectorStore.addDocuments(docs, { installationId });
+    const count = await vectorStore.getDocumentCount({ installationId });
     return c.json({ ok: true, added: docs.length, count });
   } catch (error) {
     return c.json(
@@ -52,17 +75,33 @@ app.post('/api/memory/add', async (c) => {
 });
 
 /**
- * Similarity search over associative memory.
+ * Similarity search over associative memory (opt-in, installation-scoped).
+ * Requires `installationId` and explicit `optIn: true`.
  * Provide either `query` (server computes embedding) or `embedding` (precomputed)
  * as a fallback/offload path. If both provided, `embedding` is used.
  */
 app.post('/api/memory/search', async (c) => {
   try {
     const body = (await c.req.json()) as {
+      installationId?: string;
+      optIn?: boolean;
       query?: string;
       embedding?: number[];
       k?: number;
     };
+    const installationId = getInstallationId(body.installationId);
+    if (!installationId) {
+      return c.json({ error: 'installationId is required' }, 400);
+    }
+    if (body.optIn !== true) {
+      return c.json(
+        {
+          error:
+            'opt-in required: remote/vector memory must be explicitly enabled',
+        },
+        403
+      );
+    }
     const k =
       typeof body.k === 'number' && Number.isFinite(body.k)
         ? Math.max(1, Math.min(20, Math.floor(body.k)))
@@ -72,10 +111,13 @@ app.post('/api/memory/search', async (c) => {
     if (Array.isArray(body.embedding)) {
       results = await vectorStore.similaritySearchByEmbedding(
         body.embedding,
-        k
+        k,
+        { installationId }
       );
     } else if (typeof body.query === 'string' && body.query.trim()) {
-      results = await vectorStore.similaritySearch(body.query.trim(), k);
+      results = await vectorStore.similaritySearch(body.query.trim(), k, {
+        installationId,
+      });
     } else {
       return c.json({ error: 'query or embedding is required' }, 400);
     }

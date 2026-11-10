@@ -28,6 +28,7 @@ interface StoredDocument {
   pageContent: string;
   metadata: Record<string, unknown>;
   embedding: number[];
+  installationId?: string;
 }
 
 function isValidVector(v: unknown): v is number[] {
@@ -165,17 +166,29 @@ class InMemoryVectorStore {
 
   async similaritySearch(
     queryEmbedding: number[],
-    k: number
+    k: number,
+    installationId?: string
   ): Promise<Document[]> {
-    return topKSimilar(queryEmbedding, this.documents, k);
+    const scoped = installationId
+      ? this.documents.filter((d) => d.installationId === installationId)
+      : this.documents;
+    return topKSimilar(queryEmbedding, scoped, k);
   }
 
-  async count(): Promise<number> {
-    return this.documents.length;
+  async count(installationId?: string): Promise<number> {
+    if (!installationId) return this.documents.length;
+    return this.documents.filter((d) => d.installationId === installationId)
+      .length;
   }
 
-  async clear(): Promise<void> {
-    this.documents = [];
+  async clear(installationId?: string): Promise<void> {
+    if (!installationId) {
+      this.documents = [];
+      return;
+    }
+    this.documents = this.documents.filter(
+      (d) => d.installationId !== installationId
+    );
   }
 }
 
@@ -202,12 +215,25 @@ class TursoVectorStore {
             content TEXT NOT NULL,
             metadata TEXT,
             embedding TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            installation_id TEXT
           )
         `);
+        // Best-effort migration for existing tables.
+        try {
+          await this.client.execute(
+            'ALTER TABLE vector_memories ADD COLUMN installation_id TEXT'
+          );
+        } catch {
+          // Column likely exists.
+        }
         await this.client.execute(`
           CREATE INDEX IF NOT EXISTS idx_vector_memories_created_at
           ON vector_memories(created_at)
+        `);
+        await this.client.execute(`
+          CREATE INDEX IF NOT EXISTS idx_vector_memories_installation_id
+          ON vector_memories(installation_id)
         `);
       })();
     }
@@ -222,13 +248,14 @@ class TursoVectorStore {
     for (const doc of docs) {
       if (!isValidVector(doc.embedding)) continue;
       await this.client.execute({
-        sql: `INSERT INTO vector_memories (content, metadata, embedding, created_at)
-              VALUES (?, ?, ?, ?)`,
+        sql: `INSERT INTO vector_memories (content, metadata, embedding, created_at, installation_id)
+              VALUES (?, ?, ?, ?, ?)`,
         args: [
           doc.pageContent,
           JSON.stringify(doc.metadata || {}),
           JSON.stringify(doc.embedding),
           now,
+          doc.installationId ?? null,
         ],
       });
     }
@@ -236,13 +263,19 @@ class TursoVectorStore {
 
   async similaritySearch(
     queryEmbedding: number[],
-    k: number
+    k: number,
+    installationId?: string
   ): Promise<Document[]> {
     await this.ensureSchema();
     if (!isValidVector(queryEmbedding)) return [];
-    const res = await this.client.execute(
-      'SELECT content, metadata, embedding FROM vector_memories'
-    );
+    const res = installationId
+      ? await this.client.execute({
+          sql: 'SELECT content, metadata, embedding, installation_id FROM vector_memories WHERE installation_id = ?',
+          args: [installationId],
+        })
+      : await this.client.execute(
+          'SELECT content, metadata, embedding, installation_id FROM vector_memories'
+        );
     const docs: StoredDocument[] = [];
     for (const row of res.rows) {
       try {
@@ -266,18 +299,30 @@ class TursoVectorStore {
     return topKSimilar(queryEmbedding, docs, k);
   }
 
-  async count(): Promise<number> {
+  async count(installationId?: string): Promise<number> {
     await this.ensureSchema();
-    const res = await this.client.execute(
-      'SELECT COUNT(*) as count FROM vector_memories'
-    );
+    const res = installationId
+      ? await this.client.execute({
+          sql: 'SELECT COUNT(*) as count FROM vector_memories WHERE installation_id = ?',
+          args: [installationId],
+        })
+      : await this.client.execute(
+          'SELECT COUNT(*) as count FROM vector_memories'
+        );
     const row = res.rows[0] as Record<string, unknown> | undefined;
     const value = row?.count ?? 0;
     return typeof value === 'number' ? value : Number(value) || 0;
   }
 
-  async clear(): Promise<void> {
+  async clear(installationId?: string): Promise<void> {
     await this.ensureSchema();
+    if (installationId) {
+      await this.client.execute({
+        sql: 'DELETE FROM vector_memories WHERE installation_id = ?',
+        args: [installationId],
+      });
+      return;
+    }
     await this.client.execute('DELETE FROM vector_memories');
   }
 }
@@ -529,7 +574,10 @@ class VectorStore {
    * To offload compute (e.g. browser/GPU), callers may provide
    * `metadata.embedding` (and keep model/dimension consistent with stored vectors).
    */
-  async addDocuments(docs: Document[]): Promise<void> {
+  async addDocuments(
+    docs: Document[],
+    options?: { installationId?: string }
+  ): Promise<void> {
     await this.ensureInitialized();
     const store = this.store;
     if (!store) {
@@ -540,6 +588,7 @@ class VectorStore {
     try {
       const stored: StoredDocument[] = [];
       const toEmbed: Array<{ index: number; doc: Document }> = [];
+      const installationId = options?.installationId;
 
       for (let i = 0; i < docs.length; i++) {
         const doc = docs[i];
@@ -550,6 +599,7 @@ class VectorStore {
             pageContent: doc.pageContent,
             metadata: meta,
             embedding: provided,
+            installationId,
           });
         } else {
           toEmbed.push({ index: i, doc });
@@ -575,6 +625,7 @@ class VectorStore {
               pageContent: doc.pageContent,
               metadata: (doc.metadata || {}) as Record<string, unknown>,
               embedding,
+              installationId,
             });
           }
         }
@@ -590,7 +641,7 @@ class VectorStore {
   async similaritySearch(
     query: string,
     k: number = 3,
-    _filter?: Record<string, unknown>
+    filter?: { installationId?: string } & Record<string, unknown>
   ): Promise<Document[]> {
     await this.ensureInitialized();
     const store = this.store;
@@ -604,7 +655,11 @@ class VectorStore {
         return [];
       }
       const queryEmbedding = await embedQueryCached(embeddings, query);
-      return await store.similaritySearch(queryEmbedding, k);
+      return await store.similaritySearch(
+        queryEmbedding,
+        k,
+        filter?.installationId
+      );
     } catch (error) {
       console.warn('Vector store similarity search failed:', error);
       return [];
@@ -617,7 +672,8 @@ class VectorStore {
    */
   async similaritySearchByEmbedding(
     queryEmbedding: number[],
-    k: number = 3
+    k: number = 3,
+    options?: { installationId?: string }
   ): Promise<Document[]> {
     await this.ensureInitialized();
     const store = this.store;
@@ -625,7 +681,11 @@ class VectorStore {
       return [];
     }
     try {
-      return await store.similaritySearch(queryEmbedding, k);
+      return await store.similaritySearch(
+        queryEmbedding,
+        k,
+        options?.installationId
+      );
     } catch (error) {
       console.warn('Vector store similarity search failed:', error);
       return [];
@@ -634,27 +694,33 @@ class VectorStore {
 
   async addText(
     text: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    options?: { installationId?: string }
   ): Promise<void> {
-    await this.addDocuments([
-      new Document({
-        pageContent: text,
-        metadata: metadata || {},
-      }),
-    ]);
+    await this.addDocuments(
+      [
+        new Document({
+          pageContent: text,
+          metadata: metadata || {},
+        }),
+      ],
+      options
+    );
   }
 
-  async getDocumentCount(): Promise<number> {
+  async getDocumentCount(options?: {
+    installationId?: string;
+  }): Promise<number> {
     await this.ensureInitialized();
     if (!this.store) return 0;
     try {
-      return await this.store.count();
+      return await this.store.count(options?.installationId);
     } catch {
       return 0;
     }
   }
 
-  async clearAll(): Promise<void> {
+  async clearAll(options?: { installationId?: string }): Promise<void> {
     await this.ensureInitialized();
     if (!this.store) {
       console.warn(
@@ -663,7 +729,7 @@ class VectorStore {
       return;
     }
     try {
-      await this.store.clear();
+      await this.store.clear(options?.installationId);
       console.log('[VectorStore] Cleared vector store');
     } catch (error) {
       console.warn(
