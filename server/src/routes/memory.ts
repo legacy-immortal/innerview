@@ -210,4 +210,40 @@ app.post('/api/memory/delete', async (c) => {
   }
 });
 
+/**
+ * Export associative-memory documents for an installation (opt-in, scoped).
+ * Returns content and metadata (embeddings omitted).
+ */
+app.post('/api/memory/export', async (c) => {
+  try {
+    const body = (await c.req.json()) as {
+      installationId?: string;
+      optIn?: boolean;
+    };
+    const installationId = getInstallationId(body.installationId);
+    if (!installationId) {
+      return c.json({ error: 'installationId is required' }, 400);
+    }
+    if (body.optIn !== true) {
+      return c.json(
+        {
+          error:
+            'opt-in required: remote/vector memory must be explicitly enabled',
+        },
+        403
+      );
+    }
+    const documents = await vectorStore.exportDocuments({ installationId });
+    return c.json({ ok: true, documents, count: documents.length });
+  } catch (error) {
+    return c.json(
+      {
+        error: 'Failed to export memory documents',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
 export default app;

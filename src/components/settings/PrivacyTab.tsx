@@ -14,7 +14,11 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { countRemoteMemory, deleteRemoteMemory } from '@/lib/memory-client';
+import {
+  countRemoteMemory,
+  deleteRemoteMemory,
+  exportRemoteMemory,
+} from '@/lib/memory-client';
 import { useSettingsStore } from '@/lib/settings-store';
 import type { PrivacySettings } from '@/lib/settings-types';
 
@@ -98,6 +102,41 @@ export const PrivacyTab = memo(function PrivacyTab({
       setRemoteStatus(res.error || 'Failed to delete remote memory.');
     }
   }, []);
+
+  const handleExportRemote = useCallback(async () => {
+    setBusy(true);
+    setRemoteStatus('Exporting remote memory...');
+    const res = await exportRemoteMemory();
+    setBusy(false);
+    if (res.ok) {
+      try {
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          installationId: privacySettings.installationId,
+          count: res.count ?? 0,
+          documents: res.documents ?? [],
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `innerview-remote-memory-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setRemoteStatus(
+          `Remote memory exported (${String(res.count ?? 0)} documents).`
+        );
+      } catch (error) {
+        setRemoteStatus(
+          `Remote export failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    } else {
+      setRemoteStatus(res.error || 'Failed to export remote memory.');
+    }
+  }, [privacySettings.installationId]);
 
   return (
     <VStack gap={4} align="stretch">
@@ -219,6 +258,14 @@ export const PrivacyTab = memo(function PrivacyTab({
             disabled={!remoteMemory || busy}
           >
             Count remote memory
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportRemote}
+            disabled={!remoteMemory || busy}
+          >
+            Export remote memory
           </Button>
           <Button
             size="sm"

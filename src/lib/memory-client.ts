@@ -141,6 +141,20 @@ export async function deleteRemoteMemory(): Promise<MemoryOperationResult> {
   });
 }
 
+/** Export remote associative memory documents for this installation. */
+export async function exportRemoteMemory(): Promise<
+  MemoryOperationResult & { documents?: MemoryDocument[]; count?: number }
+> {
+  const ctx = getRemoteMemoryContext();
+  if (!ctx.allowed || !ctx.installationId) {
+    return { ok: false, error: ctx.reason };
+  }
+  return postMemory('/api/memory/export', {
+    installationId: ctx.installationId,
+    optIn: true,
+  });
+}
+
 /** Whether remote associative memory operations are currently allowed. */
 export function canUseRemoteMemory(): boolean {
   return getRemoteMemoryContext().allowed;

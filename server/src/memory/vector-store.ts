@@ -190,6 +190,14 @@ class InMemoryVectorStore {
       (d) => d.installationId !== installationId
     );
   }
+
+  async exportDocuments(
+    installationId: string
+  ): Promise<Array<{ content: string; metadata: Record<string, unknown> }>> {
+    return this.documents
+      .filter((d) => d.installationId === installationId)
+      .map((d) => ({ content: d.pageContent, metadata: d.metadata || {} }));
+  }
 }
 
 // Turso/libSQL-backed store (remote/persistent). Stores embeddings as JSON and
@@ -324,6 +332,32 @@ class TursoVectorStore {
       return;
     }
     await this.client.execute('DELETE FROM vector_memories');
+  }
+
+  async exportDocuments(
+    installationId: string
+  ): Promise<Array<{ content: string; metadata: Record<string, unknown> }>> {
+    await this.ensureSchema();
+    const res = await this.client.execute({
+      sql: 'SELECT content, metadata FROM vector_memories WHERE installation_id = ? ORDER BY created_at ASC',
+      args: [installationId],
+    });
+    const out: Array<{ content: string; metadata: Record<string, unknown> }> =
+      [];
+    for (const row of res.rows) {
+      try {
+        const content = String(row.content ?? '');
+        const metadataRaw = row.metadata;
+        const metadata =
+          typeof metadataRaw === 'string' && metadataRaw
+            ? (JSON.parse(metadataRaw) as Record<string, unknown>)
+            : {};
+        out.push({ content, metadata });
+      } catch {
+        // Skip malformed rows.
+      }
+    }
+    return out;
   }
 }
 
@@ -736,6 +770,22 @@ class VectorStore {
         `[VectorStore] Failed to clear vector store:`,
         error instanceof Error ? error.message : String(error)
       );
+    }
+  }
+
+  async exportDocuments(options?: {
+    installationId?: string;
+  }): Promise<Array<{ content: string; metadata: Record<string, unknown> }>> {
+    await this.ensureInitialized();
+    if (!this.store || !options?.installationId) return [];
+    try {
+      return await this.store.exportDocuments(options.installationId);
+    } catch (error) {
+      console.warn(
+        '[VectorStore] Failed to export documents:',
+        error instanceof Error ? error.message : String(error)
+      );
+      return [];
     }
   }
 }
