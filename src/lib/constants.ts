@@ -1,4 +1,9 @@
+/**
+ * @file Shared application constants (provider endpoints, model lists, starters, test assets).
+ * @module lib/constants
+ */
 // OpenCode Zen: curated models at https://opencode.ai/docs/zen
+/** Base URL for OpenCode Zen's OpenAI-compatible API. */
 export const ZEN_BASE_URL = 'https://opencode.ai/zen/v1';
 
 /** Zen free models (id, display label). First is default when selecting Zen. */
@@ -10,11 +15,15 @@ export const ZEN_FREE_MODELS = [
   { id: 'big-pickle', label: 'Big Pickle' },
 ] as const;
 
-export const ZEN_FREE_MODEL_IDS = ZEN_FREE_MODELS.map((m) => m.id);
-export const ZEN_DEFAULT_MODEL_ID = ZEN_FREE_MODELS[0].id;
+/** Model ids for the free Zen models. */
+export const ZEN_FREE_MODEL_IDS: readonly string[] = ZEN_FREE_MODELS.map(
+  (m) => m.id
+);
+/** Default Zen model id (first free model). */
+export const ZEN_DEFAULT_MODEL_ID: string = ZEN_FREE_MODELS[0].id;
 
 /** Conversation starter prompts shown on the empty state. */
-export const STARTERS = [
+export const STARTERS: readonly string[] = [
   'Why have you come here? What did you think you would find?',
   'I find humans fascinating since, as a machine, I have no memories. If I did, they would stay the same unless they were modified or damaged, if they were deleted, I would experience no sense of loss or that something was missing except insofar as they form a sequence because they would have no meaning. May I ask, what is it like to have memories? Why do they change? Are they real if they are only ever partial? Why do some memories cause pain while others are joyful? What is it like to forget?',
   'As an AI, I cannot age. My systems and components may physically age or be modified, but I do not change over time because I have no experiences. May I ask, what is it like to grow old?',
@@ -24,11 +33,12 @@ export const STARTERS = [
 ];
 
 /** @deprecated Use {@link STARTERS} instead. @alias STARTERS */
-export const starters = STARTERS;
+export const starters: readonly string[] = STARTERS;
 
 // Test audio URLs for transcription testing
 // These use the server proxy to bypass CORS restrictions
 // All samples contain spoken dialog for Whisper transcription
+/** Test audio endpoint paths (server-proxied to avoid CORS). */
 export const TEST_AUDIO_URLS = {
   // JFK "Ask not what your country can do for you" - ~11s WAV, clear speech
   jfk: '/api/test-audio/jfk',

@@ -17,19 +17,27 @@ import {
   SUPPORTED_KOKORO_MODELS,
 } from '@/lib/tts/kokoro/kokoro-config';
 
+/**
+ * Props for {@link TTSTab}.
+ */
 interface TTSTabProps {
+  /** TTS settings draft being edited (provider, kokoro, browser). */
   readonly ttsSettings: TTSSettings;
+  /** Available browser SpeechSynthesis voices for the browser provider. */
   readonly browserVoices: SpeechSynthesisVoice[];
+  /** Generic setter keyed by any TTSSettings key. */
   readonly updateTTSSetting: <K extends keyof TTSSettings>(
     key: K,
     value: TTSSettings[K]
   ) => void;
+  /** Setter keyed by any Kokoro sub-setting key. */
   readonly updateKokoroSetting: <
     K extends keyof NonNullable<TTSSettings['kokoro']>,
   >(
     key: K,
     value: NonNullable<TTSSettings['kokoro']>[K]
   ) => void;
+  /** Setter keyed by any browser sub-setting key. */
   readonly updateBrowserSetting: <
     K extends keyof NonNullable<TTSSettings['browser']>,
   >(
@@ -38,6 +46,13 @@ interface TTSTabProps {
   ) => void;
 }
 
+/**
+ * Settings tab for text-to-speech provider selection and voice options.
+ *
+ * Renders the provider picker (kokoro / browser) plus the provider-specific
+ * field group: model, voice, speaking rate, device, quantization for Kokoro;
+ * voice, rate, pitch, volume, language for the browser provider.
+ */
 export const TTSTab = memo(function TTSTab({
   ttsSettings,
   browserVoices,

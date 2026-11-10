@@ -16,17 +16,37 @@ import {
 import { LuCheck, LuMic, LuUpload, LuX } from 'react-icons/lu';
 import type { TestState } from '@/hooks/useTranscriptionTest';
 
+/**
+ * Props for {@link CustomAudioTestPanel}.
+ */
 export interface CustomAudioTestPanelProps {
+  /** Ref to the hidden file input used to pick the custom audio file. */
   readonly fileInputRef: React.RefObject<HTMLInputElement | null>;
+  /** Ref to the <audio> element used to preview the loaded file. */
   readonly audioRef: React.RefObject<HTMLAudioElement | null>;
+  /** The loaded file plus its blob URL, or null when none is loaded. */
   readonly loadedFile: { file: File; url: string } | null;
+  /** Current state of the custom-file transcription test. */
   readonly customTestState: TestState;
+  /** Last log line from the custom transcription test, if any. */
   readonly customLastLog: string | null;
+  /** Fired when the user clicks "Load Audio File". */
   readonly handleLoadMP3: () => void;
+  /** Fired when the file input selection changes. */
   readonly onMP3FileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Fired when the user clicks "Transcribe" on the loaded file. */
   readonly transcribeLoadedFile: () => void;
 }
 
+/**
+ * Panel for loading a custom audio file and running a transcription test.
+ *
+ * Renders the file picker, a preview player, a transcribe button whose color
+ * reflects the test status, and the result/segments/error display. Extracted
+ * from {@link TranscriptionTab}.
+ *
+ * @see {@link TestState} consumed via {@link customTestState}
+ */
 export function CustomAudioTestPanel({
   fileInputRef,
   audioRef,

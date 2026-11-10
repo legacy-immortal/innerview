@@ -40,6 +40,21 @@ export type {
   UseSettingsModalReturn,
 } from './settingsModalDefaults';
 
+/**
+ * Hook holding settings modal draft state, persistence, and connection testing.
+ *
+ * Manages per-domain draft state (performance, TTS, transcription, keyboard,
+ * style, generation, agent) synced with the settings store while the modal is
+ * open, plus browser voice loading and performance tier detection. Returns
+ * domain state objects consumed by the settings tabs and `actions.save` /
+ * `actions.reset`.
+ *
+ * @param isOpen - Whether the settings modal is currently open. Store sync and
+ *   voice loading only run while open.
+ * @returns Domain state objects and {@link UseSettingsModalReturn.actions}.
+ * @see {@link UseSettingsModalReturn} for the return shape
+ * @see {@link useSettingsUpdaters} for the domain update setters
+ */
 export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
   // Local editing state (store read only in effect when modal opens to avoid re-renders on store changes)
   const [performanceSettings, setPerformanceSettings] =
@@ -161,7 +176,7 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
     setTranscriptionSettings
   );
 
-  // Save all settings
+  // Save all domain drafts to the settings store (single write per domain)
   const saveAll = useCallback(() => {
     const store = useSettingsStore.getState();
     store.savePerformanceSettings(performanceSettings);
@@ -180,6 +195,7 @@ export function useSettingsModal(isOpen: boolean): UseSettingsModalReturn {
   ]);
 
   // Memoized state objects - split by domain to prevent cross-contamination
+  // between unrelated tabs when one domain's draft changes.
   const performanceState = useMemo<PerformanceState>(
     () => ({
       settings: performanceSettings,

@@ -3,6 +3,13 @@
  * @module lib/conversationTypes.ts
  */
 // Conversation domain types (extracted from conversation-store.ts).
+
+/**
+ * A single stored conversation message.
+ *
+ * May include rich `parts` for imported conversations (citations, tool
+ * calls, web search results, file attachments).
+ */
 export interface ConversationMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -37,6 +44,9 @@ export interface ConversationMessage {
   }>;
 }
 
+/**
+ * A stored conversation, with optional messages and preview.
+ */
 export interface Conversation {
   id: string;
   title: string;
@@ -47,6 +57,12 @@ export interface Conversation {
   messages?: ConversationMessage[];
 }
 
+/**
+ * Zustand conversation store shape.
+ *
+ * Combines conversation CRUD, message storage, import actions, legacy
+ * compatibility methods, and dev-mode triage functions.
+ */
 export interface ConversationStore {
   conversations: Conversation[];
   currentConversationId: string | null;

@@ -14,7 +14,12 @@ import type {
   TranscriptionSettings,
 } from '@/lib/settings-types';
 import type { Dispatch, SetStateAction } from 'react';
-// Performance tier configurations
+/**
+ * Performance tier configurations (low / medium / high).
+ *
+ * Maps each {@link PerformanceTier} to the partial {@link PerformanceSettings}
+ * applied when that tier is selected or auto-detected.
+ */
 export const TIER_CONFIGS: Record<
   PerformanceTier,
   Partial<PerformanceSettings>
@@ -48,7 +53,12 @@ export const TIER_CONFIGS: Record<
   },
 };
 
-// Default settings (matching store defaults)
+/**
+ * Default settings for each domain, mirroring the store defaults.
+ *
+ * Used as the initial draft state in {@link useSettingsModal} and as the
+ * merge base when reconciling with persisted store values.
+ */
 export const DEFAULTS = {
   performance: {
     animationsEnabled: true,
@@ -115,7 +125,14 @@ export const DEFAULTS = {
   },
 };
 
-// State interfaces for each domain
+/**
+ * State interfaces for each settings domain.
+ *
+ * Each interface pairs a settings draft with its domain-specific update
+ * helpers, returned by {@link useSettingsModal}.
+ */
+
+/** Performance domain state returned by {@link useSettingsModal}. */
 export interface PerformanceState {
   settings: PerformanceSettings;
   updateSetting: <K extends keyof PerformanceSettings>(
@@ -126,6 +143,7 @@ export interface PerformanceState {
   resetPerformance: () => void;
 }
 
+/** TTS domain state returned by {@link useSettingsModal}. */
 export interface TTSState {
   settings: TTSSettings;
   browserVoices: SpeechSynthesisVoice[];
@@ -143,6 +161,7 @@ export interface TTSState {
   ) => void;
 }
 
+/** Transcription domain state returned by {@link useSettingsModal}. */
 export interface TranscriptionState {
   settings: TranscriptionSettings;
   updateSetting: <K extends keyof TranscriptionSettings>(
@@ -159,16 +178,19 @@ export interface TranscriptionState {
   ) => void;
 }
 
+/** Keyboard domain state returned by {@link useSettingsModal}. */
 export interface KeyboardState {
   settings: KeyboardSettings;
   updateSetting: Dispatch<SetStateAction<KeyboardSettings>>;
 }
 
+/** Style domain state returned by {@link useSettingsModal}. */
 export interface StyleState {
   settings: StyleSettings;
   updateSetting: Dispatch<SetStateAction<StyleSettings>>;
 }
 
+/** Generation domain state returned by {@link useSettingsModal}. */
 export interface GenerationState {
   settings: GenerationSettings;
   connectionStatus: 'idle' | 'testing' | 'connected' | 'error';
@@ -177,11 +199,13 @@ export interface GenerationState {
   testConnection: () => void;
 }
 
+/** Agent domain state returned by {@link useSettingsModal}. */
 export interface AgentState {
   settings: Record<string, unknown>;
   updateSetting: Dispatch<SetStateAction<Record<string, unknown>>>;
 }
 
+/** Aggregate return type of {@link useSettingsModal}. */
 export interface UseSettingsModalReturn {
   performance: PerformanceState;
   tts: TTSState;

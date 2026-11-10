@@ -7,7 +7,16 @@
 
 import type { Conversation, ConversationMessage } from './conversation-store';
 
-// Export conversation as JSON (Interlocutor format)
+/**
+ * Export conversation as JSON (Interlocutor format).
+ * @param conversation - The conversation to export.
+ * @param messages - The conversation's messages.
+ * @returns Pretty-printed JSON string of the conversation and its messages.
+ * @example
+ *   const json = exportConversationAsJSON(conversation, messages);
+ *   downloadFile(json, 'conversation.json', 'application/json');
+ * @see {@link exportAndDownloadJSON}
+ */
 export function exportConversationAsJSON(
   conversation: Conversation,
   messages: ConversationMessage[]
@@ -32,7 +41,14 @@ export function exportConversationAsJSON(
   return JSON.stringify(exportData, null, 2);
 }
 
-// Export conversation as formatted markdown
+/**
+ * Export conversation as formatted markdown/plaintext.
+ * @param conversation - The conversation to export.
+ * @param messages - The conversation's messages.
+ * @returns Markdown string with a header, per-message sections, citations,
+ *   tool calls, and search results.
+ * @see {@link exportAndDownloadPlaintext}
+ */
 export function exportConversationAsPlaintext(
   conversation: Conversation,
   messages: ConversationMessage[]
@@ -206,7 +222,15 @@ export function exportConversationAsPlaintext(
   return lines.join('\n');
 }
 
-// Download file helper
+/**
+ * Download a string as a file via a browser anchor click.
+ * @param content - File contents.
+ * @param filename - Download filename.
+ * @param mimeType - MIME type for the blob (e.g. 'application/json').
+ * @returns Nothing; triggers a browser download.
+ * @see {@link exportAndDownloadJSON}
+ * @see {@link exportAndDownloadPlaintext}
+ */
 export function downloadFile(
   content: string,
   filename: string,
@@ -223,7 +247,14 @@ export function downloadFile(
   URL.revokeObjectURL(url);
 }
 
-// Export and download conversation as JSON
+/**
+ * Export and download conversation as JSON.
+ * @param conversation - The conversation to export.
+ * @param messages - The conversation's messages.
+ * @returns Nothing; triggers a browser download of a .json file.
+ * @see {@link exportConversationAsJSON}
+ * @see {@link downloadFile}
+ */
 export function exportAndDownloadJSON(
   conversation: Conversation,
   messages: ConversationMessage[]
@@ -233,7 +264,14 @@ export function exportAndDownloadJSON(
   downloadFile(jsonContent, filename, 'application/json');
 }
 
-// Export and download conversation as markdown
+/**
+ * Export and download conversation as markdown.
+ * @param conversation - The conversation to export.
+ * @param messages - The conversation's messages.
+ * @returns Nothing; triggers a browser download of a .md file.
+ * @see {@link exportConversationAsPlaintext}
+ * @see {@link downloadFile}
+ */
 export function exportAndDownloadPlaintext(
   conversation: Conversation,
   messages: ConversationMessage[]

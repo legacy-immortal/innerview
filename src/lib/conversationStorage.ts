@@ -6,22 +6,43 @@
 import localforage from 'localforage';
 import { StateStorage, createJSONStorage } from 'zustand/middleware';
 import type { Conversation } from './conversationTypes';
+/**
+ * Generate a unique conversation id.
+ * @returns A time-based id like `conv_<timestamp>_<random>`.
+ */
 export const generateConversationId = (): string => {
   return `conv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 };
 
-// Storage quota management
-export const MAX_CONVERSATIONS = 50; // Limit to 50 conversations
-export const MAX_MESSAGES_PER_CONVERSATION = 100; // Limit to 100 messages per conversation
+/**
+ * Storage quota management.
+ * Maximum number of conversations persisted before cleanup.
+ */
+export const MAX_CONVERSATIONS = 50;
 
-// Initialize localforage instance for conversations
+/**
+ * Storage quota management.
+ * Maximum number of messages kept per conversation before trimming.
+ */
+export const MAX_MESSAGES_PER_CONVERSATION = 100;
+
+/**
+ * Initialize localforage instance for conversations.
+ * IndexedDB-backed store with localStorage/WebSQL fallback.
+ */
 export const conversationForage = localforage.createInstance({
   name: 'innerview',
   storeName: 'conversations',
   description: 'Conversation storage for Innerview',
 });
 
-// Custom storage adapter for localforage with error handling
+/**
+ * Custom storage adapter for localforage with error handling.
+ *
+ * Implements Zustand's `StateStorage` interface. On quota exhaustion it
+ * prunes old conversations (keeping the 20 most recent, trimmed to 50 messages
+ * each) and retries, clearing all data as a last resort.
+ */
 export const localforageStateStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
     try {
@@ -112,7 +133,13 @@ export const localforageStateStorage: StateStorage = {
   },
 };
 
-// Wrap with createJSONStorage and apply quota limits via replacer
+/**
+ * Zustand JSON storage wrapping `localforageStateStorage`.
+ *
+ * The replacer applies quota limits when storing the `conversations` key:
+ * sorted by updatedAt (most recent first), capped at MAX_CONVERSATIONS
+ * conversations and MAX_MESSAGES_PER_CONVERSATION messages each.
+ */
 export const localforageStorage = createJSONStorage(
   () => localforageStateStorage,
   {

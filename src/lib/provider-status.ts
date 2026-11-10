@@ -5,7 +5,8 @@
 // Provider status store - tracks AI provider availability
 import { create } from 'zustand';
 
-export type ProviderStatus = {
+/** Snapshot of the current AI provider availability and metadata. */
+export interface ProviderStatus {
   status: 'unknown' | 'checking' | 'available' | 'unavailable' | 'error';
   provider?: 'local' | 'remote';
   baseURL?: string;
@@ -14,7 +15,7 @@ export type ProviderStatus = {
   modelsAvailable?: number;
   models?: string[];
   lastChecked?: Date;
-};
+}
 
 interface ProviderStatusStore {
   providerStatus: ProviderStatus;
@@ -110,7 +111,11 @@ export const useProviderStatusStore = create<ProviderStatusStore>(
   })
 );
 
-// Helper to get a human-readable status message
+/**
+ * Gets a human-readable status message for a provider status snapshot.
+ * @param status - Provider status snapshot.
+ * @returns Display message.
+ */
 export function getProviderStatusMessage(status: ProviderStatus): string {
   switch (status.status) {
     case 'unknown':
@@ -130,7 +135,11 @@ export function getProviderStatusMessage(status: ProviderStatus): string {
   }
 }
 
-// Helper to get status color
+/**
+ * Gets a UI status color for a provider status snapshot.
+ * @param status - Provider status snapshot.
+ * @returns Chakra-compatible color token name.
+ */
 export function getProviderStatusColor(
   status: ProviderStatus
 ): 'green' | 'yellow' | 'red' | 'gray' {

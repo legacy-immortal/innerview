@@ -1,8 +1,12 @@
 /**
- * @file Top-level TTS service selecting a provider model and owning playback lifecycle.
- * @module lib/tts/tts-service.ts
+ * @file tts-service.ts — Top-level TTS service selecting a provider model and owning playback lifecycle.
+ * @module lib/tts/tts-service
+ *
+ * Streaming-first TTS Service. Selects the Kokoro or browser provider model,
+ * owns the playback lifecycle (speak/stop), and exposes audio nodes for
+ * visualization. Falls back to browser speech synthesis when streaming
+ * generation fails.
  */
-// Streaming-first TTS Service
 import type { StreamingTTSModel, TTSOptions } from './types';
 import { isStreamingModel } from './types';
 import { KokoroTTSModel } from './kokoro/kokoro-model';
@@ -10,20 +14,31 @@ import { BrowserTTSModel } from './browser/browser-model';
 import { StreamingTTSService } from './streaming-service';
 import { useSettingsStore } from '../settings-store';
 
+/**
+ * Handle returned by TTSService.speak, exposing playback controls and audio
+ * nodes. Backward-compatible with visualization components that expect an
+ * HTMLAudioElement-like object.
+ */
 export interface TTSResult {
+  /** Stop playback. */
   stop: () => void;
+  /** Set volume (0.0 to 1.0, can exceed 1 for amplification). */
   setVolume: (volume: number) => void;
+  /** Get the PCM processor node for visualization. */
   getProcessorNode: () => AudioWorkletNode | null;
+  /** Get the audio context. */
   getAudioContext: () => AudioContext | null;
+  /** Get the analyser node for visualization. */
   getAnalyserNode: () => AnalyserNode | null;
-  // For backward compatibility with visualization components
-  // Returns a mock HTMLAudioElement-like object for browser TTS
+  /** Backward-compatible mock HTMLAudioElement-like object for browser TTS. */
   getAudioElement?: () => HTMLAudioElement | null;
 }
 
 /**
- * Streaming-first TTS Service
- * Uses PCM processor for real-time audio streaming
+ * Streaming-first TTS Service.
+ * Uses PCM processor for real-time audio streaming. Selects the Kokoro or
+ * browser provider model based on settings/options and owns the playback
+ * lifecycle.
  */
 export class TTSService {
   private streamingService: StreamingTTSService;
@@ -34,8 +49,15 @@ export class TTSService {
   }
 
   /**
-   * Speak text using streaming TTS
-   * Streaming is the default - falls back to complete generation if needed
+   * Speak text using streaming TTS.
+   *
+   * Stops any currently playing audio, resolves the provider from options or
+   * settings, and streams via {@link StreamingTTSService}. Falls back to
+   * browser speech synthesis on error.
+   * @param text - Text to speak.
+   * @param options - TTS options (provider, voice, speed).
+   * @returns A {@link TTSResult} with stop, setVolume, and node accessors.
+   * @throws When no model is available for the provider.
    */
   public async speak(
     text: string,
@@ -133,7 +155,13 @@ export class TTSService {
   }
 
   /**
-   * Fallback to browser speech synthesis
+   * Fallback to browser speech synthesis.
+   *
+   * Used when the selected provider fails or is the browser provider itself.
+   * @param text - Text to speak.
+   * @param speed - Speaking rate multiplier.
+   * @param voice - Optional voice id.
+   * @returns A {@link TTSResult} wired to the browser synth.
    */
   private async fallbackToBrowserSpeech(
     text: string,
@@ -191,7 +219,13 @@ export class TTSService {
   }
 
   /**
-   * Get model for provider
+   * Get the streaming model for a provider.
+   *
+   * Constructs a KokoroTTSModel or BrowserTTSModel based on provider and
+   * settings. Returns null for unknown providers.
+   * @param provider - 'kokoro' or 'browser'.
+   * @param ttsSettings - Current TTS settings from the store, or null.
+   * @returns A {@link StreamingTTSModel}, or null for unknown providers.
    */
   private getModel(
     provider: string,
@@ -217,7 +251,11 @@ export class TTSService {
   }
 
   /**
-   * Stop current playback
+   * Stop current playback.
+   *
+   * Stops the current result and the streaming service, and cancels browser
+   * speech synthesis.
+   * @returns Nothing.
    */
   public async stop(): Promise<void> {
     if (this.currentResult) {
@@ -233,28 +271,32 @@ export class TTSService {
   }
 
   /**
-   * Get current audio context (for visualization)
+   * Get the current audio context (for visualization).
+   * @returns The AudioContext, or null when not initialized.
    */
   public getAudioContext(): AudioContext | null {
     return this.streamingService.getAudioContext();
   }
 
   /**
-   * Get current processor node (for visualization)
+   * Get the current processor node (for visualization).
+   * @returns The PCMProcessorNode, or null when not initialized.
    */
   public getProcessorNode(): AudioWorkletNode | null {
     return this.streamingService.getProcessorNode();
   }
 
   /**
-   * Get current analyser node (for visualization)
+   * Get the current analyser node (for visualization).
+   * @returns The AnalyserNode, or null when not initialized.
    */
   public getAnalyserNode(): AnalyserNode | null {
     return this.streamingService.getAnalyserNode();
   }
 
   /**
-   * Check if currently playing
+   * Check whether audio is currently playing.
+   * @returns true when playback is active.
    */
   public isPlaying(): boolean {
     return this.streamingService.getIsPlaying();

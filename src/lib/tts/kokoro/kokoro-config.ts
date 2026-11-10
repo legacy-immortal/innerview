@@ -1,14 +1,28 @@
-// Kokoro TTS Configuration
+/**
+ * @file kokoro-config.ts — Kokoro TTS configuration types and voice/model catalogs.
+ * @module lib/tts/kokoro/kokoro-config
+ *
+ * Runtime configuration for the Kokoro TTS model plus the catalog of
+ * supported voices and model ids consumed by the settings UI and the
+ * KokoroTTSModel worker.
+ */
 
+/** Runtime configuration for the Kokoro TTS model. */
 export interface KokoroConfig {
+  /** Model identifier to load. */
   modelId?: string;
+  /** Numeric precision for inference ('q8' or 'q4'). */
   dtype?: 'q8' | 'q4';
+  /** Execution device preference ('wasm', 'cpu', or 'gpu'). */
   device?: 'wasm' | 'cpu' | 'gpu';
+  /** Default voice id. */
   defaultVoice?: string;
 }
 
+/** Kokoro voice identifier (a voice id string such as 'af_heart'). */
 export type KokoroVoice = string;
 
+/** Supported Kokoro voice ids. */
 export const KOKORO_VOICES = [
   'af_heart',
   'af_alloy',
@@ -40,6 +54,7 @@ export const KOKORO_VOICES = [
   'bm_fable',
 ] as const;
 
+/** Supported Kokoro model ids. */
 export const SUPPORTED_KOKORO_MODELS = [
   'Kokoro-82M-v1.0-ONNX',
   'onnx-community/Kokoro-82M-v1.0-ONNX',

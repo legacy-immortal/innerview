@@ -15,18 +15,25 @@ import {
   VStack,
 } from '@chakra-ui/react';
 
+/**
+ * Props shared by the transcription field groups.
+ */
 export interface TranscriptionFieldProps {
+  /** Transcription settings draft being edited. */
   readonly transcriptionSettings: TranscriptionSettings;
+  /** Generic setter keyed by any TranscriptionSettings key. */
   readonly updateTranscriptionSetting: <K extends keyof TranscriptionSettings>(
     key: K,
     value: TranscriptionSettings[K]
   ) => void;
+  /** Setter keyed by any OpenAI transcription sub-setting key. */
   readonly updateOpenAISetting: <
     K extends keyof NonNullable<TranscriptionSettings['openai']>,
   >(
     key: K,
     value: NonNullable<TranscriptionSettings['openai']>[K]
   ) => void;
+  /** Setter keyed by any local transcription sub-setting key. */
   readonly updateLocalSetting: <
     K extends keyof NonNullable<TranscriptionSettings['local']>,
   >(
@@ -35,6 +42,9 @@ export interface TranscriptionFieldProps {
   ) => void;
 }
 
+/**
+ * Provider picker field (OpenAI cloud vs local browser/backend).
+ */
 export function TranscriptionProviderField({
   transcriptionSettings,
   updateTranscriptionSetting,
@@ -68,6 +78,12 @@ export function TranscriptionProviderField({
   );
 }
 
+/**
+ * OpenAI transcription field group (model, language, timestamp granularities).
+ *
+ * Rendered only when the provider is 'openai'. Accepts the shared field props
+ * plus the list of available OpenAI transcription models.
+ */
 export function OpenAIFields({
   transcriptionSettings,
   updateOpenAISetting,
@@ -191,6 +207,11 @@ export function OpenAIFields({
   );
 }
 
+/**
+ * Local transcription field group (mode, model, language, task, quantization).
+ *
+ * Rendered only when the provider is 'local'. Accepts the shared field props.
+ */
 export function LocalFields({
   transcriptionSettings,
   updateLocalSetting,

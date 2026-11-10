@@ -16,15 +16,28 @@ import {
 import type { PerformanceSettings } from '@/lib/settings-types';
 import type { PerformanceTier } from '@/lib/performance-detector';
 
+/**
+ * Props for {@link PerformanceTab}.
+ */
 interface PerformanceTabProps {
+  /** Performance settings being edited (tier, animations, complexity…). */
   readonly settings: PerformanceSettings;
+  /** Generic setter keyed by any PerformanceSettings key. */
   readonly updateSetting: <K extends keyof PerformanceSettings>(
     key: K,
     value: PerformanceSettings[K]
   ) => void;
+  /** Callback invoked when the user picks a performance tier preset. */
   readonly handleTierChange: (tier: PerformanceTier) => void;
 }
 
+/**
+ * Settings tab for performance tier presets and animation toggles.
+ *
+ * Renders a tier selector (low/medium/high), animation toggles, background
+ * complexity, and power management. Some controls are disabled when animations
+ * are turned off, since they have no effect without it.
+ */
 export const PerformanceTab = memo(function PerformanceTab({
   settings,
   updateSetting,

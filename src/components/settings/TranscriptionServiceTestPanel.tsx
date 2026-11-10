@@ -16,12 +16,27 @@ import {
 import { LuCheck, LuPlay, LuX } from 'react-icons/lu';
 import type { TestState } from '@/hooks/useTranscriptionTest';
 
+/**
+ * Props for {@link TranscriptionServiceTestPanel}.
+ */
 export interface TranscriptionServiceTestPanelProps {
+  /** Current state of the transcription service test. */
   readonly testState: TestState;
+  /** Last log line from the test, if any. */
   readonly lastLog: string | null;
+  /** Fired when the user clicks "Run Test". */
   readonly runTranscriptionTest: () => void;
 }
 
+/**
+ * Panel for running a live transcription service end-to-end test.
+ *
+ * Renders a test button whose color reflects status, a last-log display, a
+ * progress bar while running, and the result/segments/error display. Extracted
+ * from {@link TranscriptionTab}.
+ *
+ * @see {@link TestState} consumed via {@link testState}
+ */
 export function TranscriptionServiceTestPanel({
   testState,
   lastLog,

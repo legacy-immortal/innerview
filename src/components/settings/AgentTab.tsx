@@ -7,13 +7,24 @@ import { memo } from 'react';
 import { VStack, HStack, Text, Separator, Switch } from '@chakra-ui/react';
 import type { GenerationSettings } from '@/lib/settings-types';
 
+/**
+ * Props for {@link AgentTab}.
+ */
 interface AgentTabProps {
+  /** Generation settings draft being edited (agent memory & guardrails). */
   readonly generationSettings: GenerationSettings;
+  /** Setter for the generation settings draft. */
   readonly setGenerationSettings: React.Dispatch<
     React.SetStateAction<GenerationSettings>
   >;
 }
 
+/**
+ * Settings tab for agent memory and guardrail middleware toggles.
+ *
+ * Renders switches for associative memory, summary memory, constitution
+ * middleware, and the appeal process. Consumed by the settings modal.
+ */
 export const AgentTab = memo(function AgentTab({
   generationSettings,
   setGenerationSettings,

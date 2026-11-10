@@ -1,34 +1,140 @@
 /**
- * @file Transcription startup initialization and end-to-end test audio validation.
- * @module lib/transcription/transcription-init.ts
+ * @file transcription-init.ts — Transcription startup init and end-to-end test audio validation.
+ * @module lib/transcription/transcription-init
+ *
+ * Transcription initialization and testing. Downloads a test audio file and
+ * validates the transcription service during startup, with optional backend
+ * Whisper model preload progress polling. Consumed by the performance
+ * startup hook and settings test panels.
  */
 // Transcription initialization and testing
 // Downloads a test audio file and validates transcription service during startup
 
 import { transcriptionService } from './transcription-service';
 
+/**
+ * A single transcription segment with start and end times.
+ */
 export interface TranscriptionSegment {
+  /** Segment text. */
   text: string;
+  /** Start time in seconds. */
   startSecond: number;
+  /** End time in seconds. */
   endSecond: number;
 }
 
+/**
+ * Progress reported during a transcription test via onProgress.
+ * progress is 0-100; result is only present on the 'complete' stage.
+ */
 export interface TranscriptionTestProgress {
   stage: 'download' | 'transcribe' | 'complete' | 'error';
-  progress: number; // 0-100
+  /** Progress percentage (0-100). */
+  progress: number;
+  /** Human-readable status message. */
   message: string;
+  /** Error message when stage is 'error'. */
   error?: string;
+  /** Result details, present on the 'complete' stage. */
   result?: {
     text: string;
     duration?: number;
     provider: string;
     segments?: TranscriptionSegment[];
   };
+  /** Detailed per-file model download info from the backend preload. */
+  file?: string | null;
+  /** Bytes received for the current file. */
+  loaded?: number;
+  /** Total bytes for the current file (0 when unknown). */
+  total?: number;
+  /** Download speed in bytes/sec (0 when unknown). */
+  bytesPerSecond?: number;
+  /** Number of files that have finished downloading. */
+  filesCompleted?: number;
 }
 
+/**
+ * Callback type for transcription test progress updates.
+ * @param progress - Progress report for the current stage.
+ */
 export type TranscriptionTestCallback = (
   progress: TranscriptionTestProgress
 ) => void;
+
+/** Shape of GET /api/transcription/status (existing API + additive progress). */
+interface BackendTranscriptionStatus {
+  ready: boolean;
+  loading: boolean;
+  failed: boolean;
+  error?: string | null;
+  progress?: {
+    phase?: string;
+    file?: string | null;
+    loaded?: number;
+    total?: number;
+    percent?: number;
+    bytesPerSecond?: number;
+    filesCompleted?: number;
+    message?: string;
+  };
+}
+
+/**
+ * Poll GET /api/transcription/status while the backend Whisper model preload
+ * runs, reporting per-file progress (file, loaded/total, %, speed) via
+ * onProgress. Resolves when the preload settles. Reuses the existing status
+ * endpoint (extended with additive `progress`); falls back silently if the
+ * server predates it.
+ */
+async function pollBackendPreloadProgress(
+  onProgress: TranscriptionTestCallback | undefined,
+  preloadRequest: Promise<unknown>
+): Promise<void> {
+  let settled = false;
+  void preloadRequest.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    }
+  );
+  for (;;) {
+    try {
+      const response = await fetch('/api/transcription/status');
+      if (response.ok) {
+        const status = (await response.json()) as BackendTranscriptionStatus;
+        const p = status.progress;
+        if (p) {
+          onProgress?.({
+            stage: status.failed ? 'error' : 'download',
+            progress: p.percent ?? 0,
+            message:
+              p.message ||
+              (status.ready
+                ? 'Backend Whisper model ready'
+                : 'Downloading backend Whisper model...'),
+            file: p.file ?? null,
+            loaded: p.loaded,
+            total: p.total,
+            bytesPerSecond: p.bytesPerSecond,
+            filesCompleted: p.filesCompleted,
+            error: status.failed
+              ? (status.error ?? 'Model load failed')
+              : undefined,
+          });
+        }
+        if (status.ready || status.failed) return;
+      }
+    } catch {
+      // Status check failed — the preload request itself will surface errors.
+    }
+    if (settled) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
 
 // Test audio URLs - use server proxy to bypass CORS restrictions
 // The server proxies these external URLs: /api/test-audio/:sampleId
@@ -91,9 +197,26 @@ async function downloadAudioFile(
 }
 
 /**
- * Test transcription service end-to-end
- * Downloads audio, posts to backend API, validates response
- * This tests the actual user flow: frontend → backend → response
+ * Test transcription service end-to-end.
+ * Downloads test audio, checks backend transcription status (optionally
+ * preloading the backend Whisper model when allowModelPreload is set),
+ * transcribes, and validates the response. This tests the real user flow:
+ * frontend → backend → response.
+ *
+ * Backend model preload is opt-in only: without allowModelPreload the test
+ * never triggers a download and lets the transcription POST surface its own
+ * error.
+ * @param onProgress - Optional progress callback invoked per stage.
+ * @param options - Test options (provider, short sample, backend API, preload opt-in).
+ * @returns Success flag plus text/duration/error.
+ * @example
+ * ```ts
+ * const result = await testTranscriptionService((p) => console.log(p.stage, p.progress), {
+ *   provider: 'local',
+ *   useShortSample: true,
+ *   allowModelPreload: true,
+ * });
+ * ```
  */
 export async function testTranscriptionService(
   onProgress?: TranscriptionTestCallback,
@@ -101,6 +224,15 @@ export async function testTranscriptionService(
     provider?: 'openai' | 'local';
     useShortSample?: boolean;
     testBackendAPI?: boolean; // If true, tests via API; if false, tests direct service
+    /**
+     * Explicit opt-in for triggering a backend Whisper model download
+     * (POST /api/transcription/preload) when the model is not ready.
+     * Defaults to `false`: the test then never preloads — it only reports
+     * progress and lets the transcription POST surface its own error.
+     * Pass `true` only from explicit user actions (bootstrap during
+     * startup, or a Settings "Run Test" click with visible progress UI).
+     */
+    allowModelPreload?: boolean;
   } = {}
 ): Promise<{
   success: boolean;
@@ -112,6 +244,7 @@ export async function testTranscriptionService(
     provider = 'local',
     useShortSample = false,
     testBackendAPI = true,
+    allowModelPreload = false,
   } = options;
 
   console.log('[testTranscriptionService] Starting...', {
@@ -149,15 +282,30 @@ export async function testTranscriptionService(
           }
 
           if (!status.ready && !status.loading) {
-            // Trigger model preload
-            if (onProgress) {
-              onProgress({
-                stage: 'download',
-                progress: 5,
-                message: 'Initializing backend transcription model...',
+            // Model preload is opt-in only: never auto-download post-bootstrap
+            // without an explicit allowModelPreload from the caller (e.g.
+            // bootstrap, or a Settings test click). Without it, skip the
+            // preload and let the transcription POST surface its own error.
+            if (allowModelPreload) {
+              // Trigger model preload and report detailed progress while it
+              // downloads (per-file, %, speed) instead of blocking silently.
+              if (onProgress) {
+                onProgress({
+                  stage: 'download',
+                  progress: 5,
+                  message: 'Initializing backend transcription model...',
+                });
+              }
+              const preloadRequest = fetch('/api/transcription/preload', {
+                method: 'POST',
               });
+              await pollBackendPreloadProgress(onProgress, preloadRequest);
+              await preloadRequest;
             }
-            await fetch('/api/transcription/preload', { method: 'POST' });
+          } else if (status.loading) {
+            // Preload already in flight (e.g. started by PerformanceStartup):
+            // report its detailed progress instead of waiting blindly.
+            await pollBackendPreloadProgress(onProgress, Promise.resolve());
           }
         }
       } catch (statusError) {
@@ -363,8 +511,12 @@ export async function testTranscriptionService(
 }
 
 /**
- * Initialize and validate transcription service
- * Should be called during app startup
+ * Initialize and validate transcription service.
+ * Should be called during app bootstrap. Runs a short-sample transcription
+ * test with backend model preload opt-in so the model is ready for first use.
+ * @param onProgress - Optional progress callback invoked per stage.
+ * @param options - Initialization options (skipTest, provider).
+ * @returns True when initialization (or skipped test) succeeded.
  */
 export async function initializeTranscriptionService(
   onProgress?: TranscriptionTestCallback,
@@ -397,14 +549,23 @@ export async function initializeTranscriptionService(
   const result = await testTranscriptionService(onProgress, {
     provider,
     useShortSample: true, // Use short sample for faster initialization
+    // Bootstrap path: downloading the backend model is the point of this
+    // call, with detailed progress surfaced on the startup screen.
+    allowModelPreload: true,
   });
 
   return result.success;
 }
 
 /**
- * Stream audio from URL and transcribe
- * Alternative to downloading entire file first
+ * Stream audio from URL and transcribe.
+ * Downloads the audio from a URL then transcribes it. Alternative to
+ * downloading the entire file first (this implementation still downloads
+ * fully before transcribing, but exposes a URL-based API).
+ * @param url - Audio URL to fetch and transcribe.
+ * @param onProgress - Optional progress callback invoked per stage.
+ * @param options - Transcribe options (provider, language).
+ * @returns Success flag plus text/duration/error.
  */
 export async function transcribeFromURL(
   url: string,

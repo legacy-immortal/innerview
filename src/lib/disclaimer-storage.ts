@@ -6,6 +6,11 @@
 
 const STORAGE_KEY = 'innerview.disclaimerAccepted';
 
+/**
+ * Read the stored disclaimer acceptance flag.
+ * @returns `true` if the user accepted the disclaimer, `false` otherwise
+ *   (including when localStorage is unavailable).
+ */
 export function getDisclaimerAccepted(): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -15,6 +20,10 @@ export function getDisclaimerAccepted(): boolean {
   }
 }
 
+/**
+ * Persist the disclaimer acceptance flag so the user is not re-prompted.
+ * @returns Nothing.
+ */
 export function setDisclaimerAccepted(): void {
   if (typeof window === 'undefined') return;
   try {

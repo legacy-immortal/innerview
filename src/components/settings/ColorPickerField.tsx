@@ -5,15 +5,40 @@
 import type { JSX } from 'react';
 import { HStack, Field, Input, Button } from '@chakra-ui/react';
 
+/**
+ * Props for {@link ColorPickerField}.
+ */
 interface ColorPickerFieldProps {
+  /** Accessible label for the field. */
   readonly label: string;
+  /** Helper text shown below the label. */
   readonly helperText: string;
+  /** Current color value, or undefined to fall back to defaultValue. */
   readonly value: string | undefined;
+  /** Fallback color used when value is undefined. */
   readonly defaultValue: string;
+  /** Fired when the user edits the hex input or color swatch. */
   readonly onChange: (value: string) => void;
+  /** Fired when the user clicks "Reset". */
   readonly onReset: () => void;
 }
 
+/**
+ * Reusable color-picker with hex input, swatch, and reset affordance.
+ *
+ * Accepts any CSS color string. Non-hex values (e.g. 'transparent') render a
+ * black swatch since `<input type="color">` cannot represent them.
+ *
+ * @example
+ *   <ColorPickerField
+ *     label="Sidebar Background Color"
+ *     value={settings.sidebarBackgroundColor}
+ *     defaultValue="transparent"
+ *     onChange={(value) => setSettings((prev) => ({ ...prev, sidebarBackgroundColor: value }))}
+ *     onReset={() => setSettings((prev) => ({ ...prev, sidebarBackgroundColor: 'transparent' }))}
+ *   />
+ * @see {@link ColorPickerFieldProps}
+ */
 export function ColorPickerField({
   label,
   helperText,

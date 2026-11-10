@@ -26,6 +26,21 @@ export type {
   InterlocutorMessage,
 } from './conversation-import-types';
 
+/**
+ * Import a conversation from DeepSeek or Interlocutor export format.
+ *
+ * Detects the format by shape (DeepSeek has a `mapping` tree; Interlocutor
+ * has a `messages` array), converts DeepSeek via {@link convertDeepSeekConversation},
+ * then maps messages to UIMessage and ConversationMessage shapes. Reports
+ * progress through `onProgress` if provided.
+ * @param data - DeepSeek or Interlocutor conversation payload.
+ * @param onProgress - Optional progress callback (step, current, total).
+ * @returns The imported conversation, UI messages, and optional stored messages.
+ * @example
+ *   const { conversation, messages } = importConversation(parsedJson);
+ * @see {@link parseImportFile} to parse an uploaded file first
+ * @see {@link importConversations} to import multiple conversations
+ */
 export function importConversation(
   data: DeepSeekConversation | InterlocutorConversation,
   onProgress?: (step: string, current: number, total: number) => void
@@ -134,14 +149,26 @@ export function importConversation(
   return { conversation, messages, conversationMessages };
 }
 
-// Import multiple conversations
+/**
+ * Import multiple conversations.
+ * @param data - Array of DeepSeek or Interlocutor conversation payloads.
+ * @returns Array of per-conversation import results.
+ * @see {@link importConversation}
+ */
 export function importConversations(
   data: (DeepSeekConversation | InterlocutorConversation)[]
 ): Array<{ conversation: Conversation; messages: UIMessage[] }> {
   return data.map((conv) => importConversation(conv));
 }
 
-// Parse JSON file content
+/**
+ * Parse an uploaded JSON import file into single or multiple conversations.
+ * @param file - The user-selected JSON file.
+ * @returns A single conversation payload or an array of conversation payloads.
+ * @throws When the file is not valid JSON.
+ * @see {@link importConversation}
+ * @see {@link importConversations}
+ */
 export async function parseImportFile(file: File): Promise<
   | { type: 'single'; data: DeepSeekConversation | InterlocutorConversation }
   | {

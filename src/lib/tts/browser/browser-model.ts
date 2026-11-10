@@ -1,29 +1,47 @@
-// Browser TTS Model (fallback)
-// Uses native Web Speech API - doesn't support streaming, but provides fallback
+/**
+ * @file browser-model.ts — Browser SpeechSynthesis TTS model (Web Speech API fallback).
+ * @module lib/tts/browser/browser-model
+ *
+ * Browser TTS Model (fallback). Uses the native Web Speech API — it does not
+ * support streaming, so it acts as a compatibility layer for the
+ * StreamingTTSModel interface. Implements utterance chunking for long texts
+ * to work around Chrome speech synthesis inconsistencies.
+ */
 
 import type { StreamingTTSModel, TTSOptions } from '../types';
 import { isMobile } from '../utils/mobile-detection';
 
+/**
+ * Voice descriptor for the browser SpeechSynthesis provider.
+ */
 export interface BrowserVoice {
+  /** Human-readable voice name. */
   name: string;
+  /** Voice URI used to select the voice. */
   voiceId: string;
+  /** Language tag (e.g. 'en-US'). */
   lang: string;
 }
 
+/** Sentinel voice id meaning "use the browser default voice". */
 export const BROWSER_DEFAULT_VOICE_ID = '__browser_default__';
+
+/** Display name for the browser default voice. */
 export const BROWSER_DEFAULT_VOICE_NAME = 'Browser Default Voice';
 
 /**
- * Extended TTS options for browser TTS
- * Adds pitch support and chunking options
+ * Extended TTS options for browser TTS.
+ * Adds pitch support and chunking options on top of TTSOptions.
  */
 export interface BrowserTTSOptions extends TTSOptions {
+  /** Pitch multiplier (default 1.0). */
   pitch?: number;
+  /** Max characters per utterance chunk for long-text chunking. */
   chunkLength?: number;
 }
 
 /**
- * Chunking settings for speechUtteranceChunker
+ * Chunking settings for speechUtteranceChunker.
  */
 interface ChunkSettings {
   chunkLength?: number;
@@ -125,9 +143,11 @@ function speechUtteranceChunker(
 }
 
 /**
- * Browser TTS Model
- * Uses native Web Speech API as fallback
- * Note: Browser TTS doesn't support streaming, so this is a compatibility layer
+ * Browser TTS Model.
+ * Uses native Web Speech API as fallback. Browser TTS does not support
+ * streaming, so this is a compatibility layer implementing
+ * StreamingTTSModel: generateStream yields an empty chunk while playback
+ * happens directly through the Web Speech API in `speak()`.
  */
 export class BrowserTTSModel implements StreamingTTSModel {
   readonly modelId = 'speech-synthesis';
@@ -140,8 +160,12 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Browser TTS doesn't support true streaming
-   * We simulate it by yielding the complete audio immediately
+   * Browser TTS doesn't support true streaming.
+   *
+   * Simulates streaming by yielding a single empty chunk; playback happens
+   * via {@link speak} through the Web Speech API.
+   * @param options - TTS options (unused by the browser provider).
+   * @yields One empty Uint8Array chunk as a signal.
    */
   public async *generateStream(_options: TTSOptions): AsyncGenerator<Uint8Array> {
     // Browser TTS doesn't provide audio data directly
@@ -151,8 +175,11 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Browser TTS doesn't generate audio files
-   * Returns empty array as placeholder
+   * Browser TTS doesn't generate audio files.
+   *
+   * Returns an empty Uint8Array as a placeholder.
+   * @param options - TTS options (unused by the browser provider).
+   * @returns An empty Uint8Array.
    */
   public async generateComplete(_options: TTSOptions): Promise<Uint8Array> {
     // Browser TTS doesn't provide audio data
@@ -160,8 +187,11 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Fetch available voices with fallback
-   * Uses setTimeout pattern to handle async voice loading
+   * Fetch available browser voices with a fallback default voice.
+   *
+   * Caches the result; uses a setTimeout to handle asynchronous voice loading
+   * in browsers that populate voices after startup.
+   * @returns A list of {@link BrowserVoice} objects.
    */
   public async fetchVoices(): Promise<BrowserVoice[]> {
     if (this.voicesCache) {
@@ -211,7 +241,9 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Get voice by ID or name
+   * Get a SpeechSynthesisVoice by id or name.
+   * @param voiceId - Voice URI or name to match, or the default voice id.
+   * @returns The matching voice, or null for the browser default / not found.
    */
   private async getVoiceById(voiceId?: string): Promise<SpeechSynthesisVoice | null> {
     if (!voiceId || voiceId === BROWSER_DEFAULT_VOICE_ID) {
@@ -227,7 +259,8 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Get raw SpeechSynthesisVoice objects
+   * Get raw SpeechSynthesisVoice objects.
+   * @returns The browser's available voices, or an empty array.
    */
   private async getVoices(): Promise<SpeechSynthesisVoice[]> {
     if (!('speechSynthesis' in window)) {
@@ -243,8 +276,11 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Initialize mobile support for iOS autoplay restrictions
-   * Pre-initializes Speech Synthesis on first user interaction
+   * Initialize mobile support for iOS autoplay restrictions.
+   *
+   * Pre-initializes Speech Synthesis with a silent utterance on first user
+   * interaction so subsequent speech plays without a gesture.
+   * @returns Nothing.
    */
   private initializeMobileSupport(): void {
     if (!isMobile() || this.mobileInitialized) {
@@ -272,9 +308,12 @@ export class BrowserTTSModel implements StreamingTTSModel {
   }
 
   /**
-   * Speak using Web Speech API directly
-   * This is the actual implementation for browser TTS
-   * Uses chunking for long texts to fix Chrome inconsistencies
+   * Speak text using the Web Speech API directly.
+   *
+   * This is the actual implementation for browser TTS. Uses chunking for long
+   * texts to fix Chrome inconsistencies with long utterances.
+   * @param options - Browser TTS options (text, voice, speed, pitch, chunkLength).
+   * @returns The spoken {@link SpeechSynthesisUtterance}.
    */
   async speak(
     options: BrowserTTSOptions

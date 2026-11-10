@@ -13,6 +13,21 @@ import {
   extractCitations,
   generateDeterministicMessageId,
 } from './conversation-import-utils';
+/**
+ * Convert DeepSeek message fragments into Interlocutor messages.
+ *
+ * Groups REASONING/RESPONSE fragments into assistant messages flushed on
+ * REQUEST fragments, and attaches files, citations, tool calls, and search
+ * results collected from structured fragments. Each message gets a
+ * deterministic id via {@link generateDeterministicMessageId}.
+ * @param fragments - Fragments of a single DeepSeek message.
+ * @param message - The parent DeepSeek message (files, inserted_at).
+ * @param messageIndexRef - Mutable counter for unique message ids.
+ * @returns Converted Interlocutor messages.
+ * @see {@link generateDeterministicMessageId}
+ * @see {@link extractCitations}
+ * @see {@link convertFileToPart}
+ */
 export function convertFragmentsToMessages(
   fragments: DeepSeekFragment[],
   message: DeepSeekMessage,

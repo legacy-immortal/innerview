@@ -1,9 +1,30 @@
+/**
+ * @file Generates short conversation titles from the first user message.
+ * @module lib/title-generator
+ */
 import { builtInAI } from '@built-in-ai/core';
 import { generateText } from 'ai';
 
+const MAX_FALLBACK_LENGTH = 50;
+const MAX_GENERATED_TITLE_LENGTH = 60;
+
 /**
- * Generates a concise title for a conversation based on the first user message
- * Uses the browser's built-in AI model via @built-in-ai/core
+ * Builds a fallback title from the start of a message.
+ * @param message - Source message text.
+ * @returns Truncated, trimmed title.
+ */
+function buildFallbackTitle(message: string): string {
+  return (
+    message.slice(0, MAX_FALLBACK_LENGTH).trim() +
+    (message.length > MAX_FALLBACK_LENGTH ? '...' : '')
+  );
+}
+
+/**
+ * Generates a concise title for a conversation based on the first user message.
+ * Uses the browser's built-in AI model via @built-in-ai/core when available.
+ * @param firstUserMessage - The first message in the conversation.
+ * @returns A short descriptive title, or a truncated fallback.
  */
 export async function generateConversationTitle(
   firstUserMessage: string
@@ -11,11 +32,7 @@ export async function generateConversationTitle(
   try {
     // Check if the Prompt API is available
     if (typeof window === 'undefined' || !('ai' in window)) {
-      // Fallback: use first 50 characters of the message
-      return (
-        firstUserMessage.slice(0, 50).trim() +
-        (firstUserMessage.length > 50 ? '...' : '')
-      );
+      return buildFallbackTitle(firstUserMessage);
     }
 
     const result = await generateText({
@@ -34,21 +51,13 @@ Title:`,
 
     const title = result.text.trim();
 
-    // Fallback if title is too long or empty
-    if (!title || title.length > 60) {
-      return (
-        firstUserMessage.slice(0, 50).trim() +
-        (firstUserMessage.length > 50 ? '...' : '')
-      );
+    if (!title || title.length > MAX_GENERATED_TITLE_LENGTH) {
+      return buildFallbackTitle(firstUserMessage);
     }
 
     return title;
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[TitleGenerator] Failed to generate title:', error);
-    // Fallback: use first 50 characters of the message
-    return (
-      firstUserMessage.slice(0, 50).trim() +
-      (firstUserMessage.length > 50 ? '...' : '')
-    );
+    return buildFallbackTitle(firstUserMessage);
   }
 }

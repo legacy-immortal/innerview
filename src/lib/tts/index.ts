@@ -1,8 +1,12 @@
 /**
- * @file Public entry point for the streaming-first TTS module.
- * @module lib/tts/index.ts
+ * @file tts/index.ts — Public entry point for the streaming-first TTS module.
+ * @module lib/tts
+ *
+ * Public entry point for the streaming-first TTS module. Re-exports the TTS
+ * contracts, provider models (Kokoro, browser), the top-level TTSService and
+ * StreamingTTSService, and all TTS utilities so consumers can import from a
+ * single stable path.
  */
-// Streaming-first TTS Module
 export * from './types';
 export * from './kokoro';
 export * from './browser';

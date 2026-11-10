@@ -7,11 +7,24 @@ import type { GenerationSettings } from '@/lib/settings-types';
 import { Field, NumberInput, Separator, Textarea } from '@chakra-ui/react';
 import type { Dispatch, SetStateAction, JSX } from 'react';
 
+/**
+ * Props for {@link GenerationSamplingFields}.
+ */
 export interface GenerationSamplingFieldsProps {
+  /** Generation settings draft being edited (sampling parameters). */
   readonly generationSettings: GenerationSettings;
+  /** Setter for the generation settings draft. */
   readonly setGenerationSettings: Dispatch<SetStateAction<GenerationSettings>>;
 }
 
+/**
+ * Fields for generation sampling parameters (temperature, top-P, penalties, seed).
+ *
+ * Each field clamps to its provider-valid range and falls back to a sensible
+ * default when the input is left empty. Extracted from {@link GenerationTab}.
+ *
+ * @see {@link GenerationSettings} for the underlying parameter ranges
+ */
 export function GenerationSamplingFields({
   generationSettings,
   setGenerationSettings,

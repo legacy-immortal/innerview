@@ -144,9 +144,9 @@ export interface SystemTextAnimationSettings {
   fadeOutDurationS: number;
 }
 
-/** Id of the system data source to show when idle (network, frametiming, context, time). */
+/** Id of the system data source to show when idle (network, frametiming, context, backend, time). */
 export type SystemVisualizationSourceId =
-  'network' | 'frametiming' | 'context' | 'time';
+  'network' | 'frametiming' | 'context' | 'backend' | 'time';
 
 /** Per-type options for system/cycle visualizations (clock, gauge, pie, sparkline). */
 export interface SystemVisualizationTypeSettings {

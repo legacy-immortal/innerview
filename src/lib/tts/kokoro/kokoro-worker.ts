@@ -1,6 +1,15 @@
 /**
- * Kokoro TTS Web Worker
- * Handles TTS generation in a separate thread to avoid blocking the main thread
+ * @file kokoro-worker.ts — Web Worker that runs Kokoro TTS generation off the main thread.
+ * @module lib/tts/kokoro/kokoro-worker
+ *
+ * Kokoro TTS Web Worker. Handles TTS generation in a separate thread to avoid
+ * blocking the main thread. Communicates with the main thread via postMessage
+ * for initialization and per-chunk generation, returning blob URLs for audio.
+ */
+
+/**
+ * Kokoro TTS Web Worker entry point.
+ * Handles TTS generation in a separate thread to avoid blocking the main thread.
  */
 
 // ============================================================================

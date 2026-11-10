@@ -16,6 +16,10 @@ export const chatApi = CHAT_API;
 /**
  * Chat transport that injects the current generation settings into every
  * request body, delegating streaming to the AI SDK default transport.
+ *
+ * The body callback reads {@link useSettingsStore} on each request so updated
+ * generation settings (model, temperature, …) take effect without recreating
+ * the transport.
  */
 export class ConversationChatTransport implements ChatTransport<UIMessage> {
   private readonly baseTransport: DefaultChatTransport<UIMessage>;
@@ -36,12 +40,24 @@ export class ConversationChatTransport implements ChatTransport<UIMessage> {
     });
   }
 
+  /**
+   * Delegates message sending to the AI SDK default transport.
+   * @param options - Send options forwarded to the default transport.
+   * @returns The transport's sendMessages promise.
+   * @see {@link baseTransport}
+   */
   public async sendMessages(
     options: Parameters<ChatTransport<UIMessage>['sendMessages']>[0]
   ): ReturnType<ChatTransport<UIMessage>['sendMessages']> {
     return this.baseTransport.sendMessages(options);
   }
 
+  /**
+   * Delegates stream reconnection to the AI SDK default transport.
+   * @param options - Reconnect options forwarded to the default transport.
+   * @returns The transport's reconnectToStream promise.
+   * @see {@link baseTransport}
+   */
   public async reconnectToStream(
     options: Parameters<ChatTransport<UIMessage>['reconnectToStream']>[0]
   ): ReturnType<ChatTransport<UIMessage>['reconnectToStream']> {

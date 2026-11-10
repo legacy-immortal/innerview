@@ -29,6 +29,17 @@ export type {
   ConversationStore,
 } from './conversationTypes';
 
+/**
+ * Zustand conversation store: CRUD, message storage, and import actions over localforage.
+ *
+ * Storage uses localforage (IndexedDB/WebSQL/localStorage fallback) for better
+ * performance and larger capacity than localStorage alone. Persisted under the
+ * `innerview-conversations` key with `conversations` and `currentConversationId`
+ * partialized.
+ *
+ * @see {@link localforageStorage} for the quota-managed storage adapter
+ * @see {@link conversationStore} for the legacy compatibility wrapper
+ */
 export const useConversationStore = create<ConversationStore>()(
   persist(
     (set, get) => ({
@@ -335,11 +346,16 @@ export const useConversationStore = create<ConversationStore>()(
 );
 
 // Legacy export for backward compatibility
+/** Legacy compatibility wrapper around the conversation store actions. */
 export const conversationStore = {
-  getCurrentConversationId: () =>
+  /** Gets the active conversation ID, creating one if none exists. */
+  getCurrentConversationId: (): string =>
     useConversationStore.getState().getCurrentConversationId(),
-  setCurrentConversationId: (id: string) =>
-    useConversationStore.getState().setCurrentConversationId(id),
-  createNewConversation: () =>
+  /** Sets the active conversation ID. */
+  setCurrentConversationId: (id: string): void => {
+    useConversationStore.getState().setCurrentConversationId(id);
+  },
+  /** Creates and activates a new conversation. */
+  createNewConversation: (): string =>
     useConversationStore.getState().createNewConversation(),
 };

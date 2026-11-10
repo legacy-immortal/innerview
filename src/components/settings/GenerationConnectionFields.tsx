@@ -29,14 +29,33 @@ import {
   OPENAI_BASE_URL,
 } from '@/lib/generationProviderUtils';
 
+/**
+ * Props for {@link GenerationConnectionFields}.
+ */
 export interface GenerationConnectionFieldsProps {
+  /** Generation settings draft being edited (base URL, API key, model…). */
   readonly generationSettings: GenerationSettings;
+  /** Current connection-test status. */
   readonly connectionStatus: 'idle' | 'testing' | 'connected' | 'error';
+  /** Connection error message to surface, or null when none. */
   readonly connectionError: string | null;
+  /** Setter for the generation settings draft. */
   readonly setGenerationSettings: Dispatch<SetStateAction<GenerationSettings>>;
+  /** Callback invoked when the user clicks "Test Connection". */
   readonly testConnection: () => void;
 }
 
+/**
+ * Fields for provider base URL and API key plus the connection test control.
+ *
+ * Includes the provider preset picker (Custom / OpenAI / Zen), streaming
+ * toggle, base URL input with connection-test button and status dot, remote
+ * provider API key field, and the model name input/select. Extracted from
+ * {@link GenerationTab}.
+ *
+ * @see {@link getProviderPreset} used to derive the active preset
+ * @see {@link isRemoteProvider} used to gate the API key field
+ */
 export function GenerationConnectionFields({
   generationSettings,
   connectionStatus,

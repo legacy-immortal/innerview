@@ -15,13 +15,26 @@ import {
 } from '@chakra-ui/react';
 import type { KeyboardSettings } from '@/lib/settings-types';
 
+/**
+ * Props for {@link KeyboardTab}.
+ */
 interface KeyboardTabProps {
+  /** Keyboard settings draft being edited (shortcuts, toggles). */
   readonly keyboardSettings: KeyboardSettings;
+  /** Setter for the keyboard settings draft. */
   readonly setKeyboardSettings: React.Dispatch<
     React.SetStateAction<KeyboardSettings>
   >;
 }
 
+/**
+ * Settings tab for keyboard shortcuts including the transcription hotkey.
+ *
+ * Renders toggles and inputs for the transcription key, submit keypress, and
+ * previous/next visualization and exit-terminal key combinations. The onKeyDown
+ * handlers capture the pressed key directly so users can set shortcuts by
+ * pressing keys rather than typing them. Consumed by the settings modal.
+ */
 export const KeyboardTab = memo(function KeyboardTab({
   keyboardSettings,
   setKeyboardSettings,

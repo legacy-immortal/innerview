@@ -15,18 +15,25 @@ import {
 import { TranscriptionServiceTestPanel } from './TranscriptionServiceTestPanel';
 import { useTranscriptionTest } from '@/hooks/useTranscriptionTest';
 
+/**
+ * Props for {@link TranscriptionTab}.
+ */
 interface TranscriptionTabProps {
+  /** Transcription settings draft being edited. */
   readonly transcriptionSettings: TranscriptionSettings;
+  /** Generic setter keyed by any TranscriptionSettings key. */
   readonly updateTranscriptionSetting: <K extends keyof TranscriptionSettings>(
     key: K,
     value: TranscriptionSettings[K]
   ) => void;
+  /** Setter keyed by any OpenAI transcription sub-setting key. */
   readonly updateOpenAISetting: <
     K extends keyof NonNullable<TranscriptionSettings['openai']>,
   >(
     key: K,
     value: NonNullable<TranscriptionSettings['openai']>[K]
   ) => void;
+  /** Setter keyed by any local transcription sub-setting key. */
   readonly updateLocalSetting: <
     K extends keyof NonNullable<TranscriptionSettings['local']>,
   >(
@@ -35,6 +42,13 @@ interface TranscriptionTabProps {
   ) => void;
 }
 
+/**
+ * Settings tab composing transcription fields and test panels.
+ *
+ * Renders the provider picker, the OpenAI or local field group depending on
+ * provider, the transcription service test panel, and the custom-audio test
+ * panel. Consumed by the settings modal.
+ */
 export const TranscriptionTab = memo(function TranscriptionTab({
   transcriptionSettings,
   updateTranscriptionSetting,

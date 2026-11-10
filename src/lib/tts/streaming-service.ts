@@ -1,8 +1,12 @@
 /**
- * @file Streaming TTS service bridging model chunks to the PCM AudioWorklet processor.
- * @module lib/tts/streaming-service.ts
+ * @file streaming-service.ts — Streams TTS model chunks to the PCM AudioWorklet processor.
+ * @module lib/tts/streaming-service
+ *
+ * Streaming TTS service bridging model chunks to the PCM AudioWorklet
+ * processor. Manages the AudioContext, PCM processor node, and analyser node
+ * for real-time streaming playback and visualization, including mobile/iOS
+ * autoplay workarounds and buffer status reporting.
  */
-// Streaming TTS Service with PCM Processor integration
 import type { StreamingTTSModel, TTSOptions } from './types';
 import { convertWavToPCM, getWavSampleRate } from './utils/audio-converter';
 import { isIOS, isMobile } from './utils/mobile-detection';
@@ -16,16 +20,26 @@ import {
   type PCMProcessorNode,
 } from './utils/pcm-processor';
 
+/**
+ * Result returned by StreamingTTSModel.streamAudio, exposing the PCM
+ * processor, audio context, analyser node, and a stop function.
+ */
 export interface StreamingAudioResult {
+  /** PCM processor node feeding the analyser. */
   processorNode: PCMProcessorNode;
+  /** Audio context driving playback. */
   audioContext: AudioContext;
+  /** Analyser node for visualization (may be null). */
   analyserNode: AnalyserNode | null;
+  /** Stop playback and release audio resources. */
   stop: () => void;
 }
 
 /**
- * Streaming TTS Service
- * Handles streaming audio generation and PCM processor integration
+ * Streaming TTS Service.
+ * Handles streaming audio generation and PCM processor integration.
+ * Initializes mobile support on construction and lazily creates the
+ * AudioContext + PCM processor on first stream.
  */
 export class StreamingTTSService {
   private audioContext: AudioContext | null = null;
@@ -42,7 +56,11 @@ export class StreamingTTSService {
   }
 
   /**
-   * Initialize mobile support (iOS requires user interaction)
+   * Initialize mobile support (iOS requires user interaction).
+   *
+   * Pre-initializes the AudioContext and speech synthesis on first user
+   * interaction to work around iOS autoplay restrictions.
+   * @returns Nothing.
    */
   private initializeMobileSupport(): void {
     if (this.mobileInitialized) {
@@ -87,7 +105,14 @@ export class StreamingTTSService {
   }
 
   /**
-   * Initialize audio context and PCM processor
+   * Initialize the audio context and PCM processor.
+   *
+   * Creates an AudioContext at the given sample rate, resumes it if suspended
+   * (browser autoplay policy), creates the PCM processor, and wires up an
+   * analyser node for visualization.
+   * @param sampleRate - AudioContext sample rate in Hz (default 24000).
+   * @returns Nothing.
+   * @throws When AudioContext is not supported.
    */
   public async initialize(sampleRate: number = 24000): Promise<void> {
     if (this.audioContext) {
@@ -129,7 +154,14 @@ export class StreamingTTSService {
   }
 
   /**
-   * Stream TTS audio using PCM processor
+   * Stream TTS audio using the PCM processor.
+   *
+   * Consumes the model's streaming output, converts WAV chunks to PCM, and
+   * feeds them to the processor node for real-time playback.
+   * @param model - Streaming TTS model to consume.
+   * @param options - TTS generation options.
+   * @returns A {@link StreamingAudioResult} with nodes and a stop function.
+   * @throws When the audio context fails to initialize.
    */
   public async streamAudio(
     model: StreamingTTSModel,
@@ -201,7 +233,11 @@ export class StreamingTTSService {
   }
 
   /**
-   * Set volume (0.0 to 1.0, can go higher for amplification)
+   * Set processor volume.
+   *
+   * Clamps to >= 0; values above 1.0 amplify.
+   * @param volume - Volume level (0.0 to 1.0 nominal, can exceed for amplification).
+   * @returns Nothing.
    */
   public setVolume(volume: number): void {
     if (this.processorNode) {
@@ -210,7 +246,11 @@ export class StreamingTTSService {
   }
 
   /**
-   * Stop playback
+   * Stop playback and release audio resources.
+   *
+   * Clears the processor buffer, disconnects nodes, and closes the
+   * AudioContext.
+   * @returns Nothing.
    */
   public async stop(): Promise<void> {
     this.isPlaying = false;

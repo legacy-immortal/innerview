@@ -8,6 +8,17 @@ import type {
   InterlocutorMessage,
 } from './conversation-import-types';
 import type { UIMessage } from 'ai';
+/**
+ * Generate a deterministic, non-cryptographic message id from content, role,
+ * timestamp, and optional index. The index suffix guarantees uniqueness even
+ * with hash collisions.
+ * @param content - Message text content.
+ * @param role - Message role.
+ * @param timestamp - Optional message timestamp.
+ * @param index - Optional index suffix for uniqueness.
+ * @returns An id like `msg_<base36hash>[_<index>]`.
+ * @see {@link extractCitations}
+ */
 export function generateDeterministicMessageId(
   content: string,
   role: string,
@@ -36,6 +47,15 @@ export function generateDeterministicMessageId(
   return `msg_${base36Hash}${indexSuffix}`;
 }
 
+/**
+ * Extract citations from message text.
+ *
+ * Matches markdown links `[text](url)` and citation markers `[1]`, `[2]`,
+ * etc. When markers exist without links, placeholder citations are created.
+ * @param text - Message text to scan.
+ * @returns Array of citations (may be empty).
+ * @see {@link generateDeterministicMessageId}
+ */
 export function extractCitations(text: string): Array<{
   id?: string;
   title?: string;
@@ -102,7 +122,12 @@ export function getMediaType(filename: string): string {
   return mediaTypes[ext] || 'application/octet-stream';
 }
 
-// Convert file to data URL
+/**
+ * Convert a DeepSeek file entry to a data URL.
+ * @param file - The DeepSeek file containing the name and base64 content.
+ * @returns A `data:` URL, or `file://<file_name>` when content is empty.
+ * @see {@link convertFileToPart}
+ */
 export function convertFileToDataUrl(file: DeepSeekFile): string {
   if (!file.content) {
     return `file://${file.file_name}`;
@@ -112,7 +137,10 @@ export function convertFileToDataUrl(file: DeepSeekFile): string {
   return `data:${mediaType};base64,${base64Content}`;
 }
 
-/** File part shape produced from an imported {@link DeepSeekFile}. */
+/**
+ * File part shape produced from an imported {@link DeepSeekFile}.
+ * Embedded in `InterlocutorMessage['parts']` with `type: 'file'`.
+ */
 export interface ConvertedFilePart {
   readonly type: 'file';
   readonly mediaType: string;
@@ -134,6 +162,15 @@ export function convertFileToPart(file: DeepSeekFile): ConvertedFilePart {
   };
 }
 
+/**
+ * Converts an Interlocutor message into an AI SDK UIMessage.
+ *
+ * Reuses the existing deterministic id. `createdAt` is stored in
+ * ConversationMessage, not UIMessage, so it is dropped here.
+ * @param msg - The source Interlocutor message.
+ * @returns The converted UI message.
+ * @see {@link uiMessageToConversationMessage} for the inverse direction
+ */
 export function convertToMessageFormat(msg: InterlocutorMessage): UIMessage {
   // Use the existing ID from the message (already generated with index)
   return {
@@ -144,7 +181,11 @@ export function convertToMessageFormat(msg: InterlocutorMessage): UIMessage {
   };
 }
 
-// Extract text content from message parts for preview
+/**
+ * Extract text content from message parts for preview.
+ * @param parts - Message parts to scan.
+ * @returns Joined text of all text parts, or an empty string.
+ */
 export function extractTextFromParts(
   parts: InterlocutorMessage['parts']
 ): string {

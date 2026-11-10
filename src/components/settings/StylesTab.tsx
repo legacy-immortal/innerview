@@ -8,17 +8,31 @@ import { VStack, Separator, Field, NativeSelect } from '@chakra-ui/react';
 import type { StyleSettings, LayoutMode } from '@/lib/settings-types';
 import { ColorPickerField } from './ColorPickerField';
 
+/**
+ * Props for {@link StylesTab}.
+ */
 interface StylesTabProps {
+  /** Style settings draft being edited (layout mode and sidebar colors). */
   readonly styleSettings: StyleSettings;
+  /** Setter for the style settings draft. */
   readonly setStyleSettings: React.Dispatch<
     React.SetStateAction<StyleSettings>
   >;
 }
 
+/**
+ * Settings tab for layout mode and custom colors.
+ *
+ * Renders the layout mode selector (condensed / corpo / terminal) plus color
+ * pickers for sidebar and conversation-item backgrounds. Falls back to empty
+ * settings when styleSettings is undefined so the tab renders standalone.
+ */
 export const StylesTab = memo(function StylesTab({
   styleSettings,
   setStyleSettings,
 }: StylesTabProps): JSX.Element {
+  // Defensive fallback: styleSettings may be undefined before the store loads,
+  // so coalesce to {} to keep field values and resets predictable.
   const safeStyleSettings = styleSettings || {};
   const currentMode = safeStyleSettings.mode || 'condensed';
 

@@ -10,6 +10,11 @@ import type {
   InterlocutorMessage,
 } from './conversation-import-types';
 import { convertFragmentsToMessages } from './deepSeekFragmentConverter';
+/**
+ * Find the root node of a DeepSeek mapping tree (the node whose parent is null).
+ * @param mapping - DeepSeek mapping node records keyed by node id.
+ * @returns The root node, or null if none has a null parent.
+ */
 export function findRoot(
   mapping: Record<string, DeepSeekMappingNode>
 ): DeepSeekMappingNode | null {
@@ -21,6 +26,20 @@ export function findRoot(
   return null;
 }
 
+/**
+ * Depth-first traversal of a DeepSeek conversation mapping tree.
+ *
+ * Converts each node's fragments to Interlocutor messages, skipping already
+ * visited nodes to guard against cycles. Emits `onNodeProgress` per converted
+ * node.
+ * @param mapping - DeepSeek mapping node records keyed by node id.
+ * @param nodeId - Node to start traversal from.
+ * @param visited - Set of already-visited node ids (cycle guard).
+ * @param messageIndexRef - Mutable counter used for deterministic message ids.
+ * @param onNodeProgress - Optional callback invoked per converted node id.
+ * @returns Converted Interlocutor messages in traversal order.
+ * @see {@link convertDeepSeekConversation}
+ */
 export function traverseDeepSeekConversation(
   mapping: Record<string, DeepSeekMappingNode>,
   nodeId: string,
@@ -70,7 +89,18 @@ export function traverseDeepSeekConversation(
   return messages;
 }
 
-// Convert DeepSeek conversation to Interlocutor format
+/**
+ * Convert a DeepSeek conversation to Interlocutor format.
+ *
+ * Finds the mapping-tree root, traverses it via
+ * {@link traverseDeepSeekConversation}, and preserves the conversation id,
+ * title, and timestamps.
+ * @param deepseekConv - DeepSeek conversation payload.
+ * @param onProgress - Optional progress callback (step, current, total).
+ * @returns The converted Interlocutor conversation.
+ * @see {@link findRoot}
+ * @see {@link traverseDeepSeekConversation}
+ */
 export function convertDeepSeekConversation(
   deepseekConv: DeepSeekConversation,
   onProgress?: (step: string, current: number, total: number) => void
