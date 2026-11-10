@@ -2,18 +2,19 @@
  * @file useConversationImport.ts — Conversation import flow with duplicate detection and progress state.
  * @module components/chat/condensed/useConversationImport
  *
- * Conversation import flow with duplicate detection and progress state. Parses single or
- * multiple conversation files, checks for duplicate message IDs via `checkForDuplicates`, and
- * either imports directly or presents a pending overwrite dialog. Yields to the browser between
- * steps to keep the UI responsive. Consumed by `ConversationList`.
+ * Conversation import flow with duplicate detection and progress state. Parses and
+ * converts import files in a Web Worker (non-blocking) with real progress updates,
+ * checks for duplicate message IDs, and either imports directly or presents a pending
+ * overwrite dialog. Saving and duplicate checks run on the main thread with yielding
+ * to keep the UI responsive. Consumed by `ConversationList`.
  */
 
 import { toaster } from '@/components/ui/toaster';
-import {
-  importConversation,
-  parseImportFile,
-} from '@/lib/conversation-importer';
 import { useConversationStore } from '@/lib/conversation-store';
+import type {
+  Conversation,
+  ConversationMessage,
+} from '@/lib/conversation-store';
 import type { UIMessage } from 'ai';
 import {
   useCallback,
@@ -24,9 +25,12 @@ import {
 } from 'react';
 import { checkForDuplicates, yieldToBrowser } from './conversationListUtils';
 
-export type ImportData = ReturnType<typeof importConversation> & {
+export interface ImportData {
+  conversation: Conversation;
+  messages: UIMessage[];
+  conversationMessages?: ConversationMessage[];
   duplicateMap?: Map<string, { conversationId: string; message: UIMessage }>;
-};
+}
 
 export interface ImportProgressState {
   readonly isImporting: boolean;
@@ -53,6 +57,85 @@ export interface UseConversationImportResult {
   ) => Promise<void>;
   readonly handleConfirmOverwrite: () => Promise<void>;
   readonly handleCancelOverwrite: () => void;
+}
+
+type WorkerConverted =
+  | { type: 'single'; data: ImportData }
+  | { type: 'multiple'; data: ImportData[] };
+
+interface WorkerProgressMessage {
+  type: 'progress';
+  id: number;
+  step: string;
+  progress: number;
+}
+interface WorkerSuccessMessage {
+  type: 'success';
+  id: number;
+  result: WorkerConverted;
+}
+interface WorkerErrorMessage {
+  type: 'error';
+  id: number;
+  error: string;
+}
+type WorkerMessage =
+  WorkerProgressMessage | WorkerSuccessMessage | WorkerErrorMessage;
+
+/**
+ * Parse and convert an import file in a Web Worker, reporting progress to `onProgress`.
+ * Falls back to a clear error if workers are unavailable.
+ */
+function processImportInWorker(
+  text: string,
+  onProgress: (step: string, progress: number) => void
+): Promise<WorkerConverted> {
+  return new Promise((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(
+        new URL('../../../lib/conversation-import-worker.ts', import.meta.url),
+        { type: 'module' }
+      );
+    } catch (err) {
+      reject(
+        err instanceof Error ? err : new Error('Failed to start import worker')
+      );
+      return;
+    }
+
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    const cleanup = () => {
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.terminate();
+    };
+
+    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+      const msg = event.data;
+      if (!msg || msg.id !== id) return;
+      if (msg.type === 'progress') {
+        onProgress(msg.step, msg.progress);
+        return;
+      }
+      if (msg.type === 'success') {
+        cleanup();
+        resolve(msg.result);
+        return;
+      }
+      if (msg.type === 'error') {
+        cleanup();
+        reject(new Error(msg.error));
+      }
+    };
+
+    worker.onerror = (event) => {
+      cleanup();
+      reject(new Error(event.message || 'Import worker failed'));
+    };
+
+    worker.postMessage({ id, text });
+  });
 }
 
 /**
@@ -88,13 +171,37 @@ export const useConversationImport = (
   } | null>(null);
   const [duplicateCount, setDuplicateCount] = useState(0);
 
-  // Import progress state
+  // Import progress state (0-100 scale for UI bar)
   const [importProgress, setImportProgress] = useState<ImportProgressState>({
     isImporting: false,
     currentStep: '',
     progress: 0,
-    totalSteps: 100, // Progress reported on a 0-100 scale for the UI bar
+    totalSteps: 100,
   });
+
+  const setProgress = useCallback((step: string, progress: number) => {
+    setImportProgress({
+      isImporting: true,
+      currentStep: step,
+      progress: Math.max(0, Math.min(100, progress)),
+      totalSteps: 100,
+    });
+  }, []);
+
+  const finishProgress = useCallback(
+    (step: string, progress: number, hideAfterMs = 1500) => {
+      setImportProgress({
+        isImporting: false,
+        currentStep: step,
+        progress,
+        totalSteps: 100,
+      });
+      setTimeout(() => {
+        setImportProgress((prev) => ({ ...prev, isImporting: false }));
+      }, hideAfterMs);
+    },
+    []
+  );
 
   const handleFileImport = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,77 +210,48 @@ export const useConversationImport = (
     // Reset cancellation flag
     importCancelledRef.current = false;
 
-    // Start import progress
-    setImportProgress({
-      isImporting: true,
-      currentStep: 'Parsing file...',
-      progress: 0,
-      totalSteps: 100,
-    });
-
-    // Yield to browser to allow UI to update
+    setProgress('Reading file...', 1);
     await yieldToBrowser();
 
     try {
-      setImportProgress((prev) => ({
-        ...prev,
-        currentStep: 'Reading file contents...',
-        progress: 5,
-      }));
+      // Read file text asynchronously (non-blocking I/O).
+      const text = await file.text();
+      if (importCancelledRef.current) {
+        setImportProgress((prev) => ({ ...prev, isImporting: false }));
+        return;
+      }
+
+      setProgress('Parsing and converting in background...', 3);
       await yieldToBrowser();
 
-      const parsed = await parseImportFile(file);
-
-      setImportProgress((prev) => ({
-        ...prev,
-        currentStep: 'File parsed successfully',
-        progress: 10,
-      }));
+      // Parse and convert off the main thread in a worker for real progress.
+      const parsed = await processImportInWorker(text, (step, progress) => {
+        if (importCancelledRef.current) return;
+        setImportProgress((prev) => ({
+          ...prev,
+          isImporting: true,
+          currentStep: step,
+          progress: Math.max(prev.progress, Math.min(92, progress)),
+          totalSteps: 100,
+        }));
+      });
 
       if (importCancelledRef.current) {
         setImportProgress((prev) => ({ ...prev, isImporting: false }));
         return;
       }
 
-      // Yield to browser to allow UI to update
-      await yieldToBrowser();
-
       if (parsed.type === 'single') {
-        // Create progress callback for granular updates
-        const progressCallback = (
-          step: string,
-          current: number,
-          total: number
-        ) => {
-          if (importCancelledRef.current) return;
-          // Map progress to 10-80% range: parsing occupies 0-10%, processing
-          // occupies 10-80%, duplicate-check/save occupy 80-100%.
-          const progressPercent = 10 + Math.floor((current / total) * 70);
-          setImportProgress((prev) => ({
-            ...prev,
-            currentStep: step,
-            progress: progressPercent,
-          }));
-        };
+        const { conversation, messages, conversationMessages } = parsed.data;
 
-        const { conversation, messages, conversationMessages } =
-          importConversation(parsed.data, progressCallback);
+        setProgress('Checking for duplicates...', 94);
+        await yieldToBrowser();
 
         if (importCancelledRef.current) {
           setImportProgress((prev) => ({ ...prev, isImporting: false }));
           return;
         }
 
-        setImportProgress((prev) => ({
-          ...prev,
-          currentStep: 'Checking for duplicates...',
-          progress: 80,
-        }));
-
-        // Yield to browser to allow UI to update
-        await yieldToBrowser();
-
-        // Check for duplicate message IDs
         const { hasDuplicates, count, duplicateMap } = checkForDuplicates(
           conversations,
           loadConversationMessages,
@@ -198,15 +276,10 @@ export const useConversationImport = (
           });
           setDuplicateCount(count);
           setDuplicateDialogOpen(true);
-          // Don't hide progress bar yet - wait for user decision
+          // Keep progress visible at decision point until user acts.
+          setProgress('Duplicates found — awaiting confirmation...', 96);
         } else {
-          setImportProgress((prev) => ({
-            ...prev,
-            currentStep: 'Saving to storage...',
-            progress: 4,
-          }));
-
-          // Yield to browser to allow UI to update
+          setProgress('Saving to storage...', 97);
           await yieldToBrowser();
 
           if (importCancelledRef.current) {
@@ -214,7 +287,6 @@ export const useConversationImport = (
             return;
           }
 
-          // No duplicates, proceed with import
           try {
             importConversationToStore(
               conversation,
@@ -222,18 +294,7 @@ export const useConversationImport = (
               conversationMessages
             );
 
-            setImportProgress({
-              isImporting: false,
-              currentStep: 'Complete!',
-              progress: 100,
-              totalSteps: 100,
-            });
-
-            // Hide progress bar after a delay
-            setTimeout(() => {
-              setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 1500); // 1.5s lets the user read the "Complete" toast before hiding the bar
-
+            finishProgress('Complete!', 100, 1500);
             toaster.create({
               title: 'Conversation imported',
               description: `"${conversation.title}" has been imported successfully.`,
@@ -243,18 +304,7 @@ export const useConversationImport = (
             });
           } catch (error) {
             console.error('Import storage error:', error);
-
-            setImportProgress({
-              isImporting: false,
-              currentStep: 'Complete with warnings',
-              progress: 4,
-              totalSteps: 4,
-            });
-
-            setTimeout(() => {
-              setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 2000);
-
+            finishProgress('Complete with warnings', 100, 2000);
             toaster.create({
               title: 'Import partially failed',
               description:
@@ -266,48 +316,16 @@ export const useConversationImport = (
           }
         }
       } else {
-        // For multiple conversations, process each with progress
-        const multipleConversations = parsed.data;
-        const totalConversations = multipleConversations.length;
+        const imported = parsed.data;
 
-        const imported = multipleConversations.map((conv, convIndex) => {
-          const progressCallback = (
-            step: string,
-            current: number,
-            total: number
-          ) => {
-            if (importCancelledRef.current) return;
-            // Map progress: 10% base + (conversation progress * 70% / total conversations)
-            const conversationProgress = (convIndex / totalConversations) * 70;
-            const messageProgress =
-              (current / total) * (70 / totalConversations);
-            const progressPercent =
-              10 + Math.floor(conversationProgress + messageProgress); // 10% base for parsing, then 70% split across conversations
-            setImportProgress((prev) => ({
-              ...prev,
-              currentStep: `Processing conversation ${convIndex + 1}/${totalConversations}: ${step}`,
-              progress: progressPercent,
-            }));
-          };
-
-          return importConversation(conv, progressCallback);
-        });
+        setProgress('Checking for duplicates...', 94);
+        await yieldToBrowser();
 
         if (importCancelledRef.current) {
           setImportProgress((prev) => ({ ...prev, isImporting: false }));
           return;
         }
 
-        setImportProgress((prev) => ({
-          ...prev,
-          currentStep: 'Checking for duplicates...',
-          progress: 80,
-        }));
-
-        // Yield to browser to allow UI to update
-        await yieldToBrowser();
-
-        // Check for duplicates across all imported conversations
         const allIncomingMessages = imported.flatMap((imp) => imp.messages);
         const { hasDuplicates, count, duplicateMap } = checkForDuplicates(
           conversations,
@@ -321,7 +339,6 @@ export const useConversationImport = (
         }
 
         if (hasDuplicates) {
-          // Store pending import and show dialog
           setPendingImport({
             type: 'multiple',
             multiple: imported,
@@ -329,15 +346,9 @@ export const useConversationImport = (
           });
           setDuplicateCount(count);
           setDuplicateDialogOpen(true);
-          // Don't hide progress bar yet - wait for user decision
+          setProgress('Duplicates found — awaiting confirmation...', 96);
         } else {
-          setImportProgress((prev) => ({
-            ...prev,
-            currentStep: 'Saving to storage...',
-            progress: 4,
-          }));
-
-          // Yield to browser to allow UI to update
+          setProgress('Saving to storage...', 97);
           await yieldToBrowser();
 
           if (importCancelledRef.current) {
@@ -345,22 +356,10 @@ export const useConversationImport = (
             return;
           }
 
-          // No duplicates, proceed with import
           try {
             importConversationsToStore(imported);
 
-            setImportProgress({
-              isImporting: false,
-              currentStep: 'Complete!',
-              progress: 100,
-              totalSteps: 100,
-            });
-
-            // Hide progress bar after a delay
-            setTimeout(() => {
-              setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 1500); // 1.5s lets the user read the "Complete" toast before hiding the bar
-
+            finishProgress('Complete!', 100, 1500);
             toaster.create({
               title: 'Conversations imported',
               description: `${imported.length} conversations have been imported successfully.`,
@@ -370,18 +369,7 @@ export const useConversationImport = (
             });
           } catch (error) {
             console.error('Import storage error:', error);
-
-            setImportProgress({
-              isImporting: false,
-              currentStep: 'Complete with warnings',
-              progress: 4,
-              totalSteps: 4,
-            });
-
-            setTimeout(() => {
-              setImportProgress((prev) => ({ ...prev, isImporting: false }));
-            }, 2000);
-
+            finishProgress('Complete with warnings', 100, 2000);
             toaster.create({
               title: 'Import partially failed',
               description:
@@ -400,18 +388,7 @@ export const useConversationImport = (
       }
 
       console.error('Import error:', error);
-
-      setImportProgress({
-        isImporting: false,
-        currentStep: 'Failed',
-        progress: 0,
-        totalSteps: 4,
-      });
-
-      setTimeout(() => {
-        setImportProgress((prev) => ({ ...prev, isImporting: false }));
-      }, 2000);
-
+      finishProgress('Failed', 0, 2000);
       toaster.create({
         title: 'Import failed',
         description:
@@ -423,7 +400,7 @@ export const useConversationImport = (
         meta: { closable: true },
       });
     } finally {
-      // Reset file input
+      // Reset file input so the same file can be selected again.
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -436,13 +413,7 @@ export const useConversationImport = (
     // Reset cancellation flag
     importCancelledRef.current = false;
 
-    setImportProgress((prev) => ({
-      ...prev,
-      currentStep: 'Saving to storage...',
-      progress: 4,
-    }));
-
-    // Yield to browser to allow UI to update
+    setProgress('Applying duplicate overwrites...', 97);
     await yieldToBrowser();
 
     if (importCancelledRef.current) {
@@ -500,6 +471,9 @@ export const useConversationImport = (
       return;
     }
 
+    setProgress('Saving to storage...', 99);
+    await yieldToBrowser();
+
     // Then proceed with normal import
     if (pendingImport.type === 'multiple' && pendingImport.multiple) {
       // Multiple conversation import
@@ -527,17 +501,7 @@ export const useConversationImport = (
       });
     }
 
-    setImportProgress({
-      isImporting: false,
-      currentStep: 'Complete!',
-      progress: 4,
-      totalSteps: 4,
-    });
-
-    setTimeout(() => {
-      setImportProgress((prev) => ({ ...prev, isImporting: false }));
-    }, 1500);
-
+    finishProgress('Complete!', 100, 1500);
     setDuplicateDialogOpen(false);
     setPendingImport(null);
     setDuplicateCount(0);
