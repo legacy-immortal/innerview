@@ -1,5 +1,7 @@
 # Render Blueprint (example) - API service for Innerview
-# Deploy web SPA separately (e.g. Netlify) and set VITE_API_BASE_URL to this service URL.
+# Chosen split: Cloudflare Pages (web) + Render (API) + Turso (remote memory).
+# Set VITE_API_BASE_URL on Cloudflare Pages to this service URL, and set
+# CORS_ORIGIN here to the Pages/custom web origin.
 services:
   - type: web
     name: innerview-api
@@ -12,7 +14,7 @@ services:
       - key: PORT
         value: 3002
       - key: CORS_ORIGIN
-        sync: false # set to your web origin, e.g. https://your-site.netlify.app
+        sync: false # e.g. https://innerview.pages.dev or custom domain
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN

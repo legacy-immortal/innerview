@@ -1,25 +1,62 @@
-# Deployment (draft)
+# Deployment
 
 Targets a split, cloud-first setup for weak/tablet clients: **static web + long-running API + managed DB**.
 
-## Recommended (2A): Netlify (web) + Render (API) + Turso/libSQL
-- **Web (Netlify):** build `bun run build`, publish `dist/`, SPA fallback via `netlify.toml`.
-  - Set `VITE_API_BASE_URL=https://<your-render-api>` (no trailing slash needed).
-- **API (Render, Bun/Node service):** run the Hono server (`bun run --bun server/src/index.ts` or equivalent start) as a persistent web service.
-  - Set `PORT` (Render provides), `NODE_ENV=production`, `CORS_ORIGIN=https://<your-netlify-site>`.
-  - Configure provider keys as needed (`OPENAI_API_KEY`/`OPENAI_BASE_URL`, etc.).
-  - Optional durable vector memory: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` (server-side only; never expose to client).
-- **Database/vector:** Turso/libSQL for opted-in remote persistence/vector storage; local-only remains default.
+## Chosen split (recommended, compatible now)
 
-## Notes
-- Default compute is **cloud/server-side** (embeddings, LLM, transcription). Client compute is opt-in and must fall back to server.
-- Persistence/vector memory should be **opt-in** with clear consent, scoped per anonymous installation identity (no sign-in) when remote sync is enabled.
-- Streaming/chat and model downloads require a long-running API host (Render/Fly/VPS). Netlify/Cloudflare edge runtimes are not drop-in for the current Bun/native/model server; use them for static delivery or, later, refactored compatible subsets.
-- Verify end-to-end: CORS, streaming, `/api` reachability, Turso connectivity, and tablet flows in a real browser.
+| Layer | Where | Why |
+|---|---|---|
+| **Web (SPA)** | **Cloudflare Pages** | Global static CDN; Vite build output. (Netlify also works — `netlify.toml` included.) |
+| **API** | **Render** (Docker web service) | Long-running Bun/Hono server: streaming, server-side embeddings/model init/download/cache, in-process state. Not drop-in for edge/serverless runtimes. |
+| **Remote associative/vector memory** | **Turso/libSQL (cloud)** | Persisted, installation-scoped opt-in memory via `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`. Conversations remain local unless cloud sync is implemented (opt-in, follow-up). |
+
+Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Keep the **API on Render** (or another long-running host) while using the current server implementation. Turso is external to both.
+
+## 1) Turso (remote memory DB)
+
+- Create a Turso database (prod; optionally dev/staging). Obtain:
+  - `TURSO_DATABASE_URL` (e.g. `libsql://<db>-<org>.turso.io`)
+  - `TURSO_AUTH_TOKEN` (least-privilege server token)
+- The server auto-creates/migrates `vector_memories` on first use (`installation_id` scoped). Remote memory is **opt-in** and accessed only via scoped `/api/memory/*` (`installationId` + `optIn: true`).
+
+**Local dev:** set `TURSO_DATABASE_URL=file:server/data/local-vector.db` in root `.env` for persistent local libSQL (no token). Unset to fall back to in-memory (non-persistent).
+
+## 2) API on Render
+
+- Use `Dockerfile` and/or `render.yaml` (blueprint example).
+- Create a Web Service (Docker) from this repo, runtime long-running.
+- Env/secrets (server-side only, never `VITE_*`):
+  - `NODE_ENV=production`
+  - `PORT` (Render provides; service listens on it)
+  - `CORS_ORIGIN=https://<your-web-origin>` (Cloudflare Pages/custom domain origin)
+  - `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`
+  - Provider keys as needed: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY`, `ZEN_API_KEY`
+- Start command is defined by Docker `CMD` (`bun run --bun server/src/index.ts`). Note the API origin URL for the web app (e.g. `https://<service>.onrender.com`).
+
+## 3) Web on Cloudflare Pages
+
+- Framework preset: **None/Vite** (or auto-detect). Build settings:
+  - **Build command:** `bun run build`
+  - **Build output directory:** `dist`
+- Environment variable:
+  - `VITE_API_BASE_URL=https://<your-render-api-origin>` (no trailing slash needed)
+- SPA fallback: `public/_redirects` is included (`/* /index.html 200`) for client-side routing/deep links.
+- After deploy, set Render `CORS_ORIGIN` to the exact Pages/custom web origin.
+
+**Netlify alternative:** `netlify.toml` is provided (`bun run build`, publish `dist`, SPA redirect). Set `VITE_API_BASE_URL` in Netlify env and `CORS_ORIGIN` on Render to the Netlify origin.
+
+## 4) Verify end-to-end (in deployed env)
+
+- Web loads from Cloudflare Pages and calls API at `VITE_API_BASE_URL`.
+- CORS allows the web origin; preflight/credentials as applicable.
+- Streaming/chat works (long-lived responses) and `/api` routes reachable.
+- Turso connectivity/persistence: with Privacy opt-in + installation id, test scoped add/search/count/export/delete and confirm persistence across restarts and isolation between installations.
+- SPA deep-link refresh resolves (fallback to `index.html`).
+- Real-browser checks on tablet/laptop (including flows noted as unverified in repo status).
+
+## Privacy/compute defaults
+
+- **Cloud/server-first compute** (embeddings, LLM, transcription) for weak/tablet clients; client compute opt-in with server fallback.
+- **Local-only by default** for conversations; remote/vector memory **opt-in** with consent, scoped per anonymous installation identity (no sign-in). Do not expose server secrets to the client.
 
 See `.env.example` and `server/.env.example`.
-
-## Render API (example)
-- A sample `Dockerfile` and `render.yaml` are included for the API service.
-- Render: create a Web Service (Docker) from this repo, set `CORS_ORIGIN` to the web origin, and configure `TURSO_*` / provider keys as needed. Set the web app's `VITE_API_BASE_URL` to the Render service URL.
-- This server is long-running (streaming, model init, in-memory caches) — avoid serverless/edge runtimes for the current build.
