@@ -49,6 +49,8 @@ pnpm-debug.log*
 
 # Server
 /server/data/vector-store
+/server/data/*.db
+/server/data/*.db-*
 /server/models
 
 # Misc
