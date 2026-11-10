@@ -50,6 +50,22 @@ function post(msg: ImportWorkerResponse): void {
   self.postMessage(msg);
 }
 
+/**
+ * Ensure the result is structured-cloneable/plain data before posting it back
+ * to the main thread. Some converted payloads can include non-cloneable values
+ * (or odd prototypes) which would crash the worker at handoff.
+ */
+function toCloneable<T>(value: T): T {
+  try {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value);
+    }
+  } catch {
+    // Fall through to JSON normalization.
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
   const { id, text } = event.data;
   try {
@@ -90,8 +106,9 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
         progressCallback('Starting...', 0, 1);
         data.push(importConversation(conv, progressCallback));
       }
-      post({ type: 'progress', id, step: 'Conversion complete', progress: 92 });
-      post({ type: 'success', id, result: { type: 'multiple', data } });
+      post({ type: 'progress', id, step: 'Finalizing...', progress: 92 });
+      const result = toCloneable({ type: 'multiple' as const, data });
+      post({ type: 'success', id, result });
     } else {
       const progressCallback = (
         step: string,
@@ -106,15 +123,20 @@ self.onmessage = (event: MessageEvent<ImportWorkerRequest>) => {
 
       progressCallback('Starting conversion...', 0, 1);
       const data = importConversation(json, progressCallback);
-      post({ type: 'progress', id, step: 'Conversion complete', progress: 92 });
-      post({ type: 'success', id, result: { type: 'single', data } });
+      post({ type: 'progress', id, step: 'Finalizing...', progress: 92 });
+      const result = toCloneable({ type: 'single' as const, data });
+      post({ type: 'success', id, result });
     }
   } catch (err) {
-    post({
-      type: 'error',
-      id,
-      error:
-        err instanceof Error ? err.message : 'Failed to process import file',
-    });
+    try {
+      post({
+        type: 'error',
+        id,
+        error:
+          err instanceof Error ? err.message : 'Failed to process import file',
+      });
+    } catch {
+      // Last resort: nothing more we can report to the main thread.
+    }
   }
 };
