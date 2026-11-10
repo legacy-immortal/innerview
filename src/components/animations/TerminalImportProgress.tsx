@@ -95,13 +95,24 @@ export function TerminalImportProgress({
       fontSize="sm"
       color="white"
     >
-      <VStack gap={4} align="center">
-        <Box textAlign="center">
+      <VStack gap={4} align="center" w="min(520px, calc(100vw - 2rem))">
+        <Box textAlign="center" w="100%">
           <Text fontSize="lg" mb={2} color="cyan.400">
             {title}
           </Text>
-          <Text color="gray.300" mb={4}>
-            {currentStep}
+          <Text
+            color="gray.300"
+            mb={4}
+            h="3.2em"
+            lineHeight="1.6em"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            whiteSpace="nowrap"
+            w="100%"
+            px={2}
+            title={currentStep}
+          >
+            {currentStep || '\u00A0'}
           </Text>
           <Text fontSize="xs" color="gray.500">
             [
@@ -115,8 +126,18 @@ export function TerminalImportProgress({
           </Text>
         </Box>
 
-        <Box w="400px" textAlign="center">
-          <Text mb={2} fontSize="xs" color="gray.400">
+        <Box w="100%" maxW="400px" textAlign="center">
+          <Text
+            mb={2}
+            fontSize="xs"
+            color="gray.400"
+            h="1.5em"
+            lineHeight="1.5em"
+            whiteSpace="nowrap"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            fontVariantNumeric="tabular-nums"
+          >
             Progress: {progress}/{totalSteps} ({progressPercent}%)
           </Text>
           <Text
@@ -130,7 +151,7 @@ export function TerminalImportProgress({
           </Text>
         </Box>
 
-        <Box textAlign="center">
+        <Box textAlign="center" w="100%">
           <Text fontSize="xs" color="gray.500">
             {message}
           </Text>
