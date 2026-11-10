@@ -11,9 +11,11 @@
 // Transcription Button Component with recording indicator and visualization
 import { CircularWaveform } from '@/components/animations/CircularWaveform';
 import { useTranscription } from '@/hooks/useTranscription';
+import { Tooltip } from '@/components/ui/tooltip';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import type { JSX } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { LuMicOff } from 'react-icons/lu';
 
 // Terminal-style text shadow for consistency
 const textShadowStyles = {
@@ -280,9 +282,6 @@ export function TranscriptionButton({
   const isAvailable = isTranscriptionAvailable() && !micPermissionDenied;
 
   const getButtonText = () => {
-    if (!isAvailable) {
-      return 'Mic unavailable';
-    }
     if (isRecording) {
       return '[REC]';
     }
@@ -292,67 +291,112 @@ export function TranscriptionButton({
     return `Hold ${pushToTalkKey} to talk`;
   };
 
-  const buttonTitle = !isAvailable
-    ? 'Voice input is unavailable: microphone access or recording is not supported in this browser/context.'
-    : isRecording
-      ? 'Recording… release to transcribe.'
-      : isTranscribing
-        ? 'Transcribing…'
-        : `Press and hold to dictate, or hold ${pushToTalkKey} (push-to-talk).`;
+  const buttonTitle = isRecording
+    ? 'Recording… release to transcribe.'
+    : isTranscribing
+      ? 'Transcribing…'
+      : `Press and hold to dictate, or hold ${pushToTalkKey} (push-to-talk).`;
+
+  const micUnavailableHint = micPermissionDenied
+    ? 'Microphone access is blocked. To enable it: click the lock/site settings icon in your browser’s address bar, allow Microphone for this site, then reload. On mobile, check system/browser app permissions too.'
+    : 'Microphone is unavailable. To enable voice input: use HTTPS or localhost, connect/select a microphone, allow microphone permission when prompted (or via site settings), then reload.';
+
+  const voiceButton = (
+    <Button
+      aria-label={
+        isAvailable
+          ? 'Voice input (hold to dictate)'
+          : 'Voice input unavailable'
+      }
+      title={isAvailable ? buttonTitle : undefined}
+      onMouseDown={isAvailable ? handleMouseDown : undefined}
+      onMouseUp={isAvailable ? handleMouseUp : undefined}
+      onMouseLeave={isAvailable ? handleMouseLeave : undefined}
+      loading={isTranscribing}
+      disabled={disabled || isTranscribing || !isAvailable}
+      w="100%"
+      minWidth={{ base: '120px', sm: '140px' }}
+      maxW="100%"
+      py={1.5}
+      px={2}
+      touchAction="none"
+      css={isRecording ? recordingButtonStyles : terminalButtonStyles}
+    >
+      {isAvailable ? (
+        <HStack gap={1.5} align="center" justify="center">
+          {/* Reserve space so layout does not shift when recording starts */}
+          <Box
+            w="6px"
+            h="6px"
+            flexShrink={0}
+            borderRadius="full"
+            bg="red.400"
+            opacity={isRecording ? 1 : 0}
+            visibility={isRecording ? 'visible' : 'hidden'}
+            css={{
+              boxShadow: isRecording
+                ? '0 0 6px rgba(239, 68, 68, 0.8), 0 0 12px rgba(239, 68, 68, 0.4)'
+                : 'none',
+              animation: isRecording
+                ? 'pulse 1.5s ease-in-out infinite'
+                : 'none',
+            }}
+          />
+          <Text
+            fontFamily="inherit"
+            fontSize="xs"
+            fontWeight={600}
+            letterSpacing="0.1em"
+            css={textShadowStyles}
+          >
+            {getButtonText()}
+          </Text>
+        </HStack>
+      ) : (
+        <HStack gap={1.5} align="center" justify="center">
+          <Box as={LuMicOff} color="red.400" boxSize="16px" flexShrink={0} />
+          <Text
+            fontFamily="inherit"
+            fontSize="xs"
+            fontWeight={600}
+            letterSpacing="0.1em"
+            color="red.300"
+            css={textShadowStyles}
+          >
+            Mic off
+          </Text>
+        </HStack>
+      )}
+    </Button>
+  );
 
   return (
     <VStack gap={2} align="center" w="auto" maxW="100%">
       <Box position="relative" w="100%" minW={0} touchAction="none">
-        <Button
-          aria-label={
-            isAvailable
-              ? 'Voice input (hold to dictate)'
-              : 'Voice input unavailable'
-          }
-          title={buttonTitle}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          loading={isTranscribing}
-          disabled={disabled || isTranscribing || !isAvailable}
-          w="100%"
-          minWidth={{ base: '120px', sm: '140px' }}
-          maxW="100%"
-          py={1.5}
-          px={2}
-          touchAction="none"
-          css={isRecording ? recordingButtonStyles : terminalButtonStyles}
-        >
-          <HStack gap={1.5} align="center" justify="center">
-            {/* Reserve space so layout does not shift when recording starts */}
-            <Box
-              w="6px"
-              h="6px"
-              flexShrink={0}
-              borderRadius="full"
-              bg="red.400"
-              opacity={isRecording ? 1 : 0}
-              visibility={isRecording ? 'visible' : 'hidden'}
-              css={{
-                boxShadow: isRecording
-                  ? '0 0 6px rgba(239, 68, 68, 0.8), 0 0 12px rgba(239, 68, 68, 0.4)'
-                  : 'none',
-                animation: isRecording
-                  ? 'pulse 1.5s ease-in-out infinite'
-                  : 'none',
-              }}
-            />
-            <Text
-              fontFamily="inherit"
-              fontSize="xs"
-              fontWeight={600}
-              letterSpacing="0.1em"
-              css={textShadowStyles}
-            >
-              {getButtonText()}
-            </Text>
-          </HStack>
-        </Button>
+        {isAvailable ? (
+          voiceButton
+        ) : (
+          <Tooltip
+            content={micUnavailableHint}
+            showArrow
+            positioning={{ placement: 'top' }}
+            contentProps={{
+              maxW: '320px',
+              bg: 'rgba(20, 20, 20, 0.98)',
+              color: 'gray.200',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              fontSize: 'xs',
+              lineHeight: '1.5',
+              px: 3,
+              py: 2,
+            }}
+          >
+            {/* Wrap disabled button so tooltip can attach/trigger on hover/focus */}
+            <Box as="span" display="block" w="100%">
+              {voiceButton}
+            </Box>
+          </Tooltip>
+        )}
 
         {showVisualization && isRecording && (
           <Box
