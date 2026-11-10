@@ -18,3 +18,8 @@ Targets a split, cloud-first setup for weak/tablet clients: **static web + long-
 - Verify end-to-end: CORS, streaming, `/api` reachability, Turso connectivity, and tablet flows in a real browser.
 
 See `.env.example` and `server/.env.example`.
+
+## Render API (example)
+- A sample `Dockerfile` and `render.yaml` are included for the API service.
+- Render: create a Web Service (Docker) from this repo, set `CORS_ORIGIN` to the web origin, and configure `TURSO_*` / provider keys as needed. Set the web app's `VITE_API_BASE_URL` to the Render service URL.
+- This server is long-running (streaming, model init, in-memory caches) — avoid serverless/edge runtimes for the current build.

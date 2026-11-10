@@ -1,0 +1,23 @@
+# Render Blueprint (example) - API service for Innerview
+# Deploy web SPA separately (e.g. Netlify) and set VITE_API_BASE_URL to this service URL.
+services:
+  - type: web
+    name: innerview-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3002
+      - key: CORS_ORIGIN
+        sync: false # set to your web origin, e.g. https://your-site.netlify.app
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
