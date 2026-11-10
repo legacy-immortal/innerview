@@ -202,7 +202,9 @@ export function createApp(): Hono {
       clearTimeout(timeout);
 
       if (response.ok) {
-        const data = (await response.json()) as { data?: Array<{ id: string }> };
+        const data = (await response.json()) as {
+          data?: Array<{ id: string }>;
+        };
         const models = data.data || [];
         const body: ProviderStatusBody = {
           status: 'available',
@@ -253,7 +255,10 @@ export function createApp(): Hono {
 
   app.post('/api/provider/test', async (c) => {
     try {
-      const body = (await c.req.json()) as { baseURL?: string; apiKey?: string };
+      const body = (await c.req.json()) as {
+        baseURL?: string;
+        apiKey?: string;
+      };
       let baseURL = (body.baseURL ?? '').trim().replace(/\/+$/, '');
       if (!baseURL) {
         return c.json({ ok: false, error: 'Base URL is required' }, 400);

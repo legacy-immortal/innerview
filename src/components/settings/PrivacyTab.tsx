@@ -3,9 +3,10 @@
  * @module components/settings/PrivacyTab.tsx
  */
 import type { JSX } from 'react';
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   Box,
+  Button,
   HStack,
   NativeSelect,
   Separator,
@@ -13,6 +14,8 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { countRemoteMemory, deleteRemoteMemory } from '@/lib/memory-client';
+import { useSettingsStore } from '@/lib/settings-store';
 import type { PrivacySettings } from '@/lib/settings-types';
 
 interface PrivacyTabProps {
@@ -32,6 +35,69 @@ export const PrivacyTab = memo(function PrivacyTab({
 }: PrivacyTabProps): JSX.Element {
   const persistence = privacySettings.conversationPersistence ?? 'local';
   const remoteMemory = privacySettings.associativeMemoryRemote === true;
+  const [remoteStatus, setRemoteStatus] = useState<string>('');
+  const [busy, setBusy] = useState(false);
+
+  const handleExportLocal = useCallback(() => {
+    try {
+      const settings = useSettingsStore.getState().settings;
+      let conversations: unknown = null;
+      try {
+        const raw = localStorage.getItem('innerview-conversations');
+        conversations = raw ? JSON.parse(raw) : null;
+      } catch {
+        conversations = null;
+      }
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        note: 'Local export (conversations/settings). Remote sync/export requires opted-in deployment.',
+        settings,
+        conversations,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `innerview-export-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setRemoteStatus('Local data exported.');
+    } catch (error) {
+      setRemoteStatus(
+        `Export failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }, []);
+
+  const handleCountRemote = useCallback(async () => {
+    setBusy(true);
+    setRemoteStatus('Checking remote memory...');
+    const res = await countRemoteMemory();
+    setBusy(false);
+    if (res.ok) {
+      setRemoteStatus(
+        `Remote memory documents (this installation): ${String(res.count ?? 0)}`
+      );
+    } else {
+      setRemoteStatus(res.error || 'Failed to count remote memory.');
+    }
+  }, []);
+
+  const handleDeleteRemote = useCallback(async () => {
+    setBusy(true);
+    setRemoteStatus('Deleting remote memory...');
+    const res = await deleteRemoteMemory();
+    setBusy(false);
+    if (res.ok) {
+      setRemoteStatus(
+        'Remote associative memory deleted for this installation.'
+      );
+    } else {
+      setRemoteStatus(res.error || 'Failed to delete remote memory.');
+    }
+  }, []);
 
   return (
     <VStack gap={4} align="stretch">
@@ -130,12 +196,46 @@ export const PrivacyTab = memo(function PrivacyTab({
         </Switch.Root>
       </HStack>
 
-      <Text color="gray.500" fontSize="xs">
-        Note: remote persistence/sync enforcement and data export/delete
-        controls are being rolled out; enabling cloud options expresses intent
-        and will apply as those paths are connected and scoped to your
-        installation ID.
-      </Text>
+      <Separator borderColor="rgba(255, 255, 255, 0.1)" />
+
+      <VStack align="start" gap={2}>
+        <Text color="gray.200" fontSize="sm">
+          Data controls
+        </Text>
+        <Text color="gray.500" fontSize="xs">
+          Export downloads local settings and locally stored conversations from
+          this browser. Remote memory actions require remote associative/vector
+          memory to be enabled and saved (opt-in, scoped to this installation).
+          Cloud conversation sync and retention policies are follow-ups.
+        </Text>
+        <HStack flexWrap="wrap" gap={2}>
+          <Button size="sm" variant="outline" onClick={handleExportLocal}>
+            Export local data
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCountRemote}
+            disabled={!remoteMemory || busy}
+          >
+            Count remote memory
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            colorPalette="red"
+            onClick={handleDeleteRemote}
+            disabled={!remoteMemory || busy}
+          >
+            Delete remote memory
+          </Button>
+        </HStack>
+        {remoteStatus && (
+          <Text color="gray.400" fontSize="xs">
+            {remoteStatus}
+          </Text>
+        )}
+      </VStack>
     </VStack>
   );
 });
