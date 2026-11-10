@@ -19,7 +19,9 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e:sentinel": "bun e2e/sentinel.mjs",
+    "test:e2e": "bun run test:e2e:sentinel && bunx playwright test --config=e2e/playwright.config.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.97",
@@ -71,6 +73,8 @@
   "devDependencies": {
     "@ai-sdk/provider-utils": "^5.0.75",
     "@eslint/js": "^9.39.5",
+    "@midscene/web": "^1.17.7",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -80,6 +84,7 @@
     "@typescript-eslint/utils": "^8.72.1",
     "@vitejs/plugin-react": "^5.2.0",
     "concurrently": "^9.2.5",
+    "dotenv": "^18.0.10",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
