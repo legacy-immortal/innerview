@@ -13,7 +13,8 @@ import {
   type ConversationMessage,
 } from '@/lib/conversation-store';
 import { useSettingsStore } from '@/lib/settings-store';
-import { Box, Button, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Text } from '@chakra-ui/react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import React, {
   useCallback,
   useImperativeHandle,
@@ -85,6 +86,7 @@ export const ConversationList = React.forwardRef<
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -146,6 +148,15 @@ export const ConversationList = React.forwardRef<
     });
   }, [conversations, searchTerm, conversationMatches, sortOrder]);
 
+  const rowVirtualizer = useVirtualizer({
+    count: filteredAndSortedConversations.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => 86,
+    overscan: 8,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
   // Memoize the conversation select handler to prevent recreation on every render
   const handleConversationSelect = useCallback(
     (id: string) => {
@@ -196,6 +207,7 @@ export const ConversationList = React.forwardRef<
         />
 
         <Box
+          ref={listScrollRef}
           flex={1}
           overflowY="auto"
           overflowX="hidden"
@@ -223,44 +235,62 @@ export const ConversationList = React.forwardRef<
             scrollbarColor: 'rgba(255, 255, 255, 0.15) transparent',
           }}
         >
-          <VStack gap={0} align="stretch" w="100%">
-            {filteredAndSortedConversations.length === 0 ? (
-              <Box p={4} textAlign="center">
-                <Text fontSize="xs" color="gray.500" mb={2}>
-                  {searchTerm.trim()
-                    ? 'No conversations match your search'
-                    : 'No conversations yet'}
-                </Text>
-                {!searchTerm.trim() && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    colorPalette="gray"
-                    onClick={() => createConversation()}
-                  >
-                    <HiPlus />
-                    Start New
-                  </Button>
-                )}
-              </Box>
-            ) : (
-              filteredAndSortedConversations.map((conversation) => {
+          {filteredAndSortedConversations.length === 0 ? (
+            <Box p={4} textAlign="center">
+              <Text fontSize="xs" color="gray.500" mb={2}>
+                {searchTerm.trim()
+                  ? 'No conversations match your search'
+                  : 'No conversations yet'}
+              </Text>
+              {!searchTerm.trim() && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  colorPalette="gray"
+                  onClick={() => createConversation()}
+                >
+                  <HiPlus />
+                  Start New
+                </Button>
+              )}
+            </Box>
+          ) : (
+            <Box
+              position="relative"
+              w="100%"
+              style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+            >
+              {virtualItems.map((virtualItem) => {
+                const conversation =
+                  filteredAndSortedConversations[virtualItem.index];
                 const isActive = conversation.id === currentConversationId;
                 return (
-                  <ConversationItem
+                  <Box
                     key={conversation.id}
-                    conversation={conversation}
-                    isActive={isActive}
-                    onSelect={handleConversationSelect}
-                    formatDate={formatDate}
-                    itemBackgroundColor={itemBackgroundColor}
-                    itemHoverBackgroundColor={itemHoverBackgroundColor}
-                    itemActiveBackgroundColor={itemActiveBackgroundColor}
-                  />
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    w="100%"
+                    style={{
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                    data-index={virtualItem.index}
+                    ref={rowVirtualizer.measureElement}
+                  >
+                    <ConversationItem
+                      conversation={conversation}
+                      isActive={isActive}
+                      onSelect={handleConversationSelect}
+                      formatDate={formatDate}
+                      itemBackgroundColor={itemBackgroundColor}
+                      itemHoverBackgroundColor={itemHoverBackgroundColor}
+                      itemActiveBackgroundColor={itemActiveBackgroundColor}
+                    />
+                  </Box>
                 );
-              })
-            )}
-          </VStack>
+              })}
+            </Box>
+          )}
         </Box>
 
         {/* Duplicate Message ID Warning Dialog */}
