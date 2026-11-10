@@ -1,10 +1,10 @@
 /**
- * Hypnotic breathing controls (breathing speed and intensity).
- *
- * @module background/HypnoticBreathingSection.tsx
+ * @file Hypnotic breathing controls (toggle, speed, and intensity).
+ * @module background/HypnoticBreathingSection
  */
 // Hypnotic breathing collapsible (extracted from HypnoticControls.tsx).
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
+import { memo, type JSX } from 'react';
 import { Switch, VStack } from '@chakra-ui/react';
 import { CollapsibleSection, SliderField } from './controlFields';
 
@@ -18,7 +18,7 @@ export interface HypnoticBreathingSectionProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticBreathingSection({
+function HypnoticBreathingSectionComponent({
   hypnoticSettings,
   updateSetting,
   open,
@@ -85,4 +85,6 @@ export function HypnoticBreathingSection({
     </CollapsibleSection>
   );
 }
-import type { JSX } from 'react';
+
+/** Hypnotic breathing controls: enable toggle, speed, and intensity sliders. */
+export const HypnoticBreathingSection = memo(HypnoticBreathingSectionComponent);

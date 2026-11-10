@@ -1,8 +1,10 @@
 /**
- * @file Perlin noise implementation used by the waves animation — a 2D
- * gradient noise generator with a seeded permutation table. Composition of
- * the small `Grad` value object with the `Noise` generator replaces any
- * need for inheritance.
+ * @file noise.ts — seeded 2D Perlin noise generator for the waves animation.
+ * @module components/animations/waves/noise
+ *
+ * A gradient-noise generator with a seeded permutation table. The small
+ * `Grad` value object composes with the `Noise` generator instead of using
+ * inheritance. Consumed by `useWaves` for the wave displacement field.
  */
 
 /** Element count of the seeded permutation table lookup. */

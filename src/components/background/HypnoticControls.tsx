@@ -1,9 +1,9 @@
 /**
- * Hypnotic background controls. Composes the hypnotic sub-sections.
- *
- * @module background/HypnoticControls.tsx
+ * @file Hypnotic background controls. Composes the hypnotic sub-sections.
+ * @module background/HypnoticControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
 import type { ThemePreset } from './backgroundControlUtils';
 import { HypnoticBreathingSection } from './HypnoticBreathingSection';
@@ -41,7 +41,7 @@ export interface HypnoticControlsProps {
   readonly onRotationOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticControls({
+function HypnoticControlsComponent({
   hypnoticSettings,
   updateSetting,
   applyTheme,
@@ -95,3 +95,6 @@ export function HypnoticControls({
     </>
   );
 }
+
+/** Hypnotic background controls composed from intensity, breathing, particles, colors, and rotation sections. */
+export const HypnoticControls = memo(HypnoticControlsComponent);

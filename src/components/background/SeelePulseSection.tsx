@@ -1,10 +1,10 @@
 /**
- * SEELE pulse controls (pulse speed, intensity, and number visibility).
- *
- * @module background/SeelePulseSection.tsx
+ * @file SEELE pulse controls (pulse speed, intensity, number visibility).
+ * @module background/SeelePulseSection
  */
 // SEELE pulse/number fields (extracted from SeeleControls.tsx).
 import type { BackgroundSettings } from '@/lib/settings-types';
+import { memo, type JSX } from 'react';
 import { Field, HStack, Switch } from '@chakra-ui/react';
 import { SliderField, SliderOnlyField } from './controlFields';
 
@@ -18,7 +18,7 @@ export interface SeelePulseSectionProps {
   ) => void;
 }
 
-export function SeelePulseSection({
+function SeelePulseSectionComponent({
   settings,
   onSettingChange,
 }: SeelePulseSectionProps): JSX.Element {
@@ -83,4 +83,6 @@ export function SeelePulseSection({
     </>
   );
 }
-import type { JSX } from 'react';
+
+/** SEELE pulse controls: pulse speed/intensity and number visibility. */
+export const SeelePulseSection = memo(SeelePulseSectionComponent);

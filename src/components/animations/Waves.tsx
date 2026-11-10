@@ -1,10 +1,21 @@
-import React from 'react';
+/**
+ * @file Waves background animation — renders animated canvas waves via the
+ * `useWaves` hook.
+ * @module components/animations/Waves
+ */
+
+import type { ReactElement } from 'react';
 import { useWaves } from './waves/useWaves';
 import type { WavesProps } from './waves/types';
 
 export type { WavesProps } from './waves/types';
 
-const Waves: React.FC<WavesProps> = (props) => {
+/**
+ * Renders the waves background animation.
+ * @param props - Wave rendering options.
+ * @returns The waves container element.
+ */
+const Waves = (props: WavesProps): ReactElement => {
   const { containerRef, canvasRef } = useWaves(props);
   const { backgroundColor = 'transparent', style = {}, className = '' } = props;
   return (

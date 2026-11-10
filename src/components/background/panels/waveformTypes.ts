@@ -1,7 +1,6 @@
 /**
- * Waveform layer and settings types (public contract, re-exported from BackgroundControlPanel).
- *
- * @module background/waveformTypes.ts
+ * @file Waveform layer and settings types (public contract, re-exported from BackgroundControlPanel).
+ * @module background/panels/waveformTypes
  */
 export interface WaveformLayer {
   readonly id: string;

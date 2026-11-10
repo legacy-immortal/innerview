@@ -1,9 +1,9 @@
 /**
- * Image-dither background controls (image source, dither pattern, and palette).
- *
- * @module background/ImageDitherControls.tsx
+ * @file Image-dither background controls (image source, dither pattern, and palette).
+ * @module background/ImageDitherControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -35,7 +35,7 @@ export interface ImageDitherControlsProps {
   readonly onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export function ImageDitherControls({
+function ImageDitherControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -582,3 +582,6 @@ export function ImageDitherControls({
     </Collapsible.Root>
   );
 }
+
+/** Image-dither background controls (source, dithering, palette, and transform). */
+export const ImageDitherControls = memo(ImageDitherControlsComponent);

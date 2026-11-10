@@ -1,21 +1,37 @@
+/**
+ * @file Data sparkline visualization — renders a throttled SVG sparkline for
+ * a generic numeric data series.
+ * @module components/animations/DataSparkline
+ */
+
+import type { ReactElement } from 'react';
 import { Box, Text } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 
 const SPARKLINE_WIDTH = 320;
 const SPARKLINE_HEIGHT = 120;
 
+/** Props for the data sparkline visualization. */
 interface DataSparklineProps {
-  getSparkData: () => number[];
-  /** Label above the value (e.g. "Network") */
-  label: string;
-  /** Format the current value for display (e.g. (v) => `${v} req`) */
-  formatValue: (value: number) => string;
-  /** Y-axis range for the sparkline */
-  valueMin?: number;
-  valueMax?: number;
-  color?: string;
+  /** Returns the current sparkline data points. */
+  readonly getSparkData: () => readonly number[];
+  /** Label above the value (e.g. "Network"). */
+  readonly label: string;
+  /** Format the current value for display (e.g. (v) => `${v} req`). */
+  readonly formatValue: (value: number) => string;
+  /** Y-axis minimum. */
+  readonly valueMin?: number;
+  /** Y-axis maximum. */
+  readonly valueMax?: number;
+  /** Stroke/fill accent color. */
+  readonly color?: string;
 }
 
+/**
+ * Renders a sparkline chart for a numeric data source.
+ * @param props - Sparkline display properties.
+ * @returns The sparkline element.
+ */
 export const DataSparkline = ({
   getSparkData,
   label,
@@ -23,7 +39,7 @@ export const DataSparkline = ({
   valueMin = 0,
   valueMax = 20,
   color = '#00D9FF',
-}: DataSparklineProps) => {
+}: DataSparklineProps): ReactElement => {
   const [points, setPoints] = useState<string>('');
   const [currentValue, setCurrentValue] = useState<number>(0);
   const frameRef = useRef<number>(0);

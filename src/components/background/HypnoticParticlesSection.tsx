@@ -1,10 +1,10 @@
 /**
- * Hypnotic particle controls (particle count, size, and speed).
- *
- * @module background/HypnoticParticlesSection.tsx
+ * @file Hypnotic particle controls (count and opacity).
+ * @module background/HypnoticParticlesSection
  */
 // Hypnotic particles collapsible (extracted from HypnoticControls.tsx).
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
+import { memo, type JSX } from 'react';
 import { Switch, VStack } from '@chakra-ui/react';
 import { CollapsibleSection, SliderField } from './controlFields';
 
@@ -18,7 +18,7 @@ export interface HypnoticParticlesSectionProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticParticlesSection({
+function HypnoticParticlesSectionComponent({
   hypnoticSettings,
   updateSetting,
   open,
@@ -85,4 +85,6 @@ export function HypnoticParticlesSection({
     </CollapsibleSection>
   );
 }
-import type { JSX } from 'react';
+
+/** Hypnotic particle controls: enable toggle, count, and opacity sliders. */
+export const HypnoticParticlesSection = memo(HypnoticParticlesSectionComponent);

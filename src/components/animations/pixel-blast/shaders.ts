@@ -1,9 +1,12 @@
 import type { PixelBlastVariant } from './types';
 
 /**
- * @file GLSL shaders for pixel-blast — a pixelated Bayer/FBM mask with
- * click ripples. Shader sources are UPPER_SNAKE_CASE constants per project
- * style; `SHAPE_MAP` maps each variant to its GLSL shape code.
+ * @file shaders.ts — GLSL shaders for pixel-blast (Bayer/FBM mask + ripples).
+ * @module components/animations/pixel-blast/shaders
+ *
+ * GLSL vertex and fragment shaders for the pixelated Bayer/FBM mask with
+ * click ripples. `SHAPE_MAP` maps each variant to its GLSL shape code.
+ * Consumed by `usePixelBlastRenderer`.
  */
 
 /** Map from pixel-blast variant to the GLSL `uShapeType` code. */

@@ -1,7 +1,8 @@
 /**
- * Waveform background section: enable toggle, nested collapsibles, and per-layer waveform settings. Re-exports waveform types for compatibility.
+ * @file Waveform background section: enable toggle, nested collapsibles, and per-layer waveform settings.
+ * @module background/panels/WaveformSection
  *
- * @module background/WaveformSection.tsx
+ * Re-exports waveform types for compatibility.
  */
 import {
   Box,
@@ -20,6 +21,7 @@ import {
 import { memo, useState, type JSX } from 'react';
 import { HiPlus, HiTrash } from 'react-icons/hi';
 import { DEFAULT_COLORS } from '../backgroundControlUtils';
+import { FONT_FAMILY } from '../controlFields';
 import type { WaveformLayer, WaveformSettings } from './waveformTypes';
 
 export type { WaveformLayer, WaveformSettings } from './waveformTypes';
@@ -135,11 +137,7 @@ const WaveformSectionComponent = ({
             borderColor="rgba(255, 255, 255, 0.1)"
           >
             <HStack justify="space-between" align="center">
-              <Text
-                fontSize="xs"
-                color="gray.300"
-                fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
-              >
+              <Text fontSize="xs" color="gray.300" fontFamily={FONT_FAMILY}>
                 Waveform Enabled
               </Text>
               <Switch.Root
@@ -173,7 +171,7 @@ const WaveformSectionComponent = ({
                 justifyContent="space-between"
                 color="gray.300"
                 _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-                fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                fontFamily={FONT_FAMILY}
               >
                 <Text fontSize="xs">Waveform Settings</Text>
                 <Text fontSize="xs">{waveformSettingsOpen ? '−' : '+'}</Text>
@@ -257,7 +255,7 @@ const WaveformSectionComponent = ({
                           >
                             <NumberInput.Control />
                             <NumberInput.Input
-                              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                              fontFamily={FONT_FAMILY}
                               fontSize="2xs"
                               bg="rgba(0, 0, 0, 0.3)"
                               borderColor="rgba(255, 255, 255, 0.1)"
@@ -328,7 +326,7 @@ const WaveformSectionComponent = ({
                           >
                             <NumberInput.Control />
                             <NumberInput.Input
-                              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                              fontFamily={FONT_FAMILY}
                               fontSize="2xs"
                               bg="rgba(0, 0, 0, 0.3)"
                               borderColor="rgba(255, 255, 255, 0.1)"
@@ -399,7 +397,7 @@ const WaveformSectionComponent = ({
                           >
                             <NumberInput.Control />
                             <NumberInput.Input
-                              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                              fontFamily={FONT_FAMILY}
                               fontSize="2xs"
                               bg="rgba(0, 0, 0, 0.3)"
                               borderColor="rgba(255, 255, 255, 0.1)"
@@ -478,7 +476,7 @@ const WaveformSectionComponent = ({
                           >
                             <NumberInput.Control />
                             <NumberInput.Input
-                              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                              fontFamily={FONT_FAMILY}
                               fontSize="2xs"
                               bg="rgba(0, 0, 0, 0.3)"
                               borderColor="rgba(255, 255, 255, 0.1)"
@@ -504,7 +502,7 @@ const WaveformSectionComponent = ({
                         justifyContent="space-between"
                         color="gray.400"
                         _hover={{ bg: 'rgba(255, 255, 255, 0.03)' }}
-                        fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                        fontFamily={FONT_FAMILY}
                         fontSize="2xs"
                       >
                         <Text fontSize="2xs">Breathing</Text>
@@ -618,7 +616,7 @@ const WaveformSectionComponent = ({
                                   >
                                     <NumberInput.Control />
                                     <NumberInput.Input
-                                      fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                      fontFamily={FONT_FAMILY}
                                       fontSize="2xs"
                                       bg="rgba(0, 0, 0, 0.3)"
                                       borderColor="rgba(255, 255, 255, 0.1)"
@@ -706,7 +704,7 @@ const WaveformSectionComponent = ({
                                   >
                                     <NumberInput.Control />
                                     <NumberInput.Input
-                                      fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                      fontFamily={FONT_FAMILY}
                                       fontSize="2xs"
                                       bg="rgba(0, 0, 0, 0.3)"
                                       borderColor="rgba(255, 255, 255, 0.1)"
@@ -736,7 +734,7 @@ const WaveformSectionComponent = ({
                         justifyContent="space-between"
                         color="gray.400"
                         _hover={{ bg: 'rgba(255, 255, 255, 0.03)' }}
-                        fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                        fontFamily={FONT_FAMILY}
                         fontSize="2xs"
                       >
                         <Text fontSize="2xs">Animation</Text>
@@ -819,7 +817,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -899,7 +897,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -979,7 +977,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -1007,7 +1005,7 @@ const WaveformSectionComponent = ({
                         justifyContent="space-between"
                         color="gray.400"
                         _hover={{ bg: 'rgba(255, 255, 255, 0.03)' }}
-                        fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                        fontFamily={FONT_FAMILY}
                         fontSize="2xs"
                       >
                         <Text fontSize="2xs">Amplitude</Text>
@@ -1094,7 +1092,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -1174,7 +1172,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -1202,7 +1200,7 @@ const WaveformSectionComponent = ({
                         justifyContent="space-between"
                         color="gray.400"
                         _hover={{ bg: 'rgba(255, 255, 255, 0.03)' }}
-                        fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                        fontFamily={FONT_FAMILY}
                         fontSize="2xs"
                       >
                         <Text fontSize="2xs">Glow</Text>
@@ -1287,7 +1285,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -1367,7 +1365,7 @@ const WaveformSectionComponent = ({
                               >
                                 <NumberInput.Control />
                                 <NumberInput.Input
-                                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                  fontFamily={FONT_FAMILY}
                                   fontSize="2xs"
                                   bg="rgba(0, 0, 0, 0.3)"
                                   borderColor="rgba(255, 255, 255, 0.1)"
@@ -1395,7 +1393,7 @@ const WaveformSectionComponent = ({
                         justifyContent="space-between"
                         color="gray.400"
                         _hover={{ bg: 'rgba(255, 255, 255, 0.03)' }}
-                        fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                        fontFamily={FONT_FAMILY}
                         fontSize="2xs"
                       >
                         <Text fontSize="2xs">
@@ -1438,7 +1436,7 @@ const WaveformSectionComponent = ({
                                     _hover={{
                                       bg: 'rgba(255, 255, 255, 0.03)',
                                     }}
-                                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                    fontFamily={FONT_FAMILY}
                                     fontSize="2xs"
                                   >
                                     <Text fontSize="2xs">
@@ -1508,7 +1506,7 @@ const WaveformSectionComponent = ({
                                             }
                                           }}
                                           size="xs"
-                                          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                          fontFamily={FONT_FAMILY}
                                           bg="rgba(0, 0, 0, 0.3)"
                                           borderColor="rgba(255, 255, 255, 0.1)"
                                           color="gray.400"
@@ -1578,7 +1576,7 @@ const WaveformSectionComponent = ({
                                         >
                                           <NumberInput.Control />
                                           <NumberInput.Input
-                                            fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                            fontFamily={FONT_FAMILY}
                                             fontSize="2xs"
                                             bg="rgba(0, 0, 0, 0.3)"
                                             borderColor="rgba(255, 255, 255, 0.1)"
@@ -1650,7 +1648,7 @@ const WaveformSectionComponent = ({
                                         >
                                           <NumberInput.Control />
                                           <NumberInput.Input
-                                            fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                            fontFamily={FONT_FAMILY}
                                             fontSize="2xs"
                                             bg="rgba(0, 0, 0, 0.3)"
                                             borderColor="rgba(255, 255, 255, 0.1)"
@@ -1722,7 +1720,7 @@ const WaveformSectionComponent = ({
                                         >
                                           <NumberInput.Control />
                                           <NumberInput.Input
-                                            fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                            fontFamily={FONT_FAMILY}
                                             fontSize="2xs"
                                             bg="rgba(0, 0, 0, 0.3)"
                                             borderColor="rgba(255, 255, 255, 0.1)"
@@ -1797,7 +1795,7 @@ const WaveformSectionComponent = ({
                                         >
                                           <NumberInput.Control />
                                           <NumberInput.Input
-                                            fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                                            fontFamily={FONT_FAMILY}
                                             fontSize="2xs"
                                             bg="rgba(0, 0, 0, 0.3)"
                                             borderColor="rgba(255, 255, 255, 0.1)"
@@ -1816,7 +1814,7 @@ const WaveformSectionComponent = ({
                             variant="outline"
                             colorPalette="gray"
                             onClick={addWaveformLayer}
-                            fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                            fontFamily={FONT_FAMILY}
                             fontSize="2xs"
                           >
                             <HiPlus />
@@ -1836,4 +1834,5 @@ const WaveformSectionComponent = ({
   );
 };
 
+/** Waveform background section with enable toggle, settings, and per-layer controls. */
 export const WaveformSection = memo(WaveformSectionComponent);

@@ -1,3 +1,10 @@
+/**
+ * @file FPS sparkline visualization — renders frame-rate history with
+ * summary statistics.
+ * @module components/animations/FpsSparkline
+ */
+
+import type { ReactElement } from 'react';
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -6,16 +13,27 @@ const SPARKLINE_HEIGHT = 120;
 const FPS_MIN = 0;
 const FPS_MAX = 240;
 
-interface FpsSparklineProps {
-  getSparkData: () => number[];
-  color?: string;
+/** Summary statistics for an FPS sample window. */
+interface FpsStats {
+  readonly high: number;
+  readonly low: number;
+  readonly avg: number;
 }
 
-function fpsStats(data: number[]): {
-  high: number;
-  low: number;
-  avg: number;
-} {
+/** Props for the FPS sparkline visualization. */
+interface FpsSparklineProps {
+  /** Returns the current FPS sample buffer. */
+  readonly getSparkData: () => readonly number[];
+  /** Accent color for the chart. */
+  readonly color?: string;
+}
+
+/**
+ * Computes high/low/average statistics for an FPS sample set.
+ * @param data - FPS samples.
+ * @returns The computed statistics.
+ */
+function fpsStats(data: readonly number[]): FpsStats {
   if (data.length === 0) return { high: 0, low: 0, avg: 0 };
   const high = Math.max(...data);
   const low = Math.min(...data);
@@ -24,17 +42,18 @@ function fpsStats(data: number[]): {
   return { high, low, avg };
 }
 
+/**
+ * Renders an FPS sparkline with current and summary values.
+ * @param props - Sparkline display properties.
+ * @returns The sparkline element.
+ */
 export const FpsSparkline = ({
   getSparkData,
   color = '#00D9FF',
-}: FpsSparklineProps) => {
+}: FpsSparklineProps): ReactElement => {
   const [points, setPoints] = useState<string>('');
   const [currentFps, setCurrentFps] = useState<number>(0);
-  const [stats, setStats] = useState<{
-    high: number;
-    low: number;
-    avg: number;
-  }>({
+  const [stats, setStats] = useState<FpsStats>({
     high: 0,
     low: 0,
     avg: 0,

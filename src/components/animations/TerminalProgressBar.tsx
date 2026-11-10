@@ -2,8 +2,13 @@ import { Box, Text } from '@chakra-ui/react';
 import type { ReactElement } from 'react';
 
 /**
- * @file Terminal-style progress bar — chunky blocks with a grid overlay and
- * glow for the terminal aesthetic.
+ * @file TerminalProgressBar.tsx — terminal-style progress bar with chunky
+ * blocks, grid overlay, and glow.
+ * @module components/animations/TerminalProgressBar
+ *
+ * Renders a terminal-styled progress bar: a fill bar whose width animates
+ * in chunky steps, a repeating-linear-gradient grid overlay, and an
+ * optional percentage label. The fill glows based on its color.
  */
 
 /** Props for the terminal progress bar. */

@@ -1,9 +1,9 @@
 /**
- * System visualization controls (data source, cycle timing, scale, color, and offset).
- *
- * @module background/SystemVisualizationSection.tsx
+ * @file System visualization controls (data source, cycle timing, scale, color, and offset).
+ * @module background/SystemVisualizationSection
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import { SYSTEM_SOURCE_OPTIONS } from '@/hooks/useSystemDataSource';
 import type {
   BackgroundSettings,
@@ -25,6 +25,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { HiRefresh } from 'react-icons/hi';
+import { FONT_FAMILY } from './controlFields';
 
 const DEFAULT_CYCLE_DURATION_MS = 20000;
 const CYCLE_DURATION_MS_MIN = 2000;
@@ -53,7 +54,7 @@ interface SystemVisualizationSectionProps {
   ) => void;
 }
 
-export function SystemVisualizationSection({
+function SystemVisualizationSectionComponent({
   open,
   onOpenChange,
   settings,
@@ -74,7 +75,7 @@ export function SystemVisualizationSection({
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+          fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">System visualization</Text>
           <Text fontSize="xs">{open ? '−' : '+'}</Text>
@@ -112,11 +113,7 @@ export function SystemVisualizationSection({
               </NativeSelect.Root>
             </Field.Root>
             <HStack justify="space-between" align="center">
-              <Text
-                fontSize="xs"
-                color="gray.300"
-                fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
-              >
+              <Text fontSize="xs" color="gray.300" fontFamily={FONT_FAMILY}>
                 Cycle animations
               </Text>
               <Switch.Root
@@ -156,11 +153,7 @@ export function SystemVisualizationSection({
               </NumberInput.Root>
             </Field.Root>
             <HStack align="center" justify="space-between" mt={1} gap={2}>
-              <Text
-                fontSize="2xs"
-                color="gray.400"
-                fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
-              >
+              <Text fontSize="2xs" color="gray.400" fontFamily={FONT_FAMILY}>
                 Cycle animation properties
               </Text>
               <IconButton
@@ -299,7 +292,7 @@ export function SystemVisualizationSection({
             <Text
               fontSize="2xs"
               color="gray.500"
-              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+              fontFamily={FONT_FAMILY}
               mt={1}
             >
               Clock
@@ -335,3 +328,8 @@ export function SystemVisualizationSection({
     </Collapsible.Root>
   );
 }
+
+/** System visualization controls (source, cycling, scale, color, and offset). */
+export const SystemVisualizationSection = memo(
+  SystemVisualizationSectionComponent
+);

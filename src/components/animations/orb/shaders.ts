@@ -1,7 +1,10 @@
 /**
- * @file GLSL shaders for the orb animation — a hover-reactive Simplex-noise
- * orb rendered with OGL. Shader sources are UPPER_SNAKE_CASE constants per
- * project style; the orb vertex shader is a pass-through that forwards UVs.
+ * @file shaders.ts — GLSL shaders for the orb animation (Simplex-noise orb).
+ * @module components/animations/orb/shaders
+ *
+ * GLSL vertex and fragment shaders for the hover-reactive Simplex-noise orb
+ * rendered with OGL. The vertex shader is a pass-through that forwards UVs.
+ * Consumed by `useOrbRenderer`.
  */
 
 /** Orb vertex shader (pass-through UV forwarding). */

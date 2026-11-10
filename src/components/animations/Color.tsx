@@ -4,20 +4,34 @@ import type { ReactElement } from 'react';
 import { createVisibilityPause, HIDDEN_POLL_MS } from './perf';
 
 /**
- * @file Color background — a canvas-filled background (flat color or
- * gradient) with an optional animated scanline overlay.
+ * @file Color.tsx — canvas-filled background (flat color or gradient) with
+ * an optional animated scanline overlay.
+ * @module components/animations/Color
+ *
+ * Renders a full-screen color or gradient background on a 2D canvas, with an
+ * optional horizontally-scrolling scanline effect. Consumed by
+ * `BackgroundSwitcher` for the `color` background type. The canvas pauses
+ * when offscreen or the tab is hidden.
  */
 
 /** Settings describing the color background. */
 export interface ColorBackgroundSettings {
+  /** Solid fill color (CSS color string). */
   readonly color?: string;
+  /** Whether to render a gradient instead of a solid color. */
   readonly gradientEnabled?: boolean;
+  /** Gradient second color (CSS color string). */
   readonly gradientColor?: string;
+  /** Gradient direction. */
   readonly gradientDirection?:
     'horizontal' | 'vertical' | 'diagonal' | 'radial';
+  /** Whether to draw the animated scanline overlay. */
   readonly scanlineEnabled?: boolean;
+  /** Scanline opacity in [0, 1]. */
   readonly scanlineOpacity?: number;
+  /** Scanline animation speed (px per frame). */
   readonly scanlineSpeed?: number;
+  /** Scanline color (CSS color string). */
   readonly scanlineColor?: string;
 }
 

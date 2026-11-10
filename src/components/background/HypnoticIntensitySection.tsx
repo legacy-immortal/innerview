@@ -1,10 +1,10 @@
 /**
- * Hypnotic intensity controls (base intensity and falloff).
- *
- * @module background/HypnoticIntensitySection.tsx
+ * @file Hypnotic intensity controls (base intensity slider).
+ * @module background/HypnoticIntensitySection
  */
 // Hypnotic intensity collapsible (extracted from HypnoticControls.tsx).
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
+import { memo, type JSX } from 'react';
 import { CollapsibleSection, SliderField } from './controlFields';
 
 export interface HypnoticIntensitySectionProps {
@@ -17,7 +17,7 @@ export interface HypnoticIntensitySectionProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticIntensitySection({
+function HypnoticIntensitySectionComponent({
   hypnoticSettings,
   updateSetting,
   open,
@@ -45,4 +45,6 @@ export function HypnoticIntensitySection({
     </CollapsibleSection>
   );
 }
-import type { JSX } from 'react';
+
+/** Hypnotic intensity controls: base intensity slider. */
+export const HypnoticIntensitySection = memo(HypnoticIntensitySectionComponent);

@@ -1,7 +1,10 @@
 /**
- * @file GLSL shaders for the threads animation — Perlin-driven flowing line
- * field rendered with OGL. Shader sources are UPPER_SNAKE_CASE constants per
- * project style.
+ * @file shaders.ts — GLSL shaders for the threads animation (Perlin line
+ * field).
+ * @module components/animations/threads/shaders
+ *
+ * GLSL vertex and fragment shaders for the Perlin-driven flowing line field
+ * rendered with OGL. Consumed by `useThreadsRenderer`.
  */
 
 /** Threads vertex shader (pass-through UV forwarding). */

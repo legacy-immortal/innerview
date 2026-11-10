@@ -29,6 +29,11 @@ interface GradientLayerProps {
   readonly rotationSpeed: number;
 }
 
+/**
+ * Render a radial gradient shader layer.
+ * @param props - Gradient layer configuration and animation settings.
+ * @returns The gradient mesh element.
+ */
 export function GradientLayer({
   fragmentShader,
   color1,
@@ -127,6 +132,10 @@ export function GradientLayer({
   );
 }
 
+/**
+ * Render the geometric pattern overlay layer.
+ * @returns The geometric pattern mesh element.
+ */
 export function GeometricPatternLayer(): ReactElement {
   const mesh = useRef<THREE.Mesh>(null);
   const { viewport, size } = useThree();
@@ -242,6 +251,10 @@ export function EnergyWaveLayer({
   );
 }
 
+/**
+ * Render the scanline overlay layer.
+ * @returns The scanline mesh element.
+ */
 export function ScanLinesLayer(): ReactElement {
   const mesh = useRef<THREE.Mesh>(null);
   const { viewport, size } = useThree();

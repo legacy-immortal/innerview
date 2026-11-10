@@ -1,3 +1,8 @@
+/**
+ * @file Shared color conversion utilities and theme presets for background controls.
+ * @module background/backgroundControlUtils
+ */
+
 /** Shared color palette for waveform layers and other controls. */
 export const DEFAULT_COLORS: readonly string[] = [
   '#00D9FF',
@@ -8,6 +13,12 @@ export const DEFAULT_COLORS: readonly string[] = [
   '#FF0088',
 ];
 
+/**
+ * Converts an RGB triplet (0–1 per channel) to a `#RRGGBB` hex string.
+ *
+ * @param rgb - RGB values in 0–1 range, or undefined for a safe default.
+ * @returns Uppercase hex color string; defaults to white on invalid input.
+ */
 export function rgbToHex(
   rgb: readonly [number, number, number] | undefined
 ): string {
@@ -18,6 +29,12 @@ export function rgbToHex(
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+/**
+ * Converts a `#RRGGBB` hex string to an RGB triplet (0–1 per channel).
+ *
+ * @param hex - Hex color string, with or without leading `#`.
+ * @returns RGB values in 0–1 range.
+ */
 export function hexToRgb(hex: string): [number, number, number] {
   const normalizedHex = hex.startsWith('#')
     ? hex.toUpperCase()
@@ -28,7 +45,8 @@ export function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
-export type ThemePreset = {
+/** Named color theme preset for the hypnotic background. */
+export interface ThemePreset {
   readonly name: string;
   readonly primaryColor1: string;
   readonly primaryColor2: string;
@@ -36,8 +54,9 @@ export type ThemePreset = {
   readonly secondaryColor2: string;
   readonly tertiaryColor1: string;
   readonly tertiaryColor2: string;
-};
+}
 
+/** Built-in color theme presets for the hypnotic background. */
 export const THEME_PRESETS: readonly ThemePreset[] = [
   {
     name: 'Ocean',

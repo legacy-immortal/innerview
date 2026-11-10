@@ -1,7 +1,6 @@
 /**
- * Shared form fields for background panels: collapsible sections, sliders, and color inputs.
- *
- * @module background/controlFields.tsx
+ * @file Shared form fields for background panels: collapsible sections, sliders, and color inputs.
+ * @module background/controlFields
  */
 // Shared collapsible/slider/color controls for background panels
 // (extracted from HypnoticControls.tsx and SeeleControls.tsx).
@@ -16,12 +15,16 @@ import {
   Slider,
   Text,
 } from '@chakra-ui/react';
-import type { JSX, ReactNode } from 'react';
+import { memo, type JSX, type ReactNode } from 'react';
 
+/** Shared monospace font stack for background control labels and inputs. */
 export const FONT_FAMILY =
   "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace";
 
-export function CollapsibleSection({
+/** Static hover style; hoisted to avoid Emotion churn. */
+const HOVER_STYLE = { bg: 'rgba(255, 255, 255, 0.05)' } as const;
+
+function CollapsibleSectionComponent({
   title,
   open,
   onOpenChange,
@@ -42,7 +45,7 @@ export function CollapsibleSection({
           maxW="100%"
           justifyContent="space-between"
           color="gray.300"
-          _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
+          _hover={HOVER_STYLE}
           fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">{title}</Text>
@@ -58,6 +61,9 @@ export function CollapsibleSection({
   );
 }
 
+/** Memoized collapsible section used by background control panels. */
+export const CollapsibleSection = memo(CollapsibleSectionComponent);
+
 export interface SliderFieldProps {
   readonly label: string;
   readonly display: string;
@@ -72,7 +78,7 @@ export interface SliderFieldProps {
   readonly numberStep?: number;
 }
 
-export function SliderField({
+function SliderFieldComponent({
   label,
   display,
   value,
@@ -154,7 +160,10 @@ export function SliderField({
   );
 }
 
-export function SliderOnlyField({
+/** Slider field with an optional numeric input for precise values. */
+export const SliderField = memo(SliderFieldComponent);
+
+function SliderOnlyFieldComponent({
   label,
   display,
   value,
@@ -200,7 +209,10 @@ export function SliderOnlyField({
   );
 }
 
-export function ColorField({
+/** Slider field without a numeric input. */
+export const SliderOnlyField = memo(SliderOnlyFieldComponent);
+
+function ColorFieldComponent({
   label,
   value,
   onChange,
@@ -249,3 +261,6 @@ export function ColorField({
     </Field.Root>
   );
 }
+
+/** Color picker field with a hex text input. */
+export const ColorField = memo(ColorFieldComponent);

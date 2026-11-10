@@ -1,10 +1,22 @@
+/**
+ * @file Orb background animation — renders an interactive WebGL orb using an
+ * OGL-based renderer hook.
+ * @module components/animations/Orb
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { useOrbRenderer } from './orb/useOrbRenderer';
 import type { OrbProps } from './orb/types';
 
 export type { OrbProps } from './orb/types';
 
-export default function Orb(props: OrbProps) {
+/**
+ * Renders the orb background animation container.
+ * @param props - Orb rendering options.
+ * @returns The orb container element.
+ */
+export default function Orb(props: OrbProps): ReactElement {
   const { ctnDom } = useOrbRenderer(props);
   return (
     <Box

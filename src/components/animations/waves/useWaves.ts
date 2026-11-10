@@ -5,10 +5,13 @@ import { Noise } from './noise';
 import type { Config, Mouse, Point, WavesProps } from './types';
 
 /**
- * @file Waves renderer hook — owns canvas sizing, the Perlin-driven wave
- * field, pointer interaction, and the requestAnimationFrame loop. The small
- * canvas helpers inside the effect are single-purpose and extracted as named
- * inner functions to keep the hook readable.
+ * @file useWaves.ts — Perlin-driven canvas waves renderer hook.
+ * @module components/animations/waves/useWaves
+ *
+ * Owns canvas sizing, the Perlin-driven wave field, pointer interaction, and
+ * the requestAnimationFrame loop. Canvas helpers inside the effect are
+ * single-purpose named inner functions to keep the hook readable. Consumed
+ * by the `Waves` component.
  */
 
 /** Refs returned by {@link useWaves} for the host element and canvas. */

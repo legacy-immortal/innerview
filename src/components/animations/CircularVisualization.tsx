@@ -1,3 +1,10 @@
+/**
+ * @file Circular visualization container — selects and renders the active
+ * system visualization (waveform, gauge, pie, clock, sparklines) with labels.
+ * @module components/animations/CircularVisualization
+ */
+
+import type { ReactElement } from 'react';
 import type {
   WaveformLayer,
   WaveformSettings,
@@ -18,17 +25,24 @@ import {
   systemTextAnimationCss,
 } from './systemTextAnimation';
 
+/** Props for the circular visualization container. */
 interface CircularVisualizationProps {
-  isActive: boolean;
-  audioElement?: HTMLAudioElement | null;
-  analyserNode?: AnalyserNode | null;
-  useSpeechSynthesis?: boolean;
-  isIdle?: boolean;
-  layers?: WaveformLayer[];
-  settings?: WaveformSettings;
-  systemDataSource: ReturnType<typeof useSystemDataSource>;
+  readonly isActive: boolean;
+  readonly audioElement?: HTMLAudioElement | null;
+  readonly analyserNode?: AnalyserNode | null;
+  readonly useSpeechSynthesis?: boolean;
+  readonly isIdle?: boolean;
+  readonly layers?: WaveformLayer[];
+  readonly settings?: WaveformSettings;
+  readonly systemDataSource: ReturnType<typeof useSystemDataSource>;
 }
 
+/**
+ * Renders the appropriate circular visualization for the current system data
+ * source, including optional system labels and sparklines.
+ * @param props - Visualization properties and data source.
+ * @returns The visualization element, or null when inactive.
+ */
 export const CircularVisualization = ({
   isActive,
   audioElement,
@@ -38,7 +52,7 @@ export const CircularVisualization = ({
   layers,
   settings,
   systemDataSource,
-}: CircularVisualizationProps) => {
+}: CircularVisualizationProps): ReactElement | null => {
   const [gaugeValue, setGaugeValue] = useState<{
     value: number;
     max: number;
@@ -150,9 +164,10 @@ export const CircularVisualization = ({
         })()
       : systemDataSource.currentSource.description;
 
-  const SystemLabel = () =>
+  const SystemLabel = (): ReactElement | null =>
     systemDataSource.showSourceLabel && isIdle ? (
       <Box
+        key={`${vizType}:${labelText}`}
         position="absolute"
         top="0"
         left="0"
@@ -166,6 +181,10 @@ export const CircularVisualization = ({
         fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
         fontSize="md"
         letterSpacing="0.1em"
+        textAlign="center"
+        maxWidth="90vw"
+        margin="0 auto"
+        px={4}
         css={systemTextCss}
       >
         <Text
@@ -204,6 +223,7 @@ export const CircularVisualization = ({
     justifyContent: 'center',
     flexShrink: 0,
     transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+    transformOrigin: 'center',
     pointerEvents: 'none',
   };
 

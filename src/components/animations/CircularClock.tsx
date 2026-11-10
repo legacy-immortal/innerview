@@ -1,19 +1,32 @@
+/**
+ * @file Circular clock visualization — renders an analog clock face using
+ * React Three Fiber with configurable hands and size.
+ * @module components/animations/CircularClock
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
+/** Props for the circular clock visualization. */
 interface CircularClockProps {
-  hours: number;
-  minutes: number;
-  seconds: number;
-  color?: string;
-  size?: number;
+  readonly hours: number;
+  readonly minutes: number;
+  readonly seconds: number;
+  readonly color?: string;
+  readonly size?: number;
   /** When false, second hand is hidden. */
-  showSeconds?: boolean;
+  readonly showSeconds?: boolean;
 }
 
+/**
+ * Renders an analog circular clock driven by the provided time values.
+ * @param props - Clock display properties.
+ * @returns The clock visualization element.
+ */
 export const CircularClock = ({
   hours,
   minutes,
@@ -21,7 +34,7 @@ export const CircularClock = ({
   color = '#00D9FF',
   size = 2000,
   showSeconds = true,
-}: CircularClockProps) => {
+}: CircularClockProps): ReactElement => {
   // Keep original intent scale: 80/70/60 vmin at the caller's 2000 baseline,
   // scaled proportionally (clamped) so small defaults don't collapse the clock.
   const scaleFactor = Math.min(
@@ -72,19 +85,27 @@ export const CircularClock = ({
   );
 };
 
+/** Props for the internal Three.js clock scene. */
+interface ClockSceneProps {
+  readonly hours: number;
+  readonly minutes: number;
+  readonly seconds: number;
+  readonly color: string;
+  readonly showSeconds: boolean;
+}
+
+/**
+ * Renders the Three.js scene containing clock hands and face.
+ * @param props - Scene properties.
+ * @returns The scene group, or null while meshes initialize.
+ */
 function ClockScene({
   hours,
   minutes,
   seconds,
   color,
   showSeconds,
-}: {
-  hours: number;
-  minutes: number;
-  seconds: number;
-  color: string;
-  showSeconds: boolean;
-}) {
+}: ClockSceneProps): ReactElement | null {
   const groupRef = useRef<THREE.Group>(null);
   const [isReady, setIsReady] = useState(false);
 

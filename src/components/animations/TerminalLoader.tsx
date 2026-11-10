@@ -4,8 +4,13 @@ import type { ReactElement } from 'react';
 import { TerminalProgressBar } from './TerminalProgressBar';
 
 /**
- * @file Terminal-style loading overlay — staccato progress steps and an
- * animated ellipsis, rendered on a full-screen black overlay.
+ * @file TerminalLoader.tsx — terminal-style loading overlay with staccato
+ * progress steps and an animated ellipsis.
+ * @module components/animations/TerminalLoader
+ *
+ * Renders a full-screen black loading overlay with a timestamp, `[SYSTEM]`
+ * prompt, a loading message with animated dots, and a staccato progress bar
+ * that advances in chunky steps. Renders nothing when not loading.
  */
 
 /** Chunky progress steps (percent) for the staccato loader animation. */
@@ -22,7 +27,9 @@ const DOTS_INTERVAL_MS = 300;
 
 /** Props for the terminal loader. */
 interface TerminalLoaderProps {
+  /** Whether the loader is currently visible. */
   readonly isLoading: boolean;
+  /** Loading message to display. */
   readonly message?: string;
 }
 

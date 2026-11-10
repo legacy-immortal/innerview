@@ -1,41 +1,62 @@
+/**
+ * @file Seele.tsx — pulsing SEELE number display with scanline overlay.
+ * @module components/animations/Seele
+ *
+ * Renders the SEELE background animation: a pulsing two-digit number with
+ * scanline and glow effects, plus top/bottom label text. Font options and
+ * default texts are shared with `seeleConstants.ts` and re-exported from
+ * this module so existing imports from `Seele` continue to resolve.
+ */
+
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { useMemo } from 'react';
 import type { ReactElement } from 'react';
-
-/**
- * @file SEELE display animation — pulsing SEELE number with scanline overlay.
- * The font options and default texts live in `seeleConstants.ts` and are
- * re-exported here so existing imports from `Seele` keep working.
- */
-export {
-  SEELE_DEFAULT_BOTTOM_TEXT,
-  SEELE_DEFAULT_TOP_TEXT,
-  SEELE_FONT_OPTIONS,
-} from './seeleConstants';
 import {
   SEELE_DEFAULT_BOTTOM_TEXT,
   SEELE_DEFAULT_TOP_TEXT,
 } from './seeleConstants';
 
+export {
+  SEELE_DEFAULT_BOTTOM_TEXT,
+  SEELE_DEFAULT_TOP_TEXT,
+  SEELE_FONT_OPTIONS,
+} from './seeleConstants';
+
 const SEELE_DEFAULT_FONT = 'Inter, system-ui, sans-serif';
 
+/** Settings for the SEELE background animation. All fields are optional. */
 export interface SeeleBackgroundSettings {
+  /** Text color (CSS color string). */
   readonly textColor?: string;
+  /** Background color (CSS color string). */
   readonly bgColor?: string;
+  /** Top label text. */
   readonly topText?: string;
+  /** Bottom label text. */
   readonly bottomText?: string;
+  /** CSS font-family for all text. */
   readonly fontFamily?: string;
+  /** Big number font size in px. */
   readonly numberSize?: number;
+  /** Label font size in px. */
   readonly labelSize?: number;
+  /** Pulse animation speed in seconds per cycle. */
   readonly pulseSpeed?: number;
+  /** Pulse opacity swing depth. */
   readonly pulseIntensity?: number;
+  /** Scanline animation speed in seconds per cycle. */
   readonly scanlineSpeed?: number;
+  /** Scanline opacity. */
   readonly scanlineOpacity?: number;
+  /** Scanline color (defaults to text color). */
   readonly scanlineColor?: string;
+  /** Whether to show the two-digit number. */
   readonly showNumber?: boolean;
+  /** The two-digit number to display (1–12). */
   readonly seeleNumber?: number;
 }
 
+/** Default SEELE settings, merged with any caller-supplied settings. */
 const DEFAULT_SETTINGS: SeeleBackgroundSettings = {
   textColor: '#ff0000',
   bgColor: '#000000',
@@ -53,7 +74,9 @@ const DEFAULT_SETTINGS: SeeleBackgroundSettings = {
   seeleNumber: 1,
 };
 
+/** Props for the SEELE background component. */
 interface SeeleProps {
+  /** Optional SEELE background settings (merged with defaults). */
   readonly settings?: Partial<SeeleBackgroundSettings>;
 }
 
@@ -85,7 +108,7 @@ export default function Seele({ settings }: SeeleProps): ReactElement {
   const firstDigit = numberStr[0];
   const secondDigit = numberStr[1];
 
-  // Convert hex color to rgba for glow effect
+  // Convert a `#RRGGBB` hex color to an rgba string for the glow shadow.
   const hexToRgba = (hex: string, alpha: number): string => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);

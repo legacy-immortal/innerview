@@ -1,10 +1,21 @@
-import React from 'react';
+/**
+ * @file Pixel blast background animation — renders an interactive pixel/shader
+ * background via the pixel-blast renderer hook.
+ * @module components/animations/PixelBlast
+ */
+
+import type { ReactElement } from 'react';
 import { usePixelBlastRenderer } from './pixel-blast/usePixelBlastRenderer';
 import type { PixelBlastProps } from './pixel-blast/types';
 
 export type { PixelBlastProps, PixelBlastVariant } from './pixel-blast/types';
 
-const PixelBlast: React.FC<PixelBlastProps> = (props) => {
+/**
+ * Renders the pixel blast interactive background container.
+ * @param props - Pixel blast rendering options.
+ * @returns The background container element.
+ */
+const PixelBlast = (props: PixelBlastProps): ReactElement => {
   const { containerRef } = usePixelBlastRenderer(props);
   const { className, style } = props;
   return (

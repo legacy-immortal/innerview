@@ -1,10 +1,10 @@
 /**
- * Hypnotic color controls (theme presets and color keys).
- *
- * @module background/HypnoticColorsSection.tsx
+ * @file Hypnotic color controls (theme presets and per-color pickers).
+ * @module background/HypnoticColorsSection
  */
 // Hypnotic colors collapsible: theme presets + per-color pickers (extracted from HypnoticControls.tsx).
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
+import { memo, type JSX } from 'react';
 import {
   Box,
   Button,
@@ -31,7 +31,7 @@ export interface HypnoticColorsSectionProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticColorsSection({
+function HypnoticColorsSectionComponent({
   hypnoticSettings,
   applyTheme,
   matchesTheme,
@@ -198,4 +198,6 @@ export function HypnoticColorsSection({
     </CollapsibleSection>
   );
 }
-import type { JSX } from 'react';
+
+/** Hypnotic colors controls: theme presets and per-channel color pickers. */
+export const HypnoticColorsSection = memo(HypnoticColorsSectionComponent);

@@ -3,9 +3,13 @@ import type { RefObject } from 'react';
 import { useThree } from '@react-three/fiber';
 
 /**
- * @file Shared animation performance helpers — DPR capping and offscreen /
- * tab-hidden visibility tracking so canvas and WebGL loops can pause when
- * nothing is visible instead of burning GPU frames.
+ * @file perf.ts — shared animation performance helpers (DPR capping,
+ * visibility tracking).
+ * @module components/animations/perf
+ *
+ * Provides `MAX_DPR`, `cappedDpr`, frame throttling, adaptive quality
+ * governance, and visibility tracking so canvas/WebGL animation loops pause
+ * when offscreen or the tab is hidden instead of burning GPU frames.
  */
 
 /** Maximum device pixel ratio used by animation canvases. */

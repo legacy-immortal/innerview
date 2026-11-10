@@ -1,13 +1,14 @@
-import { useSettingsStore } from '@/lib/settings-store';
-import { Box, Text } from '@chakra-ui/react';
+/**
+ * @file Circular waveform visualization — renders layered audio/system waveform
+ * bars in a Three.js canvas.
+ * @module components/animations/CircularWaveform
+ */
+
+import type { ReactElement } from 'react';
+import { Box } from '@chakra-ui/react';
 import { Canvas } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import * as THREE from 'three';
-import { useShallow } from 'zustand/react/shallow';
-import {
-  DEFAULT_SYSTEM_TEXT,
-  systemTextAnimationCss,
-} from './systemTextAnimation';
 import { useCircularWaveformData } from './circular-waveform/useCircularWaveformData';
 import { MAX_DPR, useElementVisible } from './perf';
 import { WaveformScene } from './circular-waveform/WaveformScene';
@@ -15,27 +16,19 @@ import type { CircularWaveformProps } from './circular-waveform/types';
 
 export type { CircularWaveformProps } from './circular-waveform/types';
 
-export const CircularWaveform = (props: CircularWaveformProps) => {
+/**
+ * Renders the circular waveform visualization.
+ * @param props - Waveform configuration and data sources.
+ * @returns The waveform element, or null when inactive.
+ */
+export const CircularWaveform = (
+  props: CircularWaveformProps
+): ReactElement | null => {
   const { isActive, isIdle = false } = props;
   const boxRef = useRef<HTMLDivElement>(null);
   const visible = useElementVisible(boxRef);
-  const {
-    systemDataSource,
-    settingsRef,
-    pulsePhase,
-    baseWaveformData,
-    layers,
-  } = useCircularWaveformData(props);
-
-  const systemTextOpts = useSettingsStore(
-    useShallow(
-      (state) => state.settings?.background?.systemText ?? DEFAULT_SYSTEM_TEXT
-    )
-  );
-  const systemTextCss = useMemo(
-    () => systemTextAnimationCss(systemTextOpts, 'systemTextFadeWaveform'),
-    [systemTextOpts]
-  );
+  const { settingsRef, pulsePhase, baseWaveformData, layers } =
+    useCircularWaveformData(props);
 
   if (!isActive && !isIdle) return null;
 
@@ -57,48 +50,22 @@ export const CircularWaveform = (props: CircularWaveformProps) => {
       opacity={isIdle ? 0.5 : 0.9}
       transition="opacity 0.3s ease-in-out"
     >
-      {/* System data source label - centered in waveform */}
-      {systemDataSource.showSourceLabel && isIdle && (
-        <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          zIndex={10}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
-          fontSize={{ base: 'xs', md: 'sm', lg: 'md' }}
-          letterSpacing="0.1em"
-          css={systemTextCss}
-        >
-          <Text
-            as="span"
-            color="cyan.400"
-            fontWeight={600}
-            fontSize={{ base: 'xs', md: 'sm', lg: 'md' }}
-            css={{
-              textShadow: '0 0 4px rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            [SYSTEM]:
-          </Text>
-          <Text
-            as="span"
-            ml={3}
-            color="gray.300"
-            fontSize={{ base: 'xs', md: 'sm', lg: 'md' }}
-            css={{
-              textShadow: '0 0 4px rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            {systemDataSource.currentSource.description}
-          </Text>
-        </Box>
-      )}
+      {/*
+        NOTE: the "[SYSTEM]:" label is rendered by CircularVisualization
+        (fullscreen-centered, animated via systemTextAnimation) — the only
+        caller. Rendering it here too overlapped it pixel-perfectly at the
+        same center (both boxes are centered), garbling the text.
+      */}
       <Canvas
         orthographic
         dpr={MAX_DPR}
         frameloop={visible ? 'always' : 'never'}
-        camera={{ position: [0, 0, 5], zoom: 35 }}
+        // Zoom 25 with BASE_VIEW_SIZE 28 shows ±1.12 world units vertically.
+        // The default radius (0.25*2=0.5) plus max layer offset (0.42) and
+        // bar length (~0.17) reaches ~0.88, so 25 keeps outer bars unclipped
+        // while filling ~79% of the canvas height. (Zoom 35 showed ±0.8
+        // and clipped the outermost bars.)
+        camera={{ position: [0, 0, 5], zoom: 25 }}
         gl={{
           antialias: true,
           alpha: true,
@@ -112,6 +79,9 @@ export const CircularWaveform = (props: CircularWaveformProps) => {
           gl.setClearColor(0x000000, 0);
           // Initialize orthographic camera to match canvas aspect ratio for perfect circle
           if (camera instanceof THREE.OrthographicCamera) {
+            // Claim the frustum so R3F's resize handler doesn't overwrite
+            // these world units with pixel values on the next resize.
+            camera.manual = true;
             const baseViewSize = 28;
             const aspect = size.width / size.height;
             // Match camera viewport to canvas aspect ratio so circle appears as perfect circle

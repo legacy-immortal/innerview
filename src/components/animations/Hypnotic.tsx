@@ -1,3 +1,10 @@
+/**
+ * @file Hypnotic background animation — layered shader/particle scene rendered
+ * via React Three Fiber.
+ * @module components/animations/Hypnotic
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
@@ -9,11 +16,17 @@ import { MAX_DPR, useElementVisible } from './perf';
 export type { HypnoticBackgroundSettings } from './hypnotic/types';
 export { DEFAULT_SETTINGS as HYPNOTIC_DEFAULT_SETTINGS } from './hypnotic/types';
 
+/** Props for the hypnotic background component. */
 interface HypnoticProps {
-  settings?: Partial<HypnoticBackgroundSettings>;
+  readonly settings?: Partial<HypnoticBackgroundSettings>;
 }
 
-export const Hypnotic = ({ settings }: HypnoticProps) => {
+/**
+ * Renders the hypnotic animated background.
+ * @param props - Background settings.
+ * @returns The hypnotic background element.
+ */
+export const Hypnotic = ({ settings }: HypnoticProps): ReactElement => {
   const boxRef = useRef<HTMLDivElement>(null);
   const visible = useElementVisible(boxRef);
   const mergedSettings = useMemo(() => {

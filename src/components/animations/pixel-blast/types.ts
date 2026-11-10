@@ -35,7 +35,7 @@ export function isEffectPassWithEffects(
 export type PixelBlastVariant = 'square' | 'circle' | 'triangle' | 'diamond';
 
 /** Props accepted by the `PixelBlast` component and its renderer hook. */
-export type PixelBlastProps = {
+export interface PixelBlastProps {
   readonly variant?: PixelBlastVariant;
   readonly pixelSize?: number;
   readonly color?: string;
@@ -58,4 +58,4 @@ export type PixelBlastProps = {
   readonly transparent?: boolean;
   readonly edgeFade?: number;
   readonly noiseAmount?: number;
-};
+}

@@ -2,8 +2,13 @@ import { Box, Text, VStack } from '@chakra-ui/react';
 import type { ReactElement } from 'react';
 
 /**
- * @file Terminal-style full-screen import progress loader — text-based
- * progress bar with █ and ░ characters for import operations.
+ * @file TerminalImportProgress.tsx — terminal-style full-screen import
+ * progress loader with a text-based progress bar.
+ * @module components/animations/TerminalImportProgress
+ *
+ * Renders a black full-screen overlay showing the current import step, a
+ * chunky `█`/`░` progress bar, elapsed time, and optional title/message/
+ * subtitle text. Renders nothing when hidden.
  */
 
 /** Number of blocks in the text progress bar. */

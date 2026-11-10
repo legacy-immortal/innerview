@@ -5,9 +5,15 @@ import type { ReactElement } from 'react';
 import * as THREE from 'three';
 
 /**
- * @file ImageDither — WebGL image dithering effect built on react-three-fiber.
- * Renders a supplied image with ordered (Bayer) or random dithering and
- * optional color quantization against a foreground/background palette.
+ * @file ImageDither.tsx — WebGL image dithering effect built on
+ * react-three-fiber.
+ * @module components/animations/ImageDither
+ *
+ * Renders a supplied image with ordered (Bayer 2x2/4x4/8x8) or random
+ * dithering and optional color quantization against a foreground/background
+ * palette. Consumed by `BackgroundSwitcher` for the `imagedither` background
+ * type. The shader runs on a demand-mode canvas and only re-renders when
+ * settings change.
  */
 
 /** Settings describing how the dithered image should be rendered. */
@@ -461,10 +467,16 @@ function hexToRgba(hex: string): [number, number, number, number] {
   return [r, g, b, a];
 }
 
+/** Props for the top-level image dither component. */
 interface ImageDitherProps {
-  settings?: ImageDitherSettings;
+  readonly settings?: ImageDitherSettings;
 }
 
+/**
+ * Render a dithered image with configurable palette and pixelization settings.
+ * @param props - Component props carrying the dither settings.
+ * @returns The image dither canvas element.
+ */
 export default function ImageDither({
   settings = {},
 }: ImageDitherProps): ReactElement {

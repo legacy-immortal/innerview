@@ -1,9 +1,9 @@
 /**
- * System text animation controls (appear, hold, and fade-out timing).
- *
- * @module background/SystemTextSection.tsx
+ * @file System text animation controls (appear, hold, and fade-out timing).
+ * @module background/SystemTextSection
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { SystemTextAnimationSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 interface SystemTextSectionProps {
   readonly open: boolean;
@@ -26,7 +27,7 @@ interface SystemTextSectionProps {
   ) => void;
 }
 
-export function SystemTextSection({
+function SystemTextSectionComponent({
   open,
   onOpenChange,
   systemText,
@@ -43,7 +44,7 @@ export function SystemTextSection({
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+          fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">System text</Text>
           <Text fontSize="xs">{open ? '−' : '+'}</Text>
@@ -105,7 +106,7 @@ export function SystemTextSection({
                   color="gray.400"
                   minW="40px"
                   textAlign="right"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                 >
                   {systemText.appearDurationMs}
                 </Text>
@@ -155,7 +156,7 @@ export function SystemTextSection({
                   color="gray.400"
                   minW="40px"
                   textAlign="right"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                 >
                   {systemText.holdDurationS.toFixed(1)}
                 </Text>
@@ -205,7 +206,7 @@ export function SystemTextSection({
                   color="gray.400"
                   minW="40px"
                   textAlign="right"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                 >
                   {systemText.fadeOutDurationS.toFixed(1)}
                 </Text>
@@ -217,3 +218,6 @@ export function SystemTextSection({
     </Collapsible.Root>
   );
 }
+
+/** System text animation controls (appear, hold, and fade-out timing). */
+export const SystemTextSection = memo(SystemTextSectionComponent);

@@ -1,9 +1,9 @@
 /**
- * Background type selector. Dropdown for the background type plus the opacity slider.
- *
- * @module background/BackgroundTypeSelector.tsx
+ * @file Background type selector. Dropdown for the background type plus the opacity slider.
+ * @module background/BackgroundTypeSelector
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings, BackgroundType } from '@/lib/settings-types';
 import {
   Box,
@@ -13,6 +13,7 @@ import {
   Slider,
   Text,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 interface BackgroundTypeSelectorProps {
   readonly settings: BackgroundSettings;
@@ -21,7 +22,7 @@ interface BackgroundTypeSelectorProps {
   readonly onBackgroundTypeChange: (type: BackgroundType) => void;
 }
 
-export function BackgroundTypeSelector({
+function BackgroundTypeSelectorComponent({
   settings,
   onSettingsChange,
   currentBackgroundType,
@@ -121,7 +122,7 @@ export function BackgroundTypeSelector({
               color="gray.400"
               minW="45px"
               textAlign="right"
-              fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+              fontFamily={FONT_FAMILY}
             >
               {((settings.opacity ?? 0.3) * 100).toFixed(0)}%
             </Text>
@@ -131,3 +132,6 @@ export function BackgroundTypeSelector({
     </>
   );
 }
+
+/** Dropdown for selecting the background type and adjusting background opacity. */
+export const BackgroundTypeSelector = memo(BackgroundTypeSelectorComponent);

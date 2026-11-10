@@ -1,8 +1,11 @@
 /**
- * @file Shared constants for the SEELE display animation — sans-serif font
- * options and default top/bottom text. Extracted so `Seele.tsx` only exports
- * components (keeping fast-refresh friendly) while existing imports from
- * `Seele.tsx` continue to resolve via re-export.
+ * @file seeleConstants.ts — shared SEELE font options and default texts.
+ * @module components/animations/seeleConstants
+ *
+ * Centralizes the SEELE display's font-family options and default top/bottom
+ * text so `Seele.tsx` only exports components (keeping fast-refresh
+ * friendly) while existing imports from `Seele` continue to resolve via
+ * re-export.
  */
 
 /** A labeled CSS font-family option for the SEELE display. */

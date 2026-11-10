@@ -2,8 +2,13 @@ import { Effect } from 'postprocessing';
 import * as THREE from 'three';
 
 /**
- * @file Post-processing effects for pixel-blast — a canvas touch texture that
- * tracks pointer trails, and a liquid distortion Effect driven by it.
+ * @file effects.ts — post-processing effects for pixel-blast (touch texture +
+ * liquid distortion).
+ * @module components/animations/pixel-blast/effects
+ *
+ * Provides `createTouchTexture` (offscreen canvas tracking pointer trails)
+ * and `createLiquidEffect` (a `postprocessing` Effect distorting the frame
+ * buffer from the touch texture). Consumed by `usePixelBlastRenderer`.
  */
 
 /** Size of the touch-texture canvas in pixels. */

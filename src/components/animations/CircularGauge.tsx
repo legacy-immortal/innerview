@@ -1,22 +1,35 @@
+/**
+ * @file Circular gauge visualization — renders a radial progress arc using
+ * React Three Fiber for system metric display.
+ * @module components/animations/CircularGauge
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
+/** Props for the circular gauge visualization. */
 interface CircularGaugeProps {
-  value: number;
-  max: number;
-  color?: string;
-  size?: number;
+  readonly value: number;
+  readonly max: number;
+  readonly color?: string;
+  readonly size?: number;
 }
 
+/**
+ * Renders a circular gauge arc representing a value relative to a maximum.
+ * @param props - Gauge display properties.
+ * @returns The gauge visualization element.
+ */
 export const CircularGauge = ({
   value,
   max,
   color = '#00D9FF',
   size = 200,
-}: CircularGaugeProps) => {
+}: CircularGaugeProps): ReactElement => {
   const [percent, setPercent] = useState(0);
 
   useEffect(() => {
@@ -64,7 +77,18 @@ export const CircularGauge = ({
   );
 };
 
-function GaugeScene({ percent, color }: { percent: number; color: string }) {
+/** Props for the internal gauge scene. */
+interface GaugeSceneProps {
+  readonly percent: number;
+  readonly color: string;
+}
+
+/**
+ * Renders the Three.js gauge arc scene.
+ * @param props - Scene properties.
+ * @returns The scene group, or null while initializing.
+ */
+function GaugeScene({ percent, color }: GaugeSceneProps): ReactElement | null {
   const [isReady, setIsReady] = useState(false);
   const trackMeshRef = useRef<THREE.Mesh | null>(null);
   const fillMeshRef = useRef<THREE.Mesh | null>(null);

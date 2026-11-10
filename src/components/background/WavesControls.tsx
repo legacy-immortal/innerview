@@ -1,9 +1,9 @@
 /**
- * Waves background controls.
- *
- * @module background/WavesControls.tsx
+ * @file Waves background controls.
+ * @module background/WavesControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -18,6 +18,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 type WavesSettings = NonNullable<BackgroundSettings['waves']>;
 
@@ -31,7 +32,7 @@ interface WavesControlsProps {
   ) => void;
 }
 
-export function WavesControls({
+function WavesControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -50,7 +51,7 @@ export function WavesControls({
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+          fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">Waves Settings</Text>
           <Text fontSize="xs">{open ? '−' : '+'}</Text>
@@ -120,7 +121,7 @@ export function WavesControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -186,7 +187,7 @@ export function WavesControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -254,7 +255,7 @@ export function WavesControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -300,7 +301,7 @@ export function WavesControls({
                     }
                   }}
                   size="xs"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                   bg="rgba(0, 0, 0, 0.3)"
                   borderColor="rgba(255, 255, 255, 0.1)"
                   color="gray.300"
@@ -386,7 +387,7 @@ export function WavesControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -457,7 +458,7 @@ export function WavesControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -516,3 +517,6 @@ export function WavesControls({
     </Collapsible.Root>
   );
 }
+
+/** Waves background controls (geometry, color, spacing, direction, and interaction). */
+export const WavesControls = memo(WavesControlsComponent);

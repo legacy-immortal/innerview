@@ -1,9 +1,9 @@
 /**
- * Pixel-blast background controls.
- *
- * @module background/PixelBlastControls.tsx
+ * @file Pixel-blast background controls.
+ * @module background/PixelBlastControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 type PixelBlastSettings = NonNullable<BackgroundSettings['pixelblast']>;
 type Variant = NonNullable<PixelBlastSettings['variant']>;
@@ -33,7 +34,7 @@ interface PixelBlastControlsProps {
   ) => void;
 }
 
-export function PixelBlastControls({
+function PixelBlastControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -52,7 +53,7 @@ export function PixelBlastControls({
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+          fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">Pixel Blast Settings</Text>
           <Text fontSize="xs">{open ? '−' : '+'}</Text>
@@ -151,7 +152,7 @@ export function PixelBlastControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -197,7 +198,7 @@ export function PixelBlastControls({
                     }
                   }}
                   size="xs"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                   bg="rgba(0, 0, 0, 0.3)"
                   borderColor="rgba(255, 255, 255, 0.1)"
                   color="gray.400"
@@ -264,7 +265,7 @@ export function PixelBlastControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -332,7 +333,7 @@ export function PixelBlastControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -420,7 +421,7 @@ export function PixelBlastControls({
                   >
                     <NumberInput.Control />
                     <NumberInput.Input
-                      fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                      fontFamily={FONT_FAMILY}
                       fontSize="2xs"
                       bg="rgba(0, 0, 0, 0.3)"
                       borderColor="rgba(255, 255, 255, 0.1)"
@@ -487,7 +488,7 @@ export function PixelBlastControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -502,3 +503,6 @@ export function PixelBlastControls({
     </Collapsible.Root>
   );
 }
+
+/** Pixel-blast background controls (variant, pattern, liquid, and speed). */
+export const PixelBlastControls = memo(PixelBlastControlsComponent);

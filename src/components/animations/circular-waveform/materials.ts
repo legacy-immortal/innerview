@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 
 /**
- * @file Material factories for the circular waveform equalizer bars.
+ * @file materials.ts — material factories for the circular waveform bars.
+ * @module components/animations/circular-waveform/materials
+ *
+ * Creates the double-sided `MeshBasicMaterial` instances used by the
+ * circular waveform equalizer bars and their idle glow. Consumed by
+ * `WaveformLayerMesh`.
  */
 
 /**

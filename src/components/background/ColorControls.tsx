@@ -1,9 +1,9 @@
 /**
- * Color background controls (solid color and gradient). Receives settings and a typed updater from the panel.
- *
- * @module background/ColorControls.tsx
+ * @file Color background controls (solid color and gradient). Receives settings and a typed updater from the panel.
+ * @module background/ColorControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -33,7 +33,7 @@ export interface ColorControlsProps {
   ) => void;
 }
 
-export function ColorControls({
+function ColorControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -406,3 +406,6 @@ export function ColorControls({
     </Collapsible.Root>
   );
 }
+
+/** Color background controls (solid/gradient color and scanlines). */
+export const ColorControls = memo(ColorControlsComponent);

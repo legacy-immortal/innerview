@@ -1,8 +1,10 @@
 /**
- * @file GLSL shaders for the hypnotic background animation — radial
- * gradient layers, a geometric pattern overlay, an energy wave, and a
- * scanline overlay. Shader sources are UPPER_SNAKE_CASE constants per
- * project style.
+ * @file shaders.ts — GLSL shaders for the hypnotic background animation.
+ * @module components/animations/hypnotic/shaders
+ *
+ * GLSL shader sources for the hypnotic gradient layers, geometric pattern
+ * overlay, energy wave, and scanline overlay. Constants are UPPER_SNAKE_CASE
+ * per project style. Consumed by `HypnoticScene` and `layers`.
  */
 
 export const VERTEX_SHADER: string = `

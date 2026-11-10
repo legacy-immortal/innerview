@@ -1,10 +1,10 @@
 /**
- * SEELE display controls (number/label size and scanline speed).
- *
- * @module background/SeeleDisplaySection.tsx
+ * @file SEELE display controls (sizes, scanline speed/opacity/color).
+ * @module background/SeeleDisplaySection
  */
 // SEELE size/scanline fields (extracted from SeeleControls.tsx).
 import type { BackgroundSettings } from '@/lib/settings-types';
+import { memo, type JSX } from 'react';
 import { Field, HStack, Input } from '@chakra-ui/react';
 import { SliderField, SliderOnlyField } from './controlFields';
 
@@ -18,7 +18,7 @@ export interface SeeleDisplaySectionProps {
   ) => void;
 }
 
-export function SeeleDisplaySection({
+function SeeleDisplaySectionComponent({
   settings,
   onSettingChange,
 }: SeeleDisplaySectionProps): JSX.Element {
@@ -122,4 +122,6 @@ export function SeeleDisplaySection({
     </>
   );
 }
-import type { JSX } from 'react';
+
+/** SEELE display controls: number/label sizes and scanline settings. */
+export const SeeleDisplaySection = memo(SeeleDisplaySectionComponent);

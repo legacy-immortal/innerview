@@ -1,7 +1,8 @@
 /**
- * Background control panel. Composes all background-type sections and owns shared settings state. The public props and re-exports (`WaveformLayer`, `WaveformSettings`) are the stable entry point for consumers.
+ * @file Background control panel. Composes all background-type sections and owns shared settings state.
+ * @module background/BackgroundControlPanel
  *
- * @module background/BackgroundControlPanel.tsx
+ * Public props and re-exports (`WaveformLayer`, `WaveformSettings`) are the stable entry point for consumers.
  */
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
 import { DEFAULT_SYSTEM_TEXT } from '@/components/animations/systemTextAnimation';
@@ -39,12 +40,9 @@ import { WavesControls } from './WavesControls';
 import { WaveformSection } from './panels/WaveformSection';
 import type { WaveformLayer, WaveformSettings } from './panels/waveformTypes';
 import { hexToRgb, rgbToHex, type ThemePreset } from './backgroundControlUtils';
+import { FONT_FAMILY } from './controlFields';
 
 export type { WaveformLayer, WaveformSettings } from './panels/waveformTypes';
-
-/** Static font stack; hoisted so Emotion sees a stable value across renders. */
-const PANEL_FONT_FAMILY =
-  "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace";
 
 /** Static scrollbar styles; hoisted to avoid Emotion css-object churn. */
 const SCROLLBAR_CSS = {
@@ -521,16 +519,26 @@ const BackgroundControlPanelComponent = ({
     [settings, onSettingsChange]
   );
 
+  /**
+   * Handles image file selection for the image-dither background.
+   *
+   * @param e - File input change event.
+   */
   const handleImageDitherFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = (): void => {
         const dataUrl = reader.result;
         if (typeof dataUrl === 'string') {
           updateImageDitherSetting('image', dataUrl);
         }
+      };
+      reader.onerror = (): void => {
+        // Explicitly handled: leave existing image unchanged on read failure.
       };
       reader.readAsDataURL(file);
       e.target.value = '';
@@ -637,7 +645,7 @@ const BackgroundControlPanelComponent = ({
       p={{ base: 3, sm: 4 }}
       overflowY="auto"
       overflowX="hidden"
-      fontFamily={PANEL_FONT_FAMILY}
+      fontFamily={FONT_FAMILY}
       fontSize="xs"
       zIndex={1000}
       css={SCROLLBAR_CSS}
@@ -819,6 +827,8 @@ const BackgroundControlPanelComponent = ({
   );
 };
 
-// Memoize the component to prevent unnecessary re-renders
-// Only re-render when props actually change
+/**
+ * Background control panel composed from per-background-type sections.
+ * Memoized to avoid re-renders when props are unchanged.
+ */
 export const BackgroundControlPanel = memo(BackgroundControlPanelComponent);

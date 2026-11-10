@@ -1,22 +1,31 @@
+/**
+ * @file Pulsar background animation — renders a 3D pulsar waterfall plot from
+ * PSR B1919+21 data (with synthetic fallback).
+ * @module components/animations/Pulsar
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { MAX_DPR } from './perf';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 
+/** Settings controlling the pulsar background visualization. */
 export interface PulsarBackgroundSettings {
-  lineSpacing: number;
-  lineColor: string;
-  bgColor: string;
-  rotationX: number;
-  rotationY: number;
-  scale: number;
-  verticalScale: number;
-  animationSpeed: number;
+  readonly lineSpacing: number;
+  readonly lineColor: string;
+  readonly bgColor: string;
+  readonly rotationX: number;
+  readonly rotationY: number;
+  readonly scale: number;
+  readonly verticalScale: number;
+  readonly animationSpeed: number;
 }
 
+/** Props for the internal pulsar scene. */
 interface PulsarSceneProps {
-  settings: PulsarBackgroundSettings;
+  readonly settings: PulsarBackgroundSettings;
 }
 
 /**
@@ -33,17 +42,28 @@ const FALLBACK_COLS = 256;
  */
 function generateFallbackPulsarData(): number[][] {
   return Array.from({ length: FALLBACK_ROWS }, (_, i) => {
+    // The pulse drifts slowly across columns as the row index increases,
+    // mimicking the rotating beam of a pulsar sweeping past Earth.
     const drift = 30 + Math.sin(i * 0.08) * 12;
     return Array.from({ length: FALLBACK_COLS }, (_, j) => {
+      // Two Gaussian pulses: a primary pulse at `drift` and a fainter
+      // secondary pulse offset by 8 columns (the PSR B1919+21 double pulse).
       const pulse =
         Math.exp(-Math.pow(j - drift, 2) / 6) +
         0.6 * Math.exp(-Math.pow(j - drift - 8, 2) / 10);
+      // Slow row/column modulation adds texture so the waterfall isn't
+      // perfectly uniform between pulses.
       return pulse * (0.8 + 0.4 * Math.sin(i * 0.3 + j * 0.02));
     });
   });
 }
 
-function PulsarScene({ settings }: PulsarSceneProps) {
+/**
+ * Renders the Three.js pulsar line scene.
+ * @param props - Scene settings.
+ * @returns The scene elements.
+ */
+function PulsarScene({ settings }: PulsarSceneProps): ReactElement {
   const linesRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
   const [pulsarData, setPulsarData] = useState<number[][]>(() =>
@@ -161,11 +181,17 @@ function PulsarScene({ settings }: PulsarSceneProps) {
   );
 }
 
+/** Props for the pulsar background component. */
 interface PulsarProps {
-  settings: PulsarBackgroundSettings;
+  readonly settings: PulsarBackgroundSettings;
 }
 
-export default function Pulsar({ settings }: PulsarProps) {
+/**
+ * Renders the pulsar background animation.
+ * @param props - Pulsar settings.
+ * @returns The pulsar canvas container.
+ */
+export default function Pulsar({ settings }: PulsarProps): ReactElement {
   return (
     <Box
       as="div"

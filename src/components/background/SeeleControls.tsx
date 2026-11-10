@@ -1,9 +1,9 @@
 /**
- * SEELE background controls. Composes the SEELE sub-sections.
- *
- * @module background/SeeleControls.tsx
+ * @file SEELE background controls. Composes the SEELE sub-sections.
+ * @module background/SeeleControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import { VStack } from '@chakra-ui/react';
 import { CollapsibleSection } from './controlFields';
@@ -24,7 +24,7 @@ export interface SeeleControlsProps {
   readonly onSettingsChange: (settings: BackgroundSettings) => void;
 }
 
-export function SeeleControls({
+function SeeleControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -55,3 +55,6 @@ export function SeeleControls({
     </CollapsibleSection>
   );
 }
+
+/** SEELE background controls composed from text, display, and pulse sections. */
+export const SeeleControls = memo(SeeleControlsComponent);

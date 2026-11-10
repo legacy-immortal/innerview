@@ -1,3 +1,10 @@
+/**
+ * @file Dither background animation — renders dithered wave patterns via React
+ * Three Fiber.
+ * @module components/animations/Dither
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas } from '@react-three/fiber';
 import { useRef } from 'react';
@@ -7,6 +14,11 @@ import { useElementVisible } from './perf';
 
 export type { DitherProps } from './dither/types';
 
+/**
+ * Renders the dithered wave background animation.
+ * @param props - Dither wave and interaction settings.
+ * @returns The dither background element.
+ */
 export default function Dither({
   waveSpeed = 0.05,
   waveFrequency = 3,
@@ -17,7 +29,7 @@ export default function Dither({
   disableAnimation = false,
   enableMouseInteraction = true,
   mouseRadius = 1,
-}: DitherProps) {
+}: DitherProps): ReactElement {
   const boxRef = useRef<HTMLDivElement>(null);
   const visible = useElementVisible(boxRef);
   return (

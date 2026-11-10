@@ -1,7 +1,6 @@
 /**
- * SEELE text controls (top/bottom text, font, and colors).
- *
- * @module background/SeeleTextSection.tsx
+ * @file SEELE text controls (top/bottom text, font, and colors).
+ * @module background/SeeleTextSection
  */
 // SEELE text/font/color fields (extracted from SeeleControls.tsx).
 import {
@@ -10,6 +9,7 @@ import {
   SEELE_FONT_OPTIONS,
 } from '@/components/animations/Seele';
 import type { BackgroundSettings } from '@/lib/settings-types';
+import { memo, type JSX } from 'react';
 import { Button, Field, HStack, Input, NativeSelect } from '@chakra-ui/react';
 import { FONT_FAMILY } from './controlFields';
 
@@ -24,7 +24,7 @@ export interface SeeleTextSectionProps {
   readonly onSettingsChange: (settings: BackgroundSettings) => void;
 }
 
-export function SeeleTextSection({
+function SeeleTextSectionComponent({
   settings,
   onSettingChange,
   onSettingsChange,
@@ -184,4 +184,6 @@ export function SeeleTextSection({
     </>
   );
 }
-import type { JSX } from 'react';
+
+/** SEELE text controls: labels, font selection, and text/background colors. */
+export const SeeleTextSection = memo(SeeleTextSectionComponent);

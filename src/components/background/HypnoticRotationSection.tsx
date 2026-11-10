@@ -1,10 +1,10 @@
 /**
- * Hypnotic rotation controls (rotation speed and direction per axis).
- *
- * @module background/HypnoticRotationSection.tsx
+ * @file Hypnotic rotation controls (per-layer rotation speeds).
+ * @module background/HypnoticRotationSection
  */
 // Hypnotic rotation collapsible (extracted from HypnoticControls.tsx).
 import type { HypnoticBackgroundSettings } from '@/components/animations/Hypnotic';
+import { memo, type JSX } from 'react';
 import { VStack } from '@chakra-ui/react';
 import { CollapsibleSection, SliderField } from './controlFields';
 
@@ -24,7 +24,7 @@ export interface HypnoticRotationSectionProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function HypnoticRotationSection({
+function HypnoticRotationSectionComponent({
   hypnoticSettings,
   updateSetting,
   open,
@@ -55,4 +55,6 @@ export function HypnoticRotationSection({
     </CollapsibleSection>
   );
 }
-import type { JSX } from 'react';
+
+/** Hypnotic rotation controls: per-layer rotation speed sliders. */
+export const HypnoticRotationSection = memo(HypnoticRotationSectionComponent);

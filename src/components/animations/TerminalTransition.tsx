@@ -3,15 +3,24 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
 /**
- * @file Terminal-style content transition — slides content up/down with a
+ * @file TerminalTransition.tsx — terminal-style content transition with a
  * scanline sweep and fading prompt glyph.
+ * @module components/animations/TerminalTransition
+ *
+ * Slides content up or down with a terminal scanline sweep and a fading
+ * `>` prompt. The content stays mounted for the full transition in both
+ * directions so the animation can complete before unmounting.
  */
 
 /** Props for the terminal transition. */
 interface TerminalTransitionProps {
+  /** Child content to transition. */
   readonly children: ReactNode;
+  /** Whether the content should be visible. */
   readonly isVisible: boolean;
+  /** Slide direction: `'up'` slides out upward, `'down'` slides out downward. */
   readonly direction?: 'up' | 'down';
+  /** Transition duration in milliseconds. */
   readonly duration?: number;
 }
 

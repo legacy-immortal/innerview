@@ -1,9 +1,9 @@
 /**
- * Dither background controls (retro pixel-dither effect).
- *
- * @module background/DitherControls.tsx
+ * @file Dither background controls (retro pixel-dither effect).
+ * @module background/DitherControls
  */
 import type { JSX } from 'react';
+import { memo } from 'react';
 import type { BackgroundSettings } from '@/lib/settings-types';
 import {
   Box,
@@ -18,6 +18,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { FONT_FAMILY } from './controlFields';
 
 type DitherSettings = NonNullable<BackgroundSettings['dither']>;
 
@@ -31,7 +32,7 @@ interface DitherControlsProps {
   ) => void;
 }
 
-export function DitherControls({
+function DitherControlsComponent({
   open,
   onOpenChange,
   settings,
@@ -50,7 +51,7 @@ export function DitherControls({
           justifyContent="space-between"
           color="gray.300"
           _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
-          fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+          fontFamily={FONT_FAMILY}
         >
           <Text fontSize="xs">Dither Settings</Text>
           <Text fontSize="xs">{open ? '−' : '+'}</Text>
@@ -117,7 +118,7 @@ export function DitherControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -185,7 +186,7 @@ export function DitherControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -253,7 +254,7 @@ export function DitherControls({
                 >
                   <NumberInput.Control />
                   <NumberInput.Input
-                    fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                    fontFamily={FONT_FAMILY}
                     fontSize="2xs"
                     bg="rgba(0, 0, 0, 0.3)"
                     borderColor="rgba(255, 255, 255, 0.1)"
@@ -307,7 +308,7 @@ export function DitherControls({
                     }
                   }}
                   size="xs"
-                  fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                  fontFamily={FONT_FAMILY}
                   bg="rgba(0, 0, 0, 0.3)"
                   borderColor="rgba(255, 255, 255, 0.1)"
                   color="gray.400"
@@ -391,7 +392,7 @@ export function DitherControls({
                   >
                     <NumberInput.Control />
                     <NumberInput.Input
-                      fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
+                      fontFamily={FONT_FAMILY}
                       fontSize="2xs"
                       bg="rgba(0, 0, 0, 0.3)"
                       borderColor="rgba(255, 255, 255, 0.1)"
@@ -407,3 +408,6 @@ export function DitherControls({
     </Collapsible.Root>
   );
 }
+
+/** Dither background controls (wave, color, and mouse interaction). */
+export const DitherControls = memo(DitherControlsComponent);

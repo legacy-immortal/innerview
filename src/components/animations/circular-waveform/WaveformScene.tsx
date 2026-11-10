@@ -23,6 +23,11 @@ function CameraAdjuster(): ReactElement | null {
 
   useFrame(() => {
     if (camera instanceof THREE.OrthographicCamera) {
+      // Own the frustum: without `manual`, R3F's resize handler overwrites
+      // left/right/top/bottom with pixel values (±width/2, ±height/2), which
+      // shrinks the world-unit waveform to a tiny dot on large canvases.
+      camera.manual = true;
+      if (size.height <= 0) return;
       const aspect = size.width / size.height;
       if (aspect === lastAspectRef.current) return;
       lastAspectRef.current = aspect;

@@ -24,6 +24,11 @@ export interface CircularWaveformDataResult {
   readonly layers: readonly WaveformLayer[];
 }
 
+/**
+ * Resolve circular waveform sample data from audio or idle system sources.
+ * @param props - Waveform configuration and data sources.
+ * @returns Effective settings, refs, and the current waveform sample data.
+ */
 export function useCircularWaveformData({
   isActive,
   audioElement,
@@ -254,8 +259,9 @@ export function useCircularWaveformData({
           audioElement.removeEventListener('pause', handlePause);
           audioElement.removeEventListener('ended', handleEnded);
         };
-      } catch (error) {
-        console.error('Error setting up audio visualization:', error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('Error setting up audio visualization:', message, error);
         return () => {};
       }
     };

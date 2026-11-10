@@ -1,5 +1,6 @@
 /**
- * Background switcher. Renders the active background animation for the current settings.
+ * @file Background switcher. Renders the active background animation for the current settings.
+ * @module background/BackgroundSwitcher
  *
  * Performance:
  * - Only the active background is mounted and only its code chunk is loaded
@@ -10,8 +11,6 @@
  *   instead of one translucent layer per branch.
  * - `reducedMotion` / `lowPowerMode` (store flag or OS `prefers-reduced-motion`)
  *   disable the animation entirely.
- *
- * @module background/BackgroundSwitcher.tsx
  */
 import type { HypnoticBackgroundSettings } from '@/components/animations/hypnotic/types';
 import type { BackgroundSettings } from '@/lib/settings-types';
@@ -144,6 +143,7 @@ function areSettingsEqual(
   return aKeys.every((k) => Object.is(a[k], b[k]));
 }
 
+/** Renders the active background animation for the current settings. */
 export const BackgroundSwitcher = memo(function BackgroundSwitcher({
   settings,
 }: BackgroundSwitcherProps): JSX.Element | null {

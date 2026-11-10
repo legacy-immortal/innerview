@@ -1,6 +1,12 @@
 /**
- * @file System text animation helpers — defaults and builders for the
- * appear/hold/fade-out CSS keyframes used by system text announcements.
+ * @file systemTextAnimation.ts — defaults and builders for system text
+ * appear/hold/fade-out CSS keyframes.
+ * @module components/animations/systemTextAnimation
+ *
+ * Defines the default timing for system text announcements and builds the
+ * opacity keyframes and CSS-in-JS animation declaration used by the system
+ * text label in `CircularVisualization`. `forwards` fill mode is used so
+ * faded-out text stays hidden after the animation ends.
  */
 
 import type { SystemTextAnimationSettings } from '@/lib/settings-types';
@@ -64,7 +70,10 @@ export function systemTextAnimationCss(
 ): Record<string, string | Record<string, { opacity: number }>> {
   const durationS = totalDurationMs(opts) / MS_PER_SECOND;
   return {
-    animation: `${keyframesName} ${durationS}s linear`,
+    // `forwards` holds the final keyframe (opacity: 0). Without it the
+    // animation snaps back to the element's natural opacity (1) when it
+    // ends, so faded-out system text reappears and stays visible.
+    animation: `${keyframesName} ${durationS}s linear forwards`,
     [`@keyframes ${keyframesName}`]: systemTextKeyframes(opts),
   };
 }

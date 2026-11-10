@@ -1,7 +1,11 @@
 /**
- * @file GLSL shaders for the dither animation — the fbm wave surface and the
- * Bayer-matrix retro dither post-processing pass. Shader sources are
- * UPPER_SNAKE_CASE constants per project style.
+ * @file shaders.ts — GLSL shaders for the dither animation (fbm wave +
+ * Bayer retro dither pass).
+ * @module components/animations/dither/shaders
+ *
+ * GLSL shader sources for the dithered wave surface and the Bayer-matrix
+ * retro dither post-processing pass. Constants are UPPER_SNAKE_CASE per
+ * project style. Consumed by `DitheredWaves` and `RetroEffect`.
  */
 
 /** Vertex shader for the dithered waves surface. */

@@ -1,22 +1,35 @@
+/**
+ * @file Circular storage visualization — renders a pie chart of used vs.
+ * available storage using React Three Fiber.
+ * @module components/animations/CircularStorage
+ */
+
+import type { ReactElement } from 'react';
 import { Box } from '@chakra-ui/react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { MAX_DPR } from './perf';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
+/** Props for the circular storage visualization. */
 interface CircularStorageProps {
-  used: number;
-  total: number;
-  color?: string;
-  size?: number;
+  readonly used: number;
+  readonly total: number;
+  readonly color?: string;
+  readonly size?: number;
 }
 
+/**
+ * Renders a pie chart showing storage usage.
+ * @param props - Storage display properties.
+ * @returns The storage visualization element.
+ */
 export const CircularStorage = ({
   used,
   total,
   color = '#00D9FF',
   size = 200,
-}: CircularStorageProps) => {
+}: CircularStorageProps): ReactElement => {
   const percent = total > 0 ? Math.min(used / total, 1) : 0;
 
   // Keep original intent scale: size=400 -> 65/55/45 vmin, scaled proportionally.
@@ -59,7 +72,21 @@ export const CircularStorage = ({
   );
 };
 
-function PieChartScene({ percent, color }: { percent: number; color: string }) {
+/** Props for the internal pie chart scene. */
+interface PieChartSceneProps {
+  readonly percent: number;
+  readonly color: string;
+}
+
+/**
+ * Renders the Three.js pie chart scene.
+ * @param props - Scene properties.
+ * @returns The scene group, or null while initializing.
+ */
+function PieChartScene({
+  percent,
+  color,
+}: PieChartSceneProps): ReactElement | null {
   const [isReady, setIsReady] = useState(false);
   const usedMeshRef = useRef<THREE.Mesh | null>(null);
   const unusedMeshRef = useRef<THREE.Mesh | null>(null);
