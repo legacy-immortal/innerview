@@ -19,6 +19,14 @@ node_modules/
 .env.*.local
 .env.production
 *.pem
+.env.bak
+.env*.bak
+
+# Private prompt/persona cards (contain personal distillation; do not commit)
+server/config/*.prompt.yaml
+server/config/*.prompt.yml
+**/*.private.prompt.yaml
+**/*.private.prompt.yml
 
 # IDE
 .idea/
