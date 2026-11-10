@@ -221,20 +221,21 @@ function CorpoLayoutComponent({
         </Menu.Root>
       </HStack>
 
-      {/* Left drawer */}
+      {/* Left drawer / collapsible sidebar */}
       <Drawer.Root
         open={drawerOpen}
         onOpenChange={(e) => onDrawerOpenChange(e.open)}
         placement="start"
-        size="md"
+        size="xs"
       >
-        <Drawer.Backdrop />
+        <Drawer.Backdrop bg="rgba(0, 0, 0, 0.4)" />
         <Portal>
           <Drawer.Positioner>
             <Drawer.Content
-              bg="rgba(0, 0, 0, 0.85)"
-              maxW="calc(100vw - 2rem)"
-              borderRight="0px"
+              bg="rgba(18, 18, 18, 0.96)"
+              w={{ base: 'min(85vw, 300px)', md: '280px' }}
+              maxW={{ base: 'min(85vw, 300px)', md: '280px' }}
+              borderRight="1px solid"
               borderColor="rgba(255, 255, 255, 0.08)"
               fontFamily="'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace"
             >
