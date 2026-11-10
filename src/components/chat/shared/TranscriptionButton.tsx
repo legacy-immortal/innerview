@@ -13,6 +13,7 @@ import { CircularWaveform } from '@/components/animations/CircularWaveform';
 import { useTranscription } from '@/hooks/useTranscription';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import type { JSX } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // Terminal-style text shadow for consistency
 const textShadowStyles = {
@@ -253,7 +254,30 @@ export function TranscriptionButton({
     }
   };
 
-  const isAvailable = isTranscriptionAvailable();
+  // Check microphone permission upfront so we can disable the button
+  // instead of showing an error after the user clicks.
+  const [micPermissionDenied, setMicPermissionDenied] = useState(false);
+
+  const checkMicrophonePermission = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.permissions) return;
+    try {
+      const permission = await navigator.permissions.query({
+        name: 'microphone',
+      });
+      if (permission.state === 'denied') {
+        setMicPermissionDenied(true);
+      }
+    } catch {
+      // Permissions API may not support 'microphone' in all browsers;
+      // fall back to API-existence check only.
+    }
+  }, []);
+
+  useEffect(() => {
+    checkMicrophonePermission();
+  }, [checkMicrophonePermission]);
+
+  const isAvailable = isTranscriptionAvailable() && !micPermissionDenied;
 
   const getButtonText = () => {
     if (!isAvailable) {
