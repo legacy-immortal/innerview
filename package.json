@@ -27,7 +27,8 @@
     "test:e2e": "bun run test:e2e:agentic",
     "test:e2e:all": "bun run test:e2e:ui && bun run test:e2e:agentic",
     "render:diagnostics": "bun scripts/render-diagnostics.ts",
-    "render:summary": "bun scripts/render-diagnostics.ts summary"
+    "render:summary": "bun scripts/render-diagnostics.ts summary",
+    "build:pages": "VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://innerview.onrender.com} bun run build && bun scripts/prune-pages-dist.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.97",

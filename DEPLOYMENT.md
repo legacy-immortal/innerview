@@ -33,15 +33,19 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
   - Provider keys/endpoints as needed: `NVIDIA_NIM_API_KEY` (fallback NVIDIA NIM/OpenAI-compatible), `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY`, `ZEN_API_KEY`. If OpenAI keys/endpoints are not configured, the server falls back to NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) when a NVIDIA key is available. Explicit user-configured OpenAI-compatible endpoints/keys are not overridden.
 - Start command is defined by Docker `CMD` (`bun run --bun server/src/index.ts`). Note the API origin URL for the web app (e.g. `https://<service>.onrender.com`).
 
-## 3) Web on Cloudflare Pages
+## 3) Web on Cloudflare Pages (chosen)
 
-- Framework preset: **None/Vite** (or auto-detect). Build settings:
-  - **Build command:** `bun run build`
+- **Project:** `innerview` (Cloudflare Pages) — production: `https://innerview.pages.dev`
+- **API origin:** `https://innerview.onrender.com` (Render)
+- Build settings:
+  - **Build command:** `bun run build:pages` (builds with `VITE_API_BASE_URL` defaulting to the Render API and prunes files >25 MiB for Pages upload limits)
   - **Build output directory:** `dist`
-- Environment variable:
-  - `VITE_API_BASE_URL=https://<your-render-api-origin>` (no trailing slash needed)
+- Environment variable (Pages build/runtime as applicable):
+  - `VITE_API_BASE_URL=https://innerview.onrender.com` (no trailing slash needed)
 - SPA fallback: `public/_redirects` is included (`/* /index.html 200`) for client-side routing/deep links.
-- After deploy, set Render `CORS_ORIGIN` to the exact Pages/custom web origin.
+- Set Render `CORS_ORIGIN` to the exact Pages/custom web origin (e.g. `https://innerview.pages.dev`).
+
+**Notes:** Cloudflare Pages direct uploads reject files >25 MiB. `scripts/prune-pages-dist.ts` (run by `build:pages`) removes oversized assets (e.g. bundled ORT WASM) from `dist`; server/cloud-first compute remains the default path, but client-side/local inference assets pruned from deploy may be unavailable until hosted separately/CDN-configured.
 
 **Netlify alternative:** `netlify.toml` is provided (`bun run build`, publish `dist`, SPA redirect). Set `VITE_API_BASE_URL` in Netlify env and `CORS_ORIGIN` on Render to the Netlify origin.
 
