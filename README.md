@@ -100,7 +100,7 @@ import { testTranscriptionService } from '@/lib/transcription';
 
 await testTranscriptionService(onProgress, {
   provider: 'local',
-  testBackendAPI: true // Tests via /api/transcription
+  testBackendAPI: true, // Tests via /api/transcription
 });
 ```
 
@@ -119,6 +119,7 @@ await preloadWhisperModel(onProgress, { skipTest: true });
 ```
 
 **Documentation:**
+
 - Architecture: `docs/TRANSCRIPTION_ARCHITECTURE.md`
 - Quick Start: `docs/TRANSCRIPTION_QUICK_START.md`
 - Full Guide: `docs/TRANSCRIPTION_TESTING.md`
