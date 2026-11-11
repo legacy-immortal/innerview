@@ -35,17 +35,38 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
 
 ## 3) Web on Cloudflare Pages (chosen)
 
-- **Project:** `innerview` (Cloudflare Pages) — production: `https://innerview.pages.dev`
+- **Project:** `innerview` (account `0de8703c86482fab5a2eaa2e04327f7d`) — production: `https://innerview.pages.dev`
+- **Git integration (current):** **Not connected** (`Git Provider: No`; project currently has direct-upload deployments). Auto-deploy from git/CI requires a one-time dashboard GitHub connection (cannot be completed headlessly via `wrangler pages project` CLI; no Cloudflare Pages API token was available in the environment to configure programmatically).
+- **Repository:** `https://github.com/legacy-immortal/innerview.git` (branches `main`/`master` pushed)
 - **API origin:** `https://innerview.onrender.com` (Render)
-- Build settings:
-  - **Build command:** `bun run build:pages` (builds with `VITE_API_BASE_URL` defaulting to the Render API and prunes files >25 MiB for Pages upload limits)
-  - **Build output directory:** `dist`
-- Environment variable (Pages build/runtime as applicable):
-  - `VITE_API_BASE_URL=https://innerview.onrender.com` (no trailing slash needed)
+
+### Build settings for auto-deploy
+
+- **Framework preset:** None / Vite (static SPA)
+- **Production branch:** `main` (confirm this matches the branch you want to auto-deploy; `master` also exists remotely)
+- **Build command:** `bun run build:pages` (builds with `VITE_API_BASE_URL` defaulting to the Render API and prunes files >25 MiB for Pages upload limits)
+- **Build output directory:** `dist`
+- **Root directory:** `/` (repo root)
+- **Environment variable (Build & deployments → Production/Preview):**
+  - `VITE_API_BASE_URL=https://innerview.onrender.com` (no trailing slash)
 - SPA fallback: `public/_redirects` is included (`/* /index.html 200`) for client-side routing/deep links.
 - Set Render `CORS_ORIGIN` to the exact Pages/custom web origin (e.g. `https://innerview.pages.dev`).
 
-**Notes:** Cloudflare Pages direct uploads reject files >25 MiB. `scripts/prune-pages-dist.ts` (run by `build:pages`) removes oversized assets (e.g. bundled ORT WASM) from `dist`; server/cloud-first compute remains the default path, but client-side/local inference assets pruned from deploy may be unavailable until hosted separately/CDN-configured.
+### Enable git/CI auto-deploy (Cloudflare dashboard, one-time)
+
+1. Sign in to Cloudflare → **Workers & Pages** → **Pages** → open project **`innerview`**.
+2. Go to **Settings** → **Builds & deployments** (or **Builds**) → **Connect to Git** / **Configure Production deployments**.
+3. Authorize GitHub if prompted and select repository **`legacy-immortal/innerview`**.
+4. Set:
+   - **Production branch:** `main`
+   - **Build command:** `bun run build:pages`
+   - **Build output directory:** `dist`
+5. Go to **Settings** → **Environment variables** (Production, and Preview if desired) and add:
+   - `VITE_API_BASE_URL` = `https://innerview.onrender.com`
+6. Save and trigger a deployment: **Deployments** → **Retry deployment** / **Create deployment** from `main`, or push a commit to `main`.
+7. After the git-connected build succeeds, verify the deployment is **Production** on `https://innerview.pages.dev` and that direct-upload is no longer needed for routine releases.
+
+> **Note:** Cloudflare Pages direct uploads reject files >25 MiB. `scripts/prune-pages-dist.ts` (run by `build:pages`) removes oversized assets (e.g. bundled ORT WASM) from `dist`; server/cloud-first compute remains the default path, but client-side/local inference assets pruned from deploy may be unavailable until hosted separately/CDN-configured. Keep using `build:pages` for Pages builds.
 
 **Netlify alternative:** `netlify.toml` is provided (`bun run build`, publish `dist`, SPA redirect). Set `VITE_API_BASE_URL` in Netlify env and `CORS_ORIGIN` on Render to the Netlify origin.
 
@@ -57,6 +78,19 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
 - Turso connectivity/persistence: with Privacy opt-in + installation id, test scoped add/search/count/export/delete and confirm persistence across restarts and isolation between installations.
 - SPA deep-link refresh resolves (fallback to `index.html`).
 - Real-browser checks on tablet/laptop (including flows noted as unverified in repo status).
+
+### Deploy smoke verification
+
+Run a quick pass/fail check against the deployed (or local) API and Pages origin. This verifies `GET /health`, `GET /api/provider/status`, and a CORS preflight from the Pages origin to the API (no secrets printed):
+
+```bash
+bun run deploy:verify
+# or with overrides
+bun scripts/smoke-verify.ts --api-base https://innerview.onrender.com --pages-origin https://innerview.pages.dev
+# env overrides: API_BASE, PAGES_ORIGIN
+```
+
+The script prints per-check status/evidence and exits non-zero on any failure.
 
 ### Render diagnostics/logs (API tooling)
 
