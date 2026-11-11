@@ -22,3 +22,25 @@ server/data
 notes
 docs
 tmp
+# Test/e2e artifacts and local tooling
+e2e/.env
+test-results
+playwright-report
+blob-report
+midscene_run
+.gitleaks.toml
+AGENTS.md
+CHARTER.md
+README.md
+DEPLOYMENT.md
+SECURITY-MONITORING.md
+render.yaml
+netlify.toml
+docker-compose.yml
+scripts
+.workflows
+tts
+server/config/interlocutor.prompt.yaml
+*.bak
+*.private.prompt.yaml
+*.private.prompt.yml

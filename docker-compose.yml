@@ -1,0 +1,31 @@
+# Local Docker setup for Innerview API (Bun + Hono)
+# Frontend is typically deployed as static (Cloudflare Pages). For full local dev,
+# run the Vite client on host (`bun run dev:client`) pointed at this API, or serve
+# a built `dist/` separately.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: innerview-api
+    ports:
+      - "${PORT:-3002}:3002"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3002
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - TURSO_DATABASE_URL=${TURSO_DATABASE_URL:-}
+      - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ZEN_API_KEY=${ZEN_API_KEY:-}
+    volumes:
+      # Optional: persist local model/cache/data if using file-backed storage in-container
+      - innerview-data:/app/server/data
+    restart: unless-stopped
+
+volumes:
+  innerview-data:

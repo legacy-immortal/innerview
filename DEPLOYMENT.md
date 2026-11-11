@@ -60,3 +60,23 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
 - **Local-only by default** for conversations; remote/vector memory **opt-in** with consent, scoped per anonymous installation identity (no sign-in). Do not expose server secrets to the client.
 
 See `.env.example` and `server/.env.example`.
+
+## Docker (local)
+
+Containerization for the API is provided via `Dockerfile` and `docker-compose.yml` (web/static frontend remains a separate concern per the chosen split).
+
+```bash
+# Build and run API container (reads .env; ensure CORS_ORIGIN/TURSO_* as needed)
+docker compose up --build
+
+# Or run in background
+docker compose up -d --build
+
+# Logs / stop
+docker compose logs -f api
+docker compose down
+```
+
+- API listens on `http://localhost:${PORT:-3002}` (container port 3002). Configure `CORS_ORIGIN` for your web origin (e.g. `http://localhost:5173` when running Vite locally).
+- `.env` is loaded by compose but never baked into the image (`.dockerignore` excludes it). Provide secrets via env vars/secrets in real deployments.
+- `innerview-data` volume persists `/app/server/data` in-container (relevant for file-backed/local storage modes). For cloud memory use `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`.
