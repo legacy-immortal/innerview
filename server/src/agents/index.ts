@@ -25,8 +25,17 @@ const DEFAULT_MODEL_NAME = 'gpt-5';
 
 /** OpenCode Zen base URL; when used, API key comes from ZEN_API_KEY env */
 export const ZEN_BASE_URL = 'https://opencode.ai/zen/v1';
+export const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const DEFAULT_TEMPERATURE = 0.8;
 const DEFAULT_MAX_TOKENS = 512;
+
+const getDefaultProviderConfig = () => {
+  const ai = getConfig().ai;
+  return {
+    baseURL: ai.openaiBaseURL || DEFAULT_BASE_URL,
+    apiKey: ai.openaiApiKey || 'sk-proj-dummy',
+  };
+};
 
 // Provider availability cache (avoid repeated checks). Keyed by
 // baseURL + whether a custom API key was supplied: the previous
@@ -47,8 +56,10 @@ export const checkProviderAvailability = async (
   customBaseURL?: string,
   customApiKey?: string
 ): Promise<ProviderStatus> => {
-  const baseURL = customBaseURL || DEFAULT_BASE_URL;
-  const cacheKey = `${baseURL}\n${customApiKey ? 'key' : 'anon'}`;
+  const defaults = getDefaultProviderConfig();
+  const baseURL = customBaseURL || defaults.baseURL;
+  const apiKey = customApiKey || defaults.apiKey;
+  const cacheKey = `${baseURL}\n${apiKey ? 'key' : 'anon'}`;
 
   const cached = providerAvailabilityCache.get(cacheKey);
   if (cached) return cached;
@@ -56,9 +67,7 @@ export const checkProviderAvailability = async (
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const authHeader = customApiKey
-      ? `Bearer ${customApiKey}`
-      : 'Bearer sk-proj-dummy';
+    const authHeader = `Bearer ${apiKey}`;
 
     const response = await fetch(`${baseURL}/models`, {
       method: 'GET',
@@ -95,8 +104,8 @@ export const checkProviderAvailability = async (
 
     const suggestion =
       baseURL === DEFAULT_BASE_URL
-        ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL in server/.env'
-        : 'Check your API key and network connection';
+        ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL/NVIDIA_NIM_API_KEY in server/.env'
+        : 'Check your API key/base URL and network connection';
 
     const status: ProviderStatus = {
       available: false,
@@ -141,15 +150,24 @@ const modelCache = new TtlCache<string, ChatOpenAI>({
 
 // Initialize the reasoning model with configurable parameters
 export const getModel = (config?: ModelConfig): ChatOpenAI => {
-  const cacheKey = hashText(JSON.stringify(config ?? {}));
+  const defaults = getDefaultProviderConfig();
+  const resolved = {
+    baseURL: config?.baseURL || defaults.baseURL,
+    apiKey: config?.apiKey || defaults.apiKey,
+  };
+  const cacheKey = hashText(
+    JSON.stringify({
+      ...(config ?? {}),
+      baseURL: resolved.baseURL,
+      apiKey: resolved.apiKey ? 'set' : 'unset',
+    })
+  );
   const cached = modelCache.get(cacheKey);
   if (cached) return cached;
 
-  const baseURL = config?.baseURL || DEFAULT_BASE_URL;
-  const apiKey = config?.apiKey || 'sk-proj-dummy';
   const modelConfig: ConstructorParameters<typeof ChatOpenAI>[0] = {
-    openAIApiKey: apiKey,
-    configuration: { baseURL },
+    openAIApiKey: resolved.apiKey,
+    configuration: { baseURL: resolved.baseURL },
     modelName: config?.modelName || DEFAULT_MODEL_NAME,
     temperature: config?.temperature ?? DEFAULT_TEMPERATURE,
     maxTokens: config?.maxTokens ?? DEFAULT_MAX_TOKENS,
@@ -362,15 +380,19 @@ export const invokeAgent = async (
     logger.debug('  message[%s] role=%s content=%s', i, m.role, preview);
   }
 
-  const modelConfig = extractModelConfig(generationSettings);
-  const baseURL = modelConfig?.baseURL || DEFAULT_BASE_URL;
+  const modelConfig = extractModelConfig(generationSettings) ?? {};
+  const defaults = getDefaultProviderConfig();
+  const baseURL = modelConfig.baseURL || defaults.baseURL;
   const normalizedBase = baseURL.trim().replace(/\/+$/, '');
   if (normalizedBase === ZEN_BASE_URL.replace(/\/+$/, '')) {
     const zenKey = getConfig().ai.zenApiKey;
     if (zenKey) {
-      modelConfig!.apiKey = zenKey;
+      modelConfig.apiKey = zenKey;
     }
+  } else if (!modelConfig.apiKey) {
+    modelConfig.apiKey = defaults.apiKey;
   }
+  modelConfig.baseURL = baseURL;
   const agentSettings = extractAgentSettings(generationSettings);
   const agent = initializeInterlocutor(modelConfig, agentSettings);
 

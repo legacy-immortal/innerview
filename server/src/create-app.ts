@@ -182,7 +182,14 @@ export function createApp(): Hono {
 
   app.get('/api/provider/status', async (c) => {
     const baseURL = config.ai.openaiBaseURL || 'http://localhost:5001/v1';
-    const providerType = config.ai.openaiBaseURL ? 'remote' : 'local';
+    const normalizedBase = baseURL.replace(/\/+$/, '').toLowerCase();
+    const providerType =
+      normalizedBase.startsWith('http://localhost') ||
+      normalizedBase.startsWith('http://127.0.0.1') ||
+      normalizedBase.startsWith('https://localhost') ||
+      normalizedBase.startsWith('https://127.0.0.1')
+        ? 'local'
+        : 'remote';
 
     const cachedStatus = providerStatusCache.get(baseURL);
     if (cachedStatus) {
@@ -245,8 +252,8 @@ export function createApp(): Hono {
             : errorMessage,
         suggestion:
           providerType === 'local'
-            ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL in server/.env'
-            : 'Check your API key and network connection',
+            ? 'Start a local LLM server (e.g., LM Studio, Ollama) on port 5001, or configure OPENAI_BASE_URL/NVIDIA_NIM_API_KEY in server/.env'
+            : 'Check your API key/base URL and network connection',
       };
       providerStatusCache.set(baseURL, body);
       return c.json({ ...body, timestamp: new Date().toISOString() });

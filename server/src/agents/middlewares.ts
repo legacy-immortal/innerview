@@ -11,6 +11,7 @@ import {
   summarizationMiddleware,
 } from 'langchain';
 import { z } from 'zod';
+import { getConfig } from '../config/index.js';
 import { logAgent as logger } from '../logger.js';
 import { vectorStore } from '../memory/vector-store.js';
 import {
@@ -97,11 +98,15 @@ type GuardrailsMetadata = {
 // client holds no per-request state.
 const guardrailsModelCache = new Map<string, ChatOpenAI>();
 export const getGuardrailsModel = (baseURL?: string) => {
-  const resolvedBaseURL = baseURL || 'http://localhost:5001/v1';
-  const cached = guardrailsModelCache.get(resolvedBaseURL);
+  const ai = getConfig().ai;
+  const resolvedBaseURL =
+    baseURL || ai.openaiBaseURL || 'http://localhost:5001/v1';
+  const resolvedApiKey = ai.openaiApiKey || 'sk-proj-dummy';
+  const cacheKey = `${resolvedBaseURL}\n${resolvedApiKey ? 'key' : 'anon'}`;
+  const cached = guardrailsModelCache.get(cacheKey);
   if (cached) return cached;
   const model = new ChatOpenAI({
-    openAIApiKey: 'sk-proj-dummy',
+    openAIApiKey: resolvedApiKey,
     configuration: {
       baseURL: resolvedBaseURL,
     },
@@ -114,7 +119,7 @@ export const getGuardrailsModel = (baseURL?: string) => {
       string | undefined;
     if (oldest) guardrailsModelCache.delete(oldest);
   }
-  guardrailsModelCache.set(resolvedBaseURL, model);
+  guardrailsModelCache.set(cacheKey, model);
   return model;
 };
 

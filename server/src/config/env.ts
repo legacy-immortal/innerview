@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import { resolveOpenCodeApiKey } from './opencode-auth.js';
 
+export const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+
 // Schema for all environment variables
 const envSchema = z.object({
   // Server configuration
@@ -18,6 +20,8 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_BASE_URL: z.string().url().optional(),
+  NVIDIA_NIM_API_KEY: z.string().optional(),
+  NVIDIA_API_KEY: z.string().optional(),
   ZEN_API_KEY: z.string().optional(),
 
   // TTS Feature Flags
@@ -54,6 +58,43 @@ function applyOpenCodeAuthFallbacks(env: Env): Env {
   };
 }
 
+function resolveNvidiaApiKey(env: Env): string | undefined {
+  const direct = env.NVIDIA_NIM_API_KEY?.trim() || env.NVIDIA_API_KEY?.trim();
+  if (direct) return direct;
+  return resolveOpenCodeApiKey(['nvidia', 'nvidia-nim', 'nim']);
+}
+
+/**
+ * If OpenAI credentials/endpoint are not configured or detected, fall back to
+ * NVIDIA NIM (OpenAI-compatible) key/endpoint. Explicit user-configured OpenAI
+ * keys or base URLs are never overridden.
+ */
+function applyNvidiaFallbacks(env: Env, hadExplicitOpenAIKey: boolean): Env {
+  let openaiApiKey = env.OPENAI_API_KEY?.trim() || undefined;
+  let openaiBaseURL = env.OPENAI_BASE_URL?.trim() || undefined;
+
+  if (!openaiApiKey) {
+    openaiApiKey = resolveNvidiaApiKey(env);
+  }
+
+  if (
+    !hadExplicitOpenAIKey &&
+    !openaiBaseURL &&
+    openaiApiKey &&
+    (env.NVIDIA_NIM_API_KEY?.trim() ||
+      env.NVIDIA_API_KEY?.trim() ||
+      resolveOpenCodeApiKey(['nvidia', 'nvidia-nim', 'nim']))
+  ) {
+    openaiBaseURL = NVIDIA_BASE_URL;
+  }
+
+  return {
+    ...env,
+    OPENAI_API_KEY: openaiApiKey ?? env.OPENAI_API_KEY,
+    OPENAI_BASE_URL: openaiBaseURL ?? env.OPENAI_BASE_URL,
+  };
+}
+
 function loadEnvFile(): void {
   if (process.env.NODE_ENV === 'production') return;
 
@@ -82,5 +123,7 @@ export function getEnv(): Env {
   if (!result.success) {
     throw new Error(formatValidationError(result.error));
   }
-  return applyOpenCodeAuthFallbacks(result.data);
+  const hadExplicitOpenAIKey = !!process.env.OPENAI_API_KEY?.trim();
+  const withOpenCode = applyOpenCodeAuthFallbacks(result.data);
+  return applyNvidiaFallbacks(withOpenCode, hadExplicitOpenAIKey);
 }

@@ -30,7 +30,7 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
   - `PORT` (Render provides; service listens on it)
   - `CORS_ORIGIN=https://<your-web-origin>` (Cloudflare Pages/custom domain origin)
   - `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`
-  - Provider keys as needed: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY`, `ZEN_API_KEY`
+  - Provider keys/endpoints as needed: `NVIDIA_NIM_API_KEY` (fallback NVIDIA NIM/OpenAI-compatible), `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY`, `ZEN_API_KEY`. If OpenAI keys/endpoints are not configured, the server falls back to NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) when a NVIDIA key is available. Explicit user-configured OpenAI-compatible endpoints/keys are not overridden.
 - Start command is defined by Docker `CMD` (`bun run --bun server/src/index.ts`). Note the API origin URL for the web app (e.g. `https://<service>.onrender.com`).
 
 ## 3) Web on Cloudflare Pages
