@@ -54,6 +54,26 @@ Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Kee
 - SPA deep-link refresh resolves (fallback to `index.html`).
 - Real-browser checks on tablet/laptop (including flows noted as unverified in repo status).
 
+### Render diagnostics/logs (API tooling)
+
+For deployment diagnostics (service status, recent deploys/events, and log retrieval where the Render API exposes it), use the included script (requires a Render API key; never commit secrets):
+
+```bash
+# Set locally (or export in shell):
+# RENDER_API_KEY=...
+# RENDER_SERVICE_ID=srv-...   # or exact service name
+
+bun run render:summary
+# or
+bun scripts/render-diagnostics.ts summary --service-id <srv-id|name> --limit 10
+bun scripts/render-diagnostics.ts deploys --service-id <srv-id|name> --limit 10
+bun scripts/render-diagnostics.ts events --service-id <srv-id|name> --limit 10
+bun scripts/render-diagnostics.ts logs --service-id <srv-id|name> [--deploy-id <dep-id>] --limit 100
+```
+
+- `render.yaml` includes `healthCheckPath: /health` for the API service.
+- If log retrieval is not available for your account/API path, use Render dashboard log streaming or Render CLI for live/tailing logs; the script reports attempted endpoints and errors.
+
 ## Privacy/compute defaults
 
 - **Cloud/server-first compute** (embeddings, LLM, transcription) for weak/tablet clients; client compute opt-in with server fallback.
