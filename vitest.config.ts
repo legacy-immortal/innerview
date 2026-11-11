@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   test: {
+    passWithNoTests: true,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
