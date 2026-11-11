@@ -85,20 +85,38 @@ bun scripts/render-diagnostics.ts logs --service-id <srv-id|name> [--deploy-id <
 
 See `.env.example` and `server/.env.example`.
 
+## Local development (native)
+
+```bash
+# Native local stack (Vite client + Bun API): checks resources, frees ports 5173/3002,
+# then runs both. On exit/interrupt (Ctrl-C/SIGINT, SIGTERM, SIGHUP, SIGQUIT) it tears
+# down child processes and clears ports to avoid orphans.
+bun run dev
+# aliases: bun run dev:native
+
+# Utilities
+bun run kill-ports -- --port 5173,3002
+```
+
 ## Docker (local)
 
 Containerization for the API is provided via `Dockerfile` and `docker-compose.yml` (web/static frontend remains a separate concern per the chosen split).
 
 ```bash
-# Build and run API container (reads .env; ensure CORS_ORIGIN/TURSO_* as needed)
-docker compose up --build
+# Containerized local API (foreground): frees host port 3002, builds/runs compose,
+# and on exit/interrupt tears down with `docker compose down --remove-orphans` and
+# clears the port.
+bun run dev:docker
+# alias: bun run docker:dev
 
-# Or run in background
-docker compose up -d --build
+# Detached
+bun run docker:up
 
-# Logs / stop
-docker compose logs -f api
-docker compose down
+# Teardown + clear port
+bun run docker:down
+
+# Logs / direct compose (if needed)
+sudo docker compose logs -f api
 ```
 
 - API listens on `http://localhost:${PORT:-3002}` (container port 3002). Configure `CORS_ORIGIN` for your web origin (e.g. `http://localhost:5173` when running Vite locally).
