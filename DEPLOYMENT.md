@@ -4,11 +4,11 @@ Targets a split, cloud-first setup for weak/tablet clients: **static web + long-
 
 ## Chosen split (recommended, compatible now)
 
-| Layer | Where | Why |
-|---|---|---|
-| **Web (SPA)** | **Cloudflare Pages** | Global static CDN; Vite build output. (Netlify also works — `netlify.toml` included.) |
-| **API** | **Render** (Docker web service) | Long-running Bun/Hono server: streaming, server-side embeddings/model init/download/cache, in-process state. Not drop-in for edge/serverless runtimes. |
-| **Remote associative/vector memory** | **Turso/libSQL (cloud)** | Persisted, installation-scoped opt-in memory via `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`. Conversations remain local unless cloud sync is implemented (opt-in, follow-up). |
+| Layer                                | Where                           | Why                                                                                                                                                                        |
+| ------------------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Web (SPA)**                        | **Cloudflare Pages**            | Global static CDN; Vite build output. (Netlify also works — `netlify.toml` included.)                                                                                      |
+| **API**                              | **Render** (Docker web service) | Long-running Bun/Hono server: streaming, server-side embeddings/model init/download/cache, in-process state. Not drop-in for edge/serverless runtimes.                     |
+| **Remote associative/vector memory** | **Turso/libSQL (cloud)**        | Persisted, installation-scoped opt-in memory via `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`. Conversations remain local unless cloud sync is implemented (opt-in, follow-up). |
 
 Use your **Cloudflare** account for Pages (and DNS/domain/proxy as desired). Keep the **API on Render** (or another long-running host) while using the current server implementation. Turso is external to both.
 
