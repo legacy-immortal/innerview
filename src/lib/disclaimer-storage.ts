@@ -43,6 +43,12 @@ export function clearAllSettings(): void {
   try {
     // Clear disclaimer
     localStorage.removeItem(STORAGE_KEY);
+    // Clear capabilities confirmation (re-announce on next launch)
+    try {
+      localStorage.removeItem('innerview.capabilitiesConfirmed');
+    } catch {
+      // ignore
+    }
     // Clear settings store (zustand persist key)
     localStorage.removeItem('innerview-settings');
     console.log('All settings cleared. Refresh the page to re-initialize.');

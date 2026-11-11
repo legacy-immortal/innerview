@@ -81,8 +81,8 @@ export const DEFAULTS = {
     },
   },
   transcription: {
-    provider: 'openai' as const,
-    modelId: 'whisper-1',
+    provider: 'local' as const,
+    modelId: 'whisper-backend',
     timestampGranularities: ['segment'],
     task: 'transcribe' as const,
     openai: {
@@ -90,7 +90,8 @@ export const DEFAULTS = {
       timestampGranularities: ['segment'],
     },
     local: {
-      modelId: 'Xenova/whisper-base',
+      mode: 'backend' as const,
+      modelId: 'whisper-backend',
       quantized: true,
       task: 'transcribe' as const,
     },

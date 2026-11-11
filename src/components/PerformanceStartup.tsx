@@ -1,5 +1,12 @@
-// Startup component that detects performance and configures app accordingly
-import type { DetectionStageDisplay } from '@/components/DisclaimerDialog';
+// Startup component that detects performance and configures app accordingly.
+//
+// Bootstrap order:
+//   1. Disclaimer (standalone alert modal)
+//   2. Prelaunch loader checklist (detection + model bootstrap)
+//   3. Capabilities announcement dialog (recommended settings, editable)
+//   4. App (retro chat view)
+import type { DetectionStageDisplay } from '@/components/CapabilitiesDialog';
+import { CapabilitiesDialog } from '@/components/CapabilitiesDialog';
 import { DisclaimerDialog } from '@/components/DisclaimerDialog';
 import { SystemOfflineView } from '@/components/SystemOfflineView';
 import { ModelDownloadProgressView } from '@/components/performance/ModelDownloadProgress';
@@ -22,9 +29,6 @@ export function PerformanceStartup({
   const getPerformanceSettings = useSettingsStore(
     (s) => s.getPerformanceSettings
   );
-  const getGenerationSettings = useSettingsStore(
-    (s) => s.getGenerationSettings
-  );
   // Auto-hide the background download toast a few seconds after settling so
   // it never becomes a permanent overlay.
   const [showBackgroundProgress, setShowBackgroundProgress] = useState(true);
@@ -44,6 +48,21 @@ export function PerformanceStartup({
     return () => clearTimeout(timer);
   }, [modelsSettled]);
 
+  if (state.showRejected) {
+    return <SystemOfflineView />;
+  }
+
+  // Step 1: standalone disclaimer alert modal (separate from bootstrap view).
+  if (state.showDisclaimer) {
+    return (
+      <DisclaimerDialog
+        onAccept={() => state.handleDisclaimerAccept()}
+        onReject={() => state.setShowRejected(true)}
+      />
+    );
+  }
+
+  // Step 2: prelaunch loader checklist (pure progress view, no dialogs).
   if (state.isDetecting) {
     return (
       <PerformanceDetectionView
@@ -54,40 +73,25 @@ export function PerformanceStartup({
         providerStatus={state.providerStatus}
         kokoroProgress={state.kokoroProgress}
         whisperProgress={state.whisperProgress}
-        modelPreloadOptInRequired={state.modelPreloadOptInRequired}
-        modelPreloadOptIn={state.modelPreloadOptIn}
         isModelPreloading={state.isModelPreloading}
-        onModelPreloadOptInChange={state.setModelPreloadOptIn}
-        onConfirmModelPreload={() => {
-          void state.confirmModelPreloadOptIn();
-        }}
-        onSkipModelPreload={() => {
-          void state.declineModelPreloadOptIn();
-        }}
       />
     );
   }
 
-  if (state.showRejected) {
-    return <SystemOfflineView />;
-  }
-
-  if (state.showDisclaimer && state.metrics) {
+  // Step 3: capabilities announcement dialog (recommended settings, editable).
+  if (state.showCapabilities && state.metrics) {
     const recommendedTier =
       getPerformanceSettings()?.tier ?? state.metrics.tier;
-    const currentGeneration = getGenerationSettings();
     return (
-      <DisclaimerDialog
+      <CapabilitiesDialog
         metrics={state.metrics}
         stages={state.stages as DetectionStageDisplay[]}
         recommendedTier={recommendedTier}
-        detectedProviders={state.detectedProviders}
-        initialBaseURL={currentGeneration?.baseURL}
-        initialApiKey={currentGeneration?.apiKey}
-        onAccept={(selectedTier, providerConfig) =>
-          state.handleDisclaimerAccept(selectedTier, providerConfig)
+        recommendedTranscription={state.recommendedTranscription}
+        providerLabel={state.providerLabel}
+        onConfirm={(selectedTier, transcriptionMode) =>
+          state.handleCapabilitiesConfirm(selectedTier, transcriptionMode)
         }
-        onReject={() => state.setShowRejected(true)}
       />
     );
   }

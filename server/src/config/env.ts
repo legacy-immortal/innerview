@@ -23,6 +23,8 @@ const envSchema = z.object({
   NVIDIA_NIM_API_KEY: z.string().optional(),
   NVIDIA_API_KEY: z.string().optional(),
   ZEN_API_KEY: z.string().optional(),
+  /** NVIDIA NIM speech-to-text model for server-side transcription. */
+  NIM_TRANSCRIPTION_MODEL: z.string().default('nvidia/parakeet-ctc-1.1b-asr'),
 
   // TTS Feature Flags
   ENABLE_TTS_PROXY: z.coerce.boolean().default(false),

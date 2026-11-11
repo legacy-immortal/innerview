@@ -86,9 +86,11 @@ const DEFAULT_TTS_SETTINGS: TTSSettings = {
 };
 
 const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = {
-  provider: 'openai',
+  // Cloud-first: server-side transcription (NVIDIA NIM when configured,
+  // local Whisper fallback on the server). No BYOK required.
+  provider: 'local',
   language: undefined,
-  modelId: 'whisper-1',
+  modelId: 'whisper-backend',
   timestampGranularities: ['segment'],
   task: 'transcribe',
   openai: {
@@ -96,7 +98,8 @@ const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = {
     timestampGranularities: ['segment'],
   },
   local: {
-    modelId: 'Xenova/whisper-base',
+    mode: 'backend',
+    modelId: 'whisper-backend',
     quantized: true,
     task: 'transcribe',
   },
@@ -352,7 +355,7 @@ export const useSettingsStore = create<SettingsStore>()(
         const merged: TranscriptionSettings = {
           ...existing,
           ...updates,
-          provider: updates.provider || existing.provider || 'openai',
+          provider: updates.provider || existing.provider || 'local',
           openai: {
             ...existing.openai,
             ...updates.openai,

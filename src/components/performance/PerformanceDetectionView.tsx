@@ -5,7 +5,6 @@ import type { PerformanceMetrics } from '@/lib/performance-detector';
 import type { ProviderStatus } from '@/lib/provider-status';
 import { DetectionStagesList } from './DetectionStagesList';
 import { ModelDownloadProgressView } from './ModelDownloadProgress';
-import { ModelPreloadOptInDialog } from './ModelPreloadOptInDialog';
 import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import type { DetectionStage } from '@/lib/performanceStartupUtils';
 
@@ -17,15 +16,8 @@ export interface PerformanceDetectionViewProps {
   providerStatus: ProviderStatus | null;
   kokoroProgress: ModelDownloadProgress | null;
   whisperProgress: ModelDownloadProgress | null;
-  /** True while the device is overburdened and waiting for the opt-in choice. */
-  modelPreloadOptInRequired?: boolean;
-  /** Checkbox state for the opt-in dialog. */
-  modelPreloadOptIn?: boolean;
   /** True while an opt-in-confirmed preload is running. */
   isModelPreloading?: boolean;
-  onModelPreloadOptInChange?: (checked: boolean) => void;
-  onConfirmModelPreload?: () => void;
-  onSkipModelPreload?: () => void;
 }
 
 export function PerformanceDetectionView({
@@ -36,12 +28,7 @@ export function PerformanceDetectionView({
   providerStatus,
   kokoroProgress,
   whisperProgress,
-  modelPreloadOptInRequired = false,
-  modelPreloadOptIn = false,
   isModelPreloading = false,
-  onModelPreloadOptInChange,
-  onConfirmModelPreload,
-  onSkipModelPreload,
 }: PerformanceDetectionViewProps) {
   const showBackground =
     metrics && metrics.tier !== 'low' && metrics.supportsWebGL2;
@@ -346,17 +333,6 @@ export function PerformanceDetectionView({
               )}
             </Box>
           )}
-
-        {modelPreloadOptInRequired && (
-          <ModelPreloadOptInDialog
-            metrics={metrics}
-            optIn={modelPreloadOptIn}
-            isPreloading={isModelPreloading}
-            onOptInChange={onModelPreloadOptInChange ?? (() => undefined)}
-            onContinue={onConfirmModelPreload ?? (() => undefined)}
-            onSkip={onSkipModelPreload ?? (() => undefined)}
-          />
-        )}
 
         <ModelDownloadProgressView
           kokoroProgress={kokoroProgress}

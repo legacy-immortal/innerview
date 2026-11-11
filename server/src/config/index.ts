@@ -13,6 +13,9 @@ export interface AIConfig {
   openaiApiKey?: string;
   openaiBaseURL?: string;
   zenApiKey?: string;
+  nvidiaNimApiKey?: string;
+  nvidiaApiKey?: string;
+  nimTranscriptionModel: string;
 }
 
 export interface TTSFeatureConfig {
@@ -78,6 +81,9 @@ class ConfigService {
       openaiApiKey: this.env.OPENAI_API_KEY,
       openaiBaseURL: this.env.OPENAI_BASE_URL,
       zenApiKey: this.env.ZEN_API_KEY,
+      nvidiaNimApiKey: this.env.NVIDIA_NIM_API_KEY,
+      nvidiaApiKey: this.env.NVIDIA_API_KEY,
+      nimTranscriptionModel: this.env.NIM_TRANSCRIPTION_MODEL,
     };
   }
 

@@ -3,39 +3,41 @@
  * @module hooks/usePerformanceStartup
  *
  * Performance detection orchestration hook (extracted from PerformanceStartup.tsx).
+ * Bootstrap order: standalone disclaimer alert -> prelaunch loader checklist
+ * (detection + model bootstrap) -> capabilities announcement dialog -> app.
  * Runs device performance detection on startup, stages progress through CPU,
  * memory, GPU, WebGL, WebGPU, frame rate, speech synthesis, transcription,
- * and AI provider checks, handles the model preload opt-in flow (Whisper as
- * a blocking bootstrap step, Kokoro as non-blocking idle download), and owns
- * the startup completion latch and a 45s failsafe that never strands the user.
+ * and AI provider checks. Compute-heavy work runs on server-side NVIDIA NIM,
+ * so overburdened hardware skips local model downloads instead of blocking
+ * on an opt-in. Owns the startup completion latch and a 45s failsafe that
+ * never strands the user.
  */
 import {
   getDisclaimerAccepted,
   setDisclaimerAccepted,
 } from '@/lib/disclaimer-storage';
 import {
+  getCapabilitiesConfirmed,
+  setCapabilitiesConfirmed,
+} from '@/lib/capabilities-storage';
+import {
   preloadKokoroModel,
   preloadWhisperModel,
   type ModelDownloadProgress,
 } from '@/lib/model-preloader';
 import {
-  canPreloadModels,
   detectPerformanceCached,
   generatePerformanceSettings,
   getPerformanceSettingsForTier,
   isHardwareOverburdened,
   type PerformanceMetrics,
 } from '@/lib/performance-detector';
-import {
-  getModelPreloadOptIn,
-  setModelPreloadOptInStored,
-} from '@/lib/model-preload-opt-in-storage';
+import type { TranscriptionMode } from '@/components/CapabilitiesDialog';
 import {
   useProviderStatusStore,
   type ProviderStatus,
 } from '@/lib/provider-status';
 import { useSettingsStore } from '@/lib/settings-store';
-import { apiUrl } from '@/lib/api-base';
 import { useEffect, useRef, useState } from 'react';
 import {
   buildStagesFromMetrics,
@@ -74,7 +76,12 @@ export interface PerformanceStartupState {
   isDetecting: boolean;
   showDisclaimer: boolean;
   showRejected: boolean;
-  detectedProviders: Array<{ name: string; baseURL: string }>;
+  /** True while the capabilities dialog is announced and editable. */
+  showCapabilities: boolean;
+  /** Recommended transcription compute path for the capabilities dialog. */
+  recommendedTranscription: TranscriptionMode;
+  /** Human-readable compute provider announcement for the dialog. */
+  providerLabel: string;
   metrics: PerformanceMetrics | null;
   progress: number;
   currentStage: number;
@@ -82,21 +89,20 @@ export interface PerformanceStartupState {
   providerStatus: ProviderStatus | null;
   kokoroProgress: ModelDownloadProgress | null;
   whisperProgress: ModelDownloadProgress | null;
-  /** True while waiting for the model preload opt-in on overburdened hardware. */
-  modelPreloadOptInRequired: boolean;
-  /** Checkbox state for the model preload opt-in dialog. */
-  modelPreloadOptIn: boolean;
   /** True while an opt-in-confirmed model preload is running. */
   isModelPreloading: boolean;
   setShowDisclaimer: (v: boolean) => void;
   setShowRejected: (v: boolean) => void;
-  handleDisclaimerAccept: (
+  /** Accept the standalone disclaimer; starts the prelaunch detection. */
+  handleDisclaimerAccept: () => void;
+  /**
+   * Confirm the announced capabilities; persists the chosen tier and
+   * transcription mode, then finishes startup.
+   */
+  handleCapabilitiesConfirm: (
     selectedTier: Parameters<typeof getPerformanceSettingsForTier>[1],
-    providerConfig: { baseURL: string; apiKey?: string }
+    transcriptionMode: TranscriptionMode
   ) => void;
-  setModelPreloadOptIn: (v: boolean) => void;
-  confirmModelPreloadOptIn: () => Promise<void>;
-  declineModelPreloadOptIn: () => Promise<void>;
 }
 
 /**
@@ -122,20 +128,21 @@ function scheduleIdleCallback(callback: () => void): void {
 
 /**
  * Performance detection orchestration hook.
+ * Bootstrap order: standalone disclaimer alert -> prelaunch loader checklist
+ * (detection + model bootstrap) -> capabilities announcement dialog -> app.
  * Runs device performance detection on startup, stages progress through CPU,
  * memory, GPU, WebGL, WebGPU, frame rate, speech synthesis, transcription,
- * and AI provider checks, handles the model preload opt-in flow (Whisper as
- * a blocking bootstrap step; Kokoro as a non-blocking idle download), and
- * owns the startup completion latch plus a 45s failsafe that never strands
- * the user. Exposed on `window.__innerviewForceStartup` as a dev/testing
- * escape hatch.
- * @param onComplete - Callback fired when startup finishes (disclaimer
- * accepted or detection complete).
+ * and AI provider checks, and owns the startup completion latch plus a 45s
+ * failsafe that never strands the user. Exposed on
+ * `window.__innerviewForceStartup` as a dev/testing escape hatch.
+ * @param onComplete - Callback fired when startup finishes (capabilities
+ * confirmed, or immediately when disclaimer + capabilities were confirmed
+ * on a previous launch).
  * @returns Performance startup state and actions.
  * @example
  * ```tsx
  * const { isDetecting, progress, stages, handleDisclaimerAccept,
- *   confirmModelPreloadOptIn, declineModelPreloadOptIn } =
+ *   handleCapabilitiesConfirm } =
  *   usePerformanceStartup(() => setStartupComplete(true));
  * ```
  */
@@ -143,11 +150,14 @@ export function usePerformanceStartup(
   onComplete: () => void
 ): PerformanceStartupState {
   const [isDetecting, setIsDetecting] = useState(true);
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAcceptedState] = useState(() =>
+    getDisclaimerAccepted()
+  );
+  const [showDisclaimer, setShowDisclaimer] = useState(
+    () => !getDisclaimerAccepted()
+  );
   const [showRejected, setShowRejected] = useState(false);
-  const [detectedProviders, setDetectedProviders] = useState<
-    Array<{ name: string; baseURL: string }>
-  >([]);
+  const [showCapabilities, setShowCapabilities] = useState(false);
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStage, setCurrentStage] = useState(0);
@@ -171,9 +181,6 @@ export function usePerformanceStartup(
     useState<ModelDownloadProgress | null>(null);
   const [whisperProgress, setWhisperProgress] =
     useState<ModelDownloadProgress | null>(null);
-  const [modelPreloadOptInRequired, setModelPreloadOptInRequired] =
-    useState(false);
-  const [modelPreloadOptIn, setModelPreloadOptInState] = useState(false);
   const [isModelPreloading, setIsModelPreloading] = useState(false);
   const savePerformanceSettings = useSettingsStore(
     (state) => state.savePerformanceSettings
@@ -181,25 +188,20 @@ export function usePerformanceStartup(
   const getPerformanceSettings = useSettingsStore(
     (state) => state.getPerformanceSettings
   );
-  const getGenerationSettings = useSettingsStore(
-    (state) => state.getGenerationSettings
-  );
-  const updateGenerationSettings = useSettingsStore(
-    (state) => state.updateGenerationSettings
+  const updateTranscriptionSettings = useSettingsStore(
+    (state) => state.updateTranscriptionSettings
   );
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
   // Prevent duplicate transcription test when effect runs twice (e.g. Strict Mode or HMR)
   const transcriptionTestStartedRef = useRef(false);
-  // Latest metrics (kept in a ref so opt-in confirm/decline handlers can preload)
+  // Latest metrics (kept in a ref so the capabilities confirm handler can use them)
   const latestMetricsRef = useRef<PerformanceMetrics | null>(null);
-  // True while startup is paused waiting for the opt-in decision
-  const modelPreloadOptInPendingRef = useRef(false);
   // Latest onComplete callback (ref avoids stale closures in async flow)
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
-  // Guards so startup completes exactly once after an opt-in decision
+  // Guards so startup completes exactly once
   const startupFinishedRef = useRef(false);
   // Bootstrap latch: once startup has finished, no model preload may ever
   // start again. Guards against the detection effect re-running
@@ -209,8 +211,9 @@ export function usePerformanceStartup(
   const isModelPreloadingRef = useRef(false);
 
   /**
-   * Move from detection to the disclaimer or app.
-   * Runs once startup is no longer paused for an opt-in decision.
+   * Move from detection to the capabilities dialog or app.
+   * The disclaimer is accepted before detection ever runs (it is step 1),
+   * so this only gates on the capabilities confirmation.
    */
   const finishStartup = () => {
     if (startupFinishedRef.current) return;
@@ -218,23 +221,10 @@ export function usePerformanceStartup(
     // Latch before the app mounts: any later preload attempt is a no-op.
     bootstrapFinishedRef.current = true;
     setIsDetecting(false);
-    if (getDisclaimerAccepted()) {
+    if (getCapabilitiesConfirmed()) {
       onCompleteRef.current();
     } else {
-      (async () => {
-        try {
-          const controller = new AbortController();
-          const tid = window.setTimeout(() => controller.abort(), 4000);
-          const res = await fetch(apiUrl('/api/provider/scan'), {
-            signal: controller.signal,
-          }).then((r) => r.json());
-          window.clearTimeout(tid);
-          setDetectedProviders(res.providers ?? []);
-        } catch {
-          setDetectedProviders([]);
-        }
-        setShowDisclaimer(true);
-      })();
+      setShowCapabilities(true);
     }
   };
 
@@ -328,6 +318,12 @@ export function usePerformanceStartup(
     // re-render created a new onComplete identity), do nothing — detection
     // and model preloads are bootstrap-only.
     if (bootstrapFinishedRef.current) {
+      return;
+    }
+    // The disclaimer is step 1 of bootstrap: detection only runs after it
+    // is accepted. `disclaimerAccepted` is a dep so accepting re-runs the
+    // effect and starts detection.
+    if (!disclaimerAccepted) {
       return;
     }
     let aborted = false;
@@ -516,19 +512,15 @@ export function usePerformanceStartup(
 
           latestMetricsRef.current = detectedMetrics;
 
-          // Check if we should preload models
-          // Capable devices auto-preload (medium/high tier) unless the
-          // hardware is overburdened (low RAM/GPU tier), in which case the
-          // user must opt in first.
-          const isCapable = canPreloadModels(detectedMetrics);
+          // Check if we should preload models.
+          // Cloud-first: server-side NVIDIA NIM handles compute-heavy work,
+          // so overburdened hardware never downloads local models — it uses
+          // the server path announced in the capabilities dialog instead.
           const overburdened = isHardwareOverburdened(detectedMetrics);
-          const storedOptIn = getModelPreloadOptIn();
           const autoPreload =
-            isCapable &&
             !overburdened &&
             (detectedMetrics.tier === 'medium' ||
               detectedMetrics.tier === 'high');
-          const needsOptIn = isCapable && overburdened && storedOptIn === null;
 
           console.log('[PerformanceStartup] First run detection:', {
             tier: detectedMetrics.tier,
@@ -537,7 +529,6 @@ export function usePerformanceStartup(
             supportsWebGPU: detectedMetrics.supportsWebGPU,
             overburdened,
             autoPreload,
-            needsOptIn,
           });
 
           // Generate settings based on detected performance
@@ -563,22 +554,12 @@ export function usePerformanceStartup(
             scheduleIdleCallback(() => {
               void startKokoroPreload(detectedMetrics);
             });
-          } else if (needsOptIn) {
-            // Pause completion until the user decides; the opt-in handlers
-            // in this hook preload (if opted in) and finish startup.
-            modelPreloadOptInPendingRef.current = true;
-            setModelPreloadOptInRequired(true);
-          } else if (
-            isCapable &&
-            overburdened &&
-            storedOptIn === true &&
-            shouldPreloadWhisper(detectedMetrics)
-          ) {
-            // Previously opted in on overburdened hardware: blocking bootstrap.
-            await startWhisperPreload();
-            scheduleIdleCallback(() => {
-              void startKokoroPreload(detectedMetrics);
-            });
+          } else if (overburdened) {
+            // Overburdened hardware skips local model downloads entirely:
+            // transcription and generation run on server-side NVIDIA NIM.
+            console.log(
+              '[PerformanceStartup] Overburdened hardware: skipping local model preload (server compute will be used).'
+            );
           }
         } else {
           // Settings exist: use cached metrics but animate through init steps
@@ -593,18 +574,9 @@ export function usePerformanceStartup(
             setStages
           );
 
-          // Overburdened devices: remember the prior choice or ask first.
-          const cachedCapable = canPreloadModels(cached);
+          // Cloud-first: overburdened devices skip local model downloads and
+          // use server-side NVIDIA NIM instead (announced in capabilities).
           const cachedOverburdened = isHardwareOverburdened(cached);
-          const cachedStoredOptIn = getModelPreloadOptIn();
-          const cachedNeedsOptIn =
-            cachedCapable && cachedOverburdened && cachedStoredOptIn === null;
-          // Remembered opt-in only applies on overburdened hardware; on
-          // capable hardware the regular transcription-test branch below loads
-          // Whisper (never after bootstrap, never without opt-in when
-          // overburdened).
-          const cachedOptedIn =
-            cachedCapable && cachedOverburdened && cachedStoredOptIn === true;
 
           // Preload backend Whisper on cached runs so it's ready for first
           // transcription (avoids post-bootstrap on-demand load).
@@ -616,20 +588,9 @@ export function usePerformanceStartup(
             supportsLocalTranscription: cached.supportsLocalTranscription,
             shouldTestTranscription,
             overburdened: cachedOverburdened,
-            needsOptIn: cachedNeedsOptIn,
           });
 
-          if (cachedNeedsOptIn) {
-            // Pause completion until the user decides.
-            modelPreloadOptInPendingRef.current = true;
-            setModelPreloadOptInRequired(true);
-          } else if (cachedOptedIn && shouldPreloadWhisper(cached)) {
-            // Previously opted in on overburdened hardware: blocking bootstrap.
-            await startWhisperPreload();
-            scheduleIdleCallback(() => {
-              void startKokoroPreload(cached);
-            });
-          } else if (
+          if (
             shouldTestTranscription &&
             !cachedOverburdened &&
             shouldPreloadWhisper(cached) &&
@@ -682,9 +643,10 @@ export function usePerformanceStartup(
           clearInterval(progressIntervalRef.current);
           progressIntervalRef.current = null;
         }
-        // If waiting for the opt-in decision, stay on the detection view
-        // until the user confirms or declines.
-        if (!aborted && !modelPreloadOptInPendingRef.current) {
+        // Detection is a pure checklist: nothing blocks on a decision here.
+        // (Cloud-first: overburdened hardware skips local preloads and uses
+        // server-side NVIDIA NIM, confirmed in the capabilities dialog.)
+        if (!aborted) {
           finishStartup();
         }
       }
@@ -693,13 +655,11 @@ export function usePerformanceStartup(
     void detectAndConfigure();
     // Global failsafe: detection/animation must never strand the user on the
     // bootstrap screen (e.g. rAF/timer stalls in headless or a hung probe).
-    // Does not fire while opt-in is pending (user decision required) or while
-    // an intentional Whisper preload is showing progress.
+    // Does not fire while an intentional Whisper preload is showing progress.
     const failsafeId = window.setTimeout(() => {
       if (
         !aborted &&
         !startupFinishedRef.current &&
-        !modelPreloadOptInPendingRef.current &&
         !isModelPreloadingRef.current
       ) {
         console.warn(
@@ -709,6 +669,7 @@ export function usePerformanceStartup(
       }
     }, 45000);
     // NOTE: `onComplete` deliberately excluded — finishStartup uses onCompleteRef.
+    // `disclaimerAccepted` re-runs detection after the disclaimer is accepted.
     // Cleanup aborts StrictMode's first invocation so it doesn't interleave.
     return () => {
       aborted = true;
@@ -721,78 +682,66 @@ export function usePerformanceStartup(
   }, [
     savePerformanceSettings,
     getPerformanceSettings,
-    getGenerationSettings,
-    updateGenerationSettings,
     checkProvider,
+    disclaimerAccepted,
   ]);
 
+  /**
+   * Accept the standalone disclaimer (step 1). Persists acceptance and
+   * starts the prelaunch detection checklist.
+   */
   const handleDisclaimerAccept: PerformanceStartupState['handleDisclaimerAccept'] =
-    (selectedTier, providerConfig) => {
-      savePerformanceSettings(
-        getPerformanceSettingsForTier(metrics!, selectedTier)
-      );
-      updateGenerationSettings({
-        baseURL: providerConfig.baseURL,
-        apiKey: providerConfig.apiKey ?? '',
-      });
+    () => {
       setDisclaimerAccepted();
+      setDisclaimerAcceptedState(true);
       setShowDisclaimer(false);
-      onComplete();
-    };
-
-  const setModelPreloadOptIn: PerformanceStartupState['setModelPreloadOptIn'] =
-    (v) => {
-      setModelPreloadOptInState(v);
     };
 
   /**
-   * Resolve the pending opt-in via the dialog's primary button.
-   * Persists the checkbox choice, preloads both models when checked, then
-   * finishes startup. An unchecked box means "continue without preloading".
-   * @returns Resolves once any opt-in preload settles and startup finishes.
+   * Confirm the announced capabilities (step 3). Persists the chosen
+   * performance tier and transcription compute path, then enters the app.
+   * No API endpoint/key entry is required: compute-heavy work runs on
+   * server-provided NVIDIA NIM.
    */
-  const confirmModelPreloadOptIn: PerformanceStartupState['confirmModelPreloadOptIn'] =
-    async () => {
-      const optedIn = modelPreloadOptIn;
-      const detectedMetrics = latestMetricsRef.current;
-      setModelPreloadOptInStored(optedIn);
-      modelPreloadOptInPendingRef.current = false;
-      setModelPreloadOptInRequired(false);
-      if (
-        optedIn &&
-        detectedMetrics &&
-        canPreloadModels(detectedMetrics) &&
-        shouldPreloadWhisper(detectedMetrics)
-      ) {
-        // Whisper is a bootstrapping step: await it (with detailed progress
-        // on the detection screen) before finishing startup. Kokoro stays a
-        // non-blocking idle background download.
-        await startWhisperPreload();
-        scheduleIdleCallback(() => {
-          void startKokoroPreload(detectedMetrics);
-        });
+  const handleCapabilitiesConfirm: PerformanceStartupState['handleCapabilitiesConfirm'] =
+    (selectedTier, transcriptionMode) => {
+      const detectedMetrics = latestMetricsRef.current ?? metrics;
+      if (detectedMetrics) {
+        savePerformanceSettings(
+          getPerformanceSettingsForTier(detectedMetrics, selectedTier)
+        );
       }
-      finishStartup();
+      updateTranscriptionSettings({
+        provider: 'local',
+        local: {
+          mode: transcriptionMode === 'browser' ? 'browser' : 'backend',
+        },
+      });
+      setCapabilitiesConfirmed();
+      setShowCapabilities(false);
+      onCompleteRef.current();
     };
 
   /**
-   * Resolve the pending opt-in via Skip: persist a decline and finish
-   * startup without preloading.
-   * @returns Resolves once startup finishes.
+   * Server compute is always recommended: chat and transcription run on
+   * our NVIDIA NIM infrastructure, so the device never needs the compute
+   * to run a local model and transcription at the same time. Users with
+   * capable hardware may still choose on-device transcription.
    */
-  const declineModelPreloadOptIn: PerformanceStartupState['declineModelPreloadOptIn'] =
-    async () => {
-      setModelPreloadOptInStored(false);
-      modelPreloadOptInPendingRef.current = false;
-      setModelPreloadOptInRequired(false);
-      finishStartup();
-    };
+  const recommendedTranscription: TranscriptionMode = 'server';
+
+  const providerLabel =
+    providerStatus?.status === 'available'
+      ? `Chat and transcription run on server-provided NVIDIA NIM compute (${providerStatus.modelsAvailable ?? 'many'} models available). No API key or endpoint entry required.`
+      : 'Chat and transcription run on server-provided NVIDIA NIM compute. No API key or endpoint entry required.';
 
   return {
     isDetecting,
     showDisclaimer,
     showRejected,
-    detectedProviders,
+    showCapabilities,
+    recommendedTranscription,
+    providerLabel,
     metrics,
     progress,
     currentStage,
@@ -800,14 +749,10 @@ export function usePerformanceStartup(
     providerStatus,
     kokoroProgress,
     whisperProgress,
-    modelPreloadOptInRequired,
-    modelPreloadOptIn,
     isModelPreloading,
     setShowDisclaimer,
     setShowRejected,
     handleDisclaimerAccept,
-    setModelPreloadOptIn,
-    confirmModelPreloadOptIn,
-    declineModelPreloadOptIn,
+    handleCapabilitiesConfirm,
   };
 }

@@ -21,7 +21,7 @@ app.post('/api/transcription', async (c) => {
 
     const language = formData.get('language') as string | null;
 
-    // Transcribe the audio file
+    // Transcribe the audio file (NIM when configured, else local Whisper)
     const result = await transcriptionService.transcribeFile(audioFile, {
       language: language || undefined,
     });
@@ -31,6 +31,7 @@ app.post('/api/transcription', async (c) => {
       segments: result.segments,
       language: result.language,
       duration: result.duration,
+      engine: result.engine ?? 'local-whisper',
     });
   } catch (error) {
     logger.error(

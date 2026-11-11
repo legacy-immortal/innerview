@@ -12,6 +12,8 @@ import { existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import wavefile from 'wavefile';
+import { getConfig } from '../config/index.js';
+import { NVIDIA_BASE_URL } from '../config/env.js';
 import { createLogger } from '../logger.js';
 import { TtlCache, hashText } from '../utils/cache.js';
 import {
@@ -31,6 +33,8 @@ export interface TranscriptionResult {
   }>;
   language?: string;
   duration?: number;
+  /** Which engine produced the transcript. */
+  engine?: 'nvidia-nim' | 'local-whisper';
 }
 
 // Detailed download/loading progress for the Whisper model. Surfaced via
@@ -379,6 +383,111 @@ class TranscriptionService {
   }
 
   /**
+   * Resolve server-side NVIDIA NIM transcription credentials.
+   * Prefers explicit NVIDIA keys; falls back to the merged OpenAI-compatible
+   * config when it points at the NVIDIA endpoint (applyNvidiaFallbacks).
+   * @returns NIM baseURL/apiKey/model, or null when NIM is not configured.
+   */
+  private resolveNimConfig(): {
+    baseURL: string;
+    apiKey: string;
+    model: string;
+  } | null {
+    try {
+      const ai = getConfig().ai;
+      const explicitKey =
+        ai.nvidiaNimApiKey?.trim() || ai.nvidiaApiKey?.trim() || '';
+      const openaiBase = ai.openaiBaseURL?.trim().replace(/\/+$/, '') ?? '';
+      const isNimEndpoint =
+        openaiBase.toLowerCase() === NVIDIA_BASE_URL.toLowerCase();
+      const apiKey =
+        explicitKey || (isNimEndpoint ? ai.openaiApiKey?.trim() || '' : '');
+      if (!apiKey) return null;
+      return {
+        baseURL: NVIDIA_BASE_URL,
+        apiKey,
+        model: ai.nimTranscriptionModel,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Transcribe via NVIDIA NIM (OpenAI-compatible audio endpoint).
+   * Throws on any failure so callers can fall back to local Whisper.
+   * @param audioBytes - Raw audio bytes (WAV/MP3/FLAC).
+   * @param filename - Filename sent with the multipart upload.
+   * @param language - Language hint (default 'en').
+   * @returns NIM transcript with word/segment timing when provided.
+   */
+  private async transcribeViaNim(
+    audioBytes: Uint8Array,
+    filename: string,
+    language = 'en'
+  ): Promise<TranscriptionResult> {
+    const nim = this.resolveNimConfig();
+    if (!nim) throw new Error('NVIDIA NIM transcription is not configured');
+    const form = new FormData();
+    const audioBlob = new Blob([audioBytes as unknown as ArrayBuffer], {
+      type: 'audio/wav',
+    });
+    form.append('file', audioBlob, filename || 'audio.wav');
+    form.append('model', nim.model);
+    form.append('language', language);
+    form.append('response_format', 'verbose_json');
+    form.append('timestamp_granularities[]', 'segment');
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+    try {
+      const response = await fetch(`${nim.baseURL}/audio/transcriptions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${nim.apiKey}` },
+        body: form,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => response.statusText);
+        throw new Error(
+          `NIM transcription failed (${response.status}): ${detail.slice(0, 200)}`
+        );
+      }
+      const data = (await response.json()) as {
+        text?: string;
+        language?: string;
+        duration?: number;
+        segments?: Array<{
+          text?: string;
+          start?: number;
+          end?: number;
+        }>;
+      };
+      const segments = Array.isArray(data.segments)
+        ? data.segments.map((s) => ({
+            text: s.text ?? '',
+            startSecond: s.start ?? 0,
+            endSecond: s.end ?? 0,
+          }))
+        : [];
+      logger.info(
+        'NIM transcription completed, model=%s segments=%s',
+        nim.model,
+        segments.length
+      );
+      return {
+        text: data.text ?? '',
+        segments,
+        language: data.language || language,
+        duration: data.duration,
+        engine: 'nvidia-nim',
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
    * Transcribe audio data to text
    * @param audioData - Raw audio data as Uint8Array or ArrayBuffer
    * @param options - Transcription options (language is ignored for English-only model)
@@ -387,17 +496,11 @@ class TranscriptionService {
     audioData: Uint8Array | ArrayBuffer,
     options: { language?: string } = {}
   ): Promise<TranscriptionResult> {
-    await this.ensureInitialized();
-
-    if (!this.model) {
-      throw new Error('Transcription model not initialized');
-    }
-
     // Convert ArrayBuffer to Uint8Array if needed
     const uint8Data =
       audioData instanceof ArrayBuffer ? new Uint8Array(audioData) : audioData;
 
-    // Serve identical audio from cache instead of re-running Whisper.
+    // Serve identical audio from cache instead of re-running transcription.
     const cacheKey = hashText(uint8Data);
     const cachedResult = this.resultCache.get(cacheKey);
     if (cachedResult) {
@@ -406,6 +509,32 @@ class TranscriptionService {
         ...cachedResult,
         segments: cachedResult.segments.map((s) => ({ ...s })),
       };
+    }
+
+    // Cloud-first: use server-side NVIDIA NIM when configured (covers
+    // low-compute devices that cannot run transcription locally).
+    // Falls back to local Whisper on any NIM failure.
+    if (this.resolveNimConfig()) {
+      try {
+        const nimResult = await this.transcribeViaNim(
+          uint8Data,
+          'audio.wav',
+          options.language || 'en'
+        );
+        this.resultCache.set(cacheKey, nimResult);
+        return nimResult;
+      } catch (error) {
+        logger.warn(
+          'NIM transcription failed, falling back to local Whisper: %s',
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+
+    await this.ensureInitialized();
+
+    if (!this.model) {
+      throw new Error('Transcription model not initialized');
     }
 
     // Decode WAV to Float32Array at 16kHz for Whisper
@@ -453,20 +582,42 @@ class TranscriptionService {
       segments,
       language: result?.language || options.language || 'en',
       duration,
+      engine: 'local-whisper',
     };
     this.resultCache.set(cacheKey, finalResult);
     return finalResult;
   }
 
   /**
-   * Transcribe audio from a File object
-   * @param audioFile - Audio file to transcribe
-   * @param options - Transcription options
+   * Transcribe audio from a File object.
+   * Cloud-first: tries server-side NVIDIA NIM when configured, falls back
+   * to the local Whisper model (see {@link transcribe}).
+   * @param audioFile - Audio file to transcribe.
+   * @param options - Transcription options.
+   * @returns Transcription result including the engine used.
    */
   async transcribeFile(
     audioFile: File,
     options: { language?: string } = {}
   ): Promise<TranscriptionResult> {
+    // Prefer NIM for file uploads too (avoids decoding locally first).
+    if (this.resolveNimConfig()) {
+      try {
+        const bytes = new Uint8Array(await audioFile.arrayBuffer());
+        const nimResult = await this.transcribeViaNim(
+          bytes,
+          audioFile.name || 'audio.wav',
+          options.language || 'en'
+        );
+        this.resultCache.set(hashText(bytes), nimResult);
+        return nimResult;
+      } catch (error) {
+        logger.warn(
+          'NIM transcription failed, falling back to local Whisper: %s',
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
     const arrayBuffer = await audioFile.arrayBuffer();
     return this.transcribe(arrayBuffer, options);
   }
